@@ -1,0 +1,26 @@
+addrmap test_chip {
+    reg {
+        field {
+            sw = rw;
+            hw = r;
+        } data[31:0];
+    } control_reg @ 0x0;
+
+    reg {
+        field {
+            sw = r;
+            hw = w;
+        } status[7:0];
+        field {
+            sw = rw;
+            hw = rw;
+        } enable[8];
+    } status_reg @ 0x4;
+
+    reg {
+        field {
+            sw = rw;
+            hw = rw;
+        } value[31:0];
+    } data_reg[4] @ 0x100 += 0x4;
+};

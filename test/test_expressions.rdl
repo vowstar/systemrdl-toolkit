@@ -1,0 +1,72 @@
+// Test expression evaluation functionality
+addrmap test_expressions {
+    // Define register type containing expressions
+    reg expr_reg {
+        field {
+            sw = rw;
+            hw = r;
+            reset = 2 + 3;  // Arithmetic expression
+            desc = "Simple addition";
+        } add_field[7:0];
+
+        field {
+            sw = rw;
+            hw = r;
+            reset = 0x10 * 2;  // Multiplication expression
+            desc = "Multiplication";
+        } mult_field[15:8];
+
+        field {
+            sw = rw;
+            hw = r;
+            reset = (1 << 4) | 0x3;  // Bit operation expression
+            desc = "Bit operations";
+        } bit_field[23:16];
+
+        field {
+            sw = rw;
+            hw = r;
+            reset = 100 > 50 ? 0xFF : 0x00;  // Ternary expression
+            desc = "Ternary expression";
+        } ternary_field[31:24];
+    };
+
+    // Instantiate register
+    expr_reg reg1 @ 0x0000;
+
+    // Test complex expressions
+    reg complex_expr_reg {
+        field {
+            sw = rw;
+            hw = r;
+            reset = ((2 + 3) * 4) - 1;  // Compound expression
+            desc = "Complex arithmetic";
+        } complex_field[15:0];
+
+        field {
+            sw = rw;
+            hw = r;
+            reset = ~(0xF0 & 0xCC);  // Bit operation combination
+            desc = "Complex bit ops";
+        } bitwise_field[31:16];
+    };
+
+    complex_expr_reg reg2 @ 0x0004;
+
+    // Test bit range expressions
+    reg range_expr_reg {
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Dynamic range";
+        } dynamic_field[8+7:8];  // Expression in bit range
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Another dynamic range";
+        } another_field[31:16+0];  // Another bit range expression
+    };
+
+    range_expr_reg reg3 @ 0x0008;
+};

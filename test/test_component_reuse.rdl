@@ -1,0 +1,41 @@
+// Test named component definition and reuse
+addrmap test_named {
+    // Define a named register type
+    reg my_reg_type {
+        field {
+            sw = rw;
+            hw = r;
+        } data[31:0];
+    };
+
+    // Define another named register type
+    reg status_reg_type {
+        field {
+            sw = r;
+            hw = w;
+        } status[7:0];
+        field {
+            sw = rw;
+            hw = rw;
+        } control[15:8];
+    };
+
+    // Instantiate named components
+    my_reg_type reg1 @ 0x0000;
+    my_reg_type reg2 @ 0x0004;
+    my_reg_type reg3 @ 0x0008;
+
+    status_reg_type status1 @ 0x0010;
+    status_reg_type status2 @ 0x0014;
+
+    // Array instantiation
+    my_reg_type reg_array[4] @ 0x0020 += 0x4;
+
+    // Mix anonymous and named components
+    reg {
+        field {
+            sw = w;
+            hw = r;
+        } command[31:0];
+    } cmd_reg @ 0x0040;
+};

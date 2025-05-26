@@ -1,0 +1,80 @@
+// Simplified complex SystemRDL example - Remove unsupported features, keep expandable complex structures
+
+addrmap complex_system {
+    // Multiple register arrays of different sizes
+    reg {
+        field {
+            sw = rw;
+            hw = r;
+        } data[15:0];
+    } small_regs[8] @ 0x0000 += 0x4;
+
+    reg {
+        field {
+            sw = rw;
+            hw = r;
+        } data[63:0];
+    } big_regs[4] @ 0x0100 += 0x8;
+
+    // Complex register definition
+    reg {
+        field {
+            sw = rw;
+            hw = rw;
+        } ctrl[3:0];
+
+        field {
+            sw = r;
+            hw = w;
+        } status[11:4];
+
+        field {
+            sw = rw;
+            hw = rw;
+        } data[23:12];
+
+        field {
+            sw = w;
+            hw = r;
+        } flags[31:24];
+    } control_status @ 0x0200;
+
+    // Nested register group
+    reg {
+        field {
+            sw = rw;
+            hw = rw;
+        } element[31:0];
+    } matrix[16] @ 0x0300 += 0x4;  // Simplified to one-dimensional array
+
+    // More register instances
+    reg {
+        field {
+            sw = rw;
+            hw = r;
+        } data[31:0];
+    } misc_reg1 @ 0x0400;
+
+    reg {
+        field {
+            sw = r;
+            hw = w;
+        } status[7:0];
+        field {
+            sw = rw;
+            hw = rw;
+        } control[15:8];
+        field {
+            sw = w;
+            hw = r;
+        } command[31:16];
+    } misc_reg2 @ 0x0404;
+
+    // Large array test
+    reg {
+        field {
+            sw = rw;
+            hw = rw;
+        } value[31:0];
+    } large_array[32] @ 0x0500 += 0x4;
+};

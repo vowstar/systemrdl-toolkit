@@ -1,0 +1,68 @@
+// Test field bit range parsing
+addrmap test_bit_ranges {
+    // Define register type containing different bit ranges
+    reg multi_field_reg {
+        field {
+            sw = r;
+            hw = w;
+            desc = "Status bits";
+        } status[7:0];
+
+        field {
+            sw = rw;
+            hw = rw;
+            desc = "Control bits";
+        } control[15:8];
+
+        field {
+            sw = w;
+            hw = r;
+            desc = "Command bits";
+        } command[23:16];
+
+        field {
+            sw = rw;
+            hw = rw;
+            desc = "Data bits";
+            reset = 0xAB;
+        } data[31:24];
+    };
+
+    // Instantiate registers
+    multi_field_reg reg1 @ 0x0000;
+    multi_field_reg reg2 @ 0x0004;
+
+    // Test single-bit fields
+    reg single_bit_reg {
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Single bit flag";
+        } flag[0:0];
+
+        field {
+            sw = r;
+            hw = w;
+            desc = "Another single bit";
+        } enable[1:1];
+
+        field {
+            sw = rw;
+            hw = rw;
+            desc = "Wide field";
+        } wide_data[31:2];
+    };
+
+    single_bit_reg reg3 @ 0x0008;
+
+    // Test boundary cases
+    reg boundary_reg {
+        field {
+            sw = rw;
+            hw = rw;
+            desc = "Full 32-bit field";
+        } full[31:0];
+    };
+
+    boundary_reg reg4 @ 0x000C;
+};

@@ -1,0 +1,21 @@
+// Test simple parameter references
+addrmap test_simple_param_ref {
+    // Simple parameter references
+    reg simple_reg #(
+        longint WIDTH = 8,
+        longint DOUBLE_WIDTH = WIDTH * 2,
+        longint RESET_VAL = 255
+    ) {
+        field {
+            sw = rw;
+            hw = r;
+            reset = RESET_VAL;
+        } data[DOUBLE_WIDTH-1:0];
+    };
+
+    // Use default parameters
+    simple_reg reg_default @ 0x0000;
+
+    // Override parameters
+    simple_reg #(.WIDTH(4), .DOUBLE_WIDTH(8), .RESET_VAL(15)) reg_custom @ 0x0004;
+};

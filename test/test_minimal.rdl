@@ -1,0 +1,13 @@
+addrmap simple_chip {
+    reg {
+        field {
+            sw = rw;
+        } data[31:0];
+    } reg1 @ 0x0;
+
+    reg {
+        field {
+            sw = rw;
+        } status[7:0];
+    } reg2 @ 0x4;
+};

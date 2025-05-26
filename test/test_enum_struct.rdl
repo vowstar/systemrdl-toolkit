@@ -1,0 +1,85 @@
+// Test enum and struct support
+addrmap test_enum_struct {
+
+    // Define enum type
+    enum access_type_enum {
+        READ_ONLY = 0;
+        WRITE_ONLY = 1;
+        READ_WRITE = 2;
+        NO_ACCESS = 3;
+    };
+
+    enum status_enum {
+        IDLE = 0;
+        BUSY = 1;
+        ERROR = 2;
+        DONE = 3;
+    };
+
+    // Define struct type
+    struct config_struct {
+        longint timeout;
+        boolean enable;
+        access_type_enum access_mode;
+    };
+
+    // Register using enum
+    reg control_reg {
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Access control field";
+            encode = access_type_enum;
+        } access_ctrl[1:0];
+
+        field {
+            sw = r;
+            hw = w;
+            desc = "Status field";
+            encode = status_enum;
+        } status[3:2];
+
+        field {
+            sw = rw;
+            hw = r;
+            reset = 1;
+            desc = "Enable bit";
+        } enable[4:4];
+
+        field {
+            sw = rw;
+            hw = r;
+            reset = 0xFF;
+            desc = "Timeout value";
+        } timeout[15:8];
+    };
+
+    // Register using struct
+    reg config_reg {
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Configuration timeout";
+        } timeout[15:0];
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Configuration enable";
+        } enable[16:16];
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Configuration access mode";
+            encode = access_type_enum;
+        } access_mode[18:17];
+    };
+
+    // Instantiate registers
+    control_reg ctrl @ 0x0000;
+    config_reg cfg @ 0x0004;
+
+    // Array register using enum
+    control_reg ctrl_array[4] @ 0x0010 += 0x4;
+};

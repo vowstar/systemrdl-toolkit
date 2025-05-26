@@ -1,0 +1,23 @@
+// Test parameterized components
+addrmap test_param {
+    // Try to define a parameterized register
+    reg param_reg #(longint WIDTH = 32) {
+        field {
+            sw = rw;
+            hw = r;
+        } data[WIDTH-1:0];
+    };
+
+    // Instantiate parameterized registers
+    param_reg #(.WIDTH(16)) reg16 @ 0x0000;
+    param_reg #(.WIDTH(32)) reg32 @ 0x0004;
+    param_reg #(.WIDTH(64)) reg64 @ 0x0008;
+
+    // Normal register for comparison
+    reg {
+        field {
+            sw = rw;
+            hw = r;
+        } data[31:0];
+    } normal_reg @ 0x0010;
+};

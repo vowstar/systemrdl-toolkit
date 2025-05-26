@@ -1,0 +1,15 @@
+// Test parameterized array sizes
+addrmap test_param_arrays {
+    // Define parameterized register
+    reg param_reg #(longint WIDTH = 32) {
+        field {
+            sw = rw;
+            hw = r;
+        } data[WIDTH-1:0];
+    };
+
+    // Test parameterized array sizes
+    param_reg #(.WIDTH(8)) small_regs[2] @ 0x0000 += 0x4;
+    param_reg #(.WIDTH(16)) medium_regs[3] @ 0x0010 += 0x4;
+    param_reg #(.WIDTH(32)) large_regs[5] @ 0x0020 += 0x4;
+};

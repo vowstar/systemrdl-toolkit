@@ -1,0 +1,83 @@
+// Test expression evaluation in parameters
+addrmap test_param_expressions {
+    // Define parameterized components with expressions
+    reg expr_reg #(
+        longint BASE_WIDTH = 8,
+        longint TOTAL_WIDTH = BASE_WIDTH * 4,           // Multiplication expression
+        longint RESET_VAL = (1 << BASE_WIDTH) - 1,     // Bit operation expression
+        longint ADDR_STEP = 0x10 >> 2                   // Address step calculation
+    ) {
+        field {
+            sw = rw;
+            hw = r;
+            reset = RESET_VAL;
+            desc = "Field with calculated reset value";
+        } data[TOTAL_WIDTH-1:0];
+    };
+
+    // Define parameterized memory with size calculation using expressions
+    mem expr_mem #(
+        longint KB_SIZE = 4,
+        longint MEM_SIZE = KB_SIZE * 1024,              // Calculate byte count
+        longint ALIGN = 2**10                           // Power operation
+    ) {
+        // Memory configuration
+    };
+
+    // Use expressions during instantiation
+    expr_reg #(
+        .BASE_WIDTH(4),
+        .TOTAL_WIDTH(4 * 8),                            // Expression during instantiation
+        .RESET_VAL(0xFF & 0x0F),                        // Bit operation
+        .ADDR_STEP((0x20 + 0x10) / 2)                   // Arithmetic operation
+    ) reg1 @ 0x0000;
+
+    expr_reg #(
+        .BASE_WIDTH(6),
+        .TOTAL_WIDTH(6 + 10),                           // Addition
+        .RESET_VAL(100 > 50 ? 0xABCD : 0x1234),        // Ternary operator
+        .ADDR_STEP(8 << 1)                              // Left shift
+    ) reg2 @ 0x0004;
+
+    // Use default parameters (containing expressions)
+    expr_reg reg_default @ 0x0008;
+
+    // Use expressions when instantiating memory
+    expr_mem #(
+        .KB_SIZE(8),
+        .MEM_SIZE(8 * 1024 + 512),                      // Complex expression
+        .ALIGN(1 << 12)                                 // Bit shift operation
+    ) mem1 @ 0x10000000;
+
+    expr_mem #(
+        .KB_SIZE(2),
+        .MEM_SIZE((2 * 1024) * 2),                      // Parenthesized expression
+        .ALIGN(4096)                                    // Direct value
+    ) mem2 @ 0x20000000;
+
+    // Use default parameters for memory
+    expr_mem mem_default @ 0x30000000;
+
+    // Test nested expressions
+    reg complex_reg #(
+        longint A = 2,
+        longint B = 3,
+        longint C = A * B,                              // Reference other parameters
+        longint D = C + A,                              // Multi-level reference
+        longint FINAL = ((D * 2) + 1) << 1              // Complex nested expression
+    ) {
+        field {
+            sw = rw;
+            hw = r;
+            reset = FINAL;
+        } result[15:0];
+    };
+
+    complex_reg #(
+        .A(5),
+        .B(7),
+        .C(5 * 7),
+        .D((5 * 7) + 5),
+        .FINAL(((((5 * 7) + 5) * 2) + 1) << 1)
+    ) complex_inst @ 0x0010;
+};

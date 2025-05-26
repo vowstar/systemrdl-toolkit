@@ -1,0 +1,22 @@
+// Simple enum test
+addrmap test_simple_enum {
+
+    // Define simple enum
+    enum access_enum {
+        READ = 0;
+        WRITE = 1;
+        READWRITE = 2;
+    };
+
+    // Register using enum
+    reg test_reg {
+        field {
+            sw = rw;
+            hw = r;
+            encode = access_enum;
+            desc = "Access control with enum";
+        } access[1:0];
+    };
+
+    test_reg reg1 @ 0x0000;
+};

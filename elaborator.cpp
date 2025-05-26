@@ -1,0 +1,1592 @@
+#include "elaborator.h"
+#include <sstream>
+#include <algorithm>
+#include <set>
+
+namespace systemrdl {
+
+// ElaboratedNode implementation
+std::string ElaboratedNode::get_hierarchical_path() const {
+    if (parent == nullptr) {
+        return inst_name;
+    }
+    return parent->get_hierarchical_path() + "." + inst_name;
+}
+
+void ElaboratedNode::add_child(std::unique_ptr<ElaboratedNode> child) {
+    child->parent = this;
+    children.push_back(std::move(child));
+}
+
+PropertyValue* ElaboratedNode::get_property(const std::string& name) {
+    auto it = properties.find(name);
+    return (it != properties.end()) ? &it->second : nullptr;
+}
+
+void ElaboratedNode::set_property(const std::string& name, const PropertyValue& value) {
+    properties[name] = value;
+}
+
+// ElaboratedAddrmap implementation
+void ElaboratedAddrmap::accept_visitor(ElaboratedNodeVisitor& visitor) {
+    visitor.visit(*this);
+}
+
+ElaboratedNode* ElaboratedAddrmap::find_child_by_name(const std::string& name) const {
+    for (const auto& child : children) {
+        if (child->inst_name == name) {
+            return child.get();
+        }
+    }
+    return nullptr;
+}
+
+ElaboratedNode* ElaboratedAddrmap::find_child_by_address(Address addr) const {
+    for (const auto& child : children) {
+        if (child->absolute_address <= addr &&
+            addr < child->absolute_address + child->size) {
+            return child.get();
+        }
+    }
+    return nullptr;
+}
+
+// ElaboratedRegfile implementation
+void ElaboratedRegfile::accept_visitor(ElaboratedNodeVisitor& visitor) {
+    visitor.visit(*this);
+}
+
+ElaboratedNode* ElaboratedRegfile::find_child_by_name(const std::string& name) const {
+    for (const auto& child : children) {
+        if (child->inst_name == name) {
+            return child.get();
+        }
+    }
+    return nullptr;
+}
+
+ElaboratedNode* ElaboratedRegfile::find_child_by_address(Address addr) const {
+    for (const auto& child : children) {
+        if (child->absolute_address <= addr &&
+            addr < child->absolute_address + child->size) {
+            return child.get();
+        }
+    }
+    return nullptr;
+}
+
+// ElaboratedReg implementation
+void ElaboratedReg::accept_visitor(ElaboratedNodeVisitor& visitor) {
+    visitor.visit(*this);
+}
+
+ElaboratedField* ElaboratedReg::find_field_by_name(const std::string& name) const {
+    for (const auto& child : children) {
+        if (auto field = dynamic_cast<ElaboratedField*>(child.get())) {
+            if (field->inst_name == name) {
+                return field;
+            }
+        }
+    }
+    return nullptr;
+}
+
+ElaboratedField* ElaboratedReg::find_field_by_bit_range(size_t msb, size_t lsb) const {
+    for (const auto& child : children) {
+        if (auto field = dynamic_cast<ElaboratedField*>(child.get())) {
+            if (field->msb == msb && field->lsb == lsb) {
+                return field;
+            }
+        }
+    }
+    return nullptr;
+}
+
+// ElaboratedField implementation
+void ElaboratedField::accept_visitor(ElaboratedNodeVisitor& visitor) {
+    visitor.visit(*this);
+}
+
+// ElaboratedMem implementation
+void ElaboratedMem::accept_visitor(ElaboratedNodeVisitor& visitor) {
+    visitor.visit(*this);
+}
+
+ElaboratedNode* ElaboratedMem::find_child_by_name(const std::string& name) const {
+    for (const auto& child : children) {
+        if (child->inst_name == name) {
+            return child.get();
+        }
+    }
+    return nullptr;
+}
+
+ElaboratedNode* ElaboratedMem::find_child_by_address(Address addr) const {
+    for (const auto& child : children) {
+        if (child->absolute_address <= addr &&
+            addr < child->absolute_address + child->size) {
+            return child.get();
+        }
+    }
+    return nullptr;
+}
+
+// SystemRDLElaborator implementation
+SystemRDLElaborator::SystemRDLElaborator() = default;
+SystemRDLElaborator::~SystemRDLElaborator() = default;
+
+std::unique_ptr<ElaboratedAddrmap> SystemRDLElaborator::elaborate(
+    SystemRDLParser::RootContext* ast_root) {
+
+    errors_.clear();
+    component_definitions_.clear();
+    enum_definitions_.clear();
+    struct_definitions_.clear();
+
+    if (!ast_root) {
+        report_error("AST root is null");
+        return nullptr;
+    }
+
+    // First pass: collect enum and struct definitions
+    collect_enum_and_struct_definitions(ast_root);
+
+    // Second pass: collect all named component definitions (recursive)
+    collect_component_definitions(ast_root);
+
+    // Third pass: find top-level addrmap definition and elaborate
+    for (auto root_elem : ast_root->root_elem()) {
+        if (auto comp_def = root_elem->component_def()) {
+            if (auto named_def = comp_def->component_named_def()) {
+                if (auto addrmap_def = named_def->component_type()->component_type_primary()) {
+                    if (addrmap_def->getText() == "addrmap") {
+                        // Found addrmap definition, start elaboration
+                        auto elaborated = std::make_unique<ElaboratedAddrmap>();
+                        elaborated->inst_name = named_def->ID()->getText();
+                        elaborated->type_name = "addrmap";
+                        elaborated->absolute_address = 0;
+
+                        // Process addrmap content
+                        if (auto body = named_def->component_body()) {
+                            elaborate_component_body(body, elaborated.get());
+                        }
+
+                        return elaborated;
+                    }
+                }
+            }
+        }
+    }
+
+    report_error("No top-level addrmap found");
+    return nullptr;
+}
+
+void SystemRDLElaborator::elaborate_component_body(
+    SystemRDLParser::Component_bodyContext* body_ctx,
+    ElaboratedNode* parent) {
+
+    Address current_address = 0;
+
+    for (auto body_elem : body_ctx->component_body_elem()) {
+        if (auto comp_def = body_elem->component_def()) {
+            // Process component definitions and instantiation
+            elaborate_component_definition(comp_def, parent, current_address);
+        } else if (auto explicit_inst = body_elem->explicit_component_inst()) {
+            // Process explicit component instantiation (named component instantiation)
+            elaborate_explicit_component_inst(explicit_inst, parent, current_address);
+        } else if (auto local_prop = body_elem->local_property_assignment()) {
+            // Process local property assignment
+            elaborate_local_property_assignment(local_prop, parent);
+        } else if (auto dynamic_prop = body_elem->dynamic_property_assignment()) {
+            // Process dynamic property assignment
+            elaborate_dynamic_property_assignment(dynamic_prop, parent);
+        }
+    }
+}
+
+void SystemRDLElaborator::elaborate_component_definition(
+    SystemRDLParser::Component_defContext* comp_def,
+    ElaboratedNode* parent,
+    Address& current_address) {
+
+    if (auto anon_def = comp_def->component_anon_def()) {
+        // Anonymous definition + instantiation
+        std::string comp_type = get_component_type(anon_def->component_type());
+
+        if (auto insts = comp_def->component_insts()) {
+            for (auto inst : insts->component_inst()) {
+                elaborate_component_instance(anon_def, inst, parent, current_address, comp_type);
+            }
+        }
+    }
+}
+
+void SystemRDLElaborator::elaborate_component_instance(
+    SystemRDLParser::Component_anon_defContext* def_ctx,
+    SystemRDLParser::Component_instContext* inst_ctx,
+    ElaboratedNode* parent,
+    Address& current_address,
+    const std::string& comp_type) {
+
+    std::string inst_name = inst_ctx->ID()->getText();
+
+    // Check if it's an array
+    auto array_suffixes = inst_ctx->array_suffix();
+    if (!array_suffixes.empty()) {
+        elaborate_array_instance(def_ctx, inst_ctx, parent, current_address, comp_type);
+    } else {
+        // Single instance
+        auto node = create_elaborated_node(comp_type);
+        if (!node) return;
+
+        node->inst_name = inst_name;
+        node->type_name = comp_type;
+
+        // Calculate address
+        Address instance_address = current_address;
+        if (auto fixed_addr = inst_ctx->inst_addr_fixed()) {
+            instance_address = evaluate_address_expression(fixed_addr->expr());
+        }
+
+        node->absolute_address = parent->absolute_address + instance_address;
+
+        // Process field bit range
+        if (comp_type == "field") {
+            if (auto field_node = dynamic_cast<ElaboratedField*>(node.get())) {
+                elaborate_field_bit_range(inst_ctx, field_node);
+            }
+        }
+
+        // Process component body
+        if (auto body = def_ctx->component_body()) {
+            elaborate_component_body(body, node.get());
+        }
+
+        // Calculate size
+        calculate_node_size(node.get());
+
+        // Save size, because node is about to be moved
+        Size node_size = node->size;
+
+        parent->add_child(std::move(node));
+        current_address = instance_address + node_size;
+    }
+}
+
+void SystemRDLElaborator::elaborate_array_instance(
+    SystemRDLParser::Component_anon_defContext* def_ctx,
+    SystemRDLParser::Component_instContext* inst_ctx,
+    ElaboratedNode* parent,
+    Address& current_address,
+    const std::string& comp_type) {
+
+    std::string base_name = inst_ctx->ID()->getText();
+
+    // Parse array dimensions
+    auto array_suffixes = inst_ctx->array_suffix();
+    std::vector<size_t> dimensions;
+
+    if (!array_suffixes.empty()) {
+        auto array_suffix = array_suffixes[0]; // Take the first array suffix
+        if (auto expr = array_suffix->expr()) {
+            // Get array size from expression
+            size_t dim = evaluate_integer_expression(expr);
+            dimensions.push_back(dim > 0 ? dim : 4); // Default to 4 if parsing fails
+        } else {
+            dimensions.push_back(4); // Default size
+        }
+    }
+
+    // Calculate base address
+    Address base_address = current_address;
+    if (auto fixed_addr = inst_ctx->inst_addr_fixed()) {
+        base_address = evaluate_address_expression(fixed_addr->expr());
+    }
+
+    // Calculate stride
+    Address stride = 4; // Default 4-byte alignment
+    if (auto stride_addr = inst_ctx->inst_addr_stride()) {
+        stride = evaluate_address_expression(stride_addr->expr());
+    }
+
+    // Generate array instances
+    for (size_t i = 0; i < dimensions[0]; ++i) {
+        auto node = create_elaborated_node(comp_type);
+        if (!node) continue;
+
+        node->inst_name = base_name + "[" + std::to_string(i) + "]";
+        node->type_name = comp_type;
+        node->absolute_address = parent->absolute_address + base_address + i * stride;
+        node->array_dimensions = dimensions;
+        node->array_indices = {i};
+
+        // Process component body
+        if (auto body = def_ctx->component_body()) {
+            elaborate_component_body(body, node.get());
+        }
+
+        calculate_node_size(node.get());
+        parent->add_child(std::move(node));
+    }
+
+    current_address = base_address + dimensions[0] * stride;
+}
+
+std::unique_ptr<ElaboratedNode> SystemRDLElaborator::create_elaborated_node(
+    const std::string& type) {
+
+    if (type == "addrmap") {
+        return std::make_unique<ElaboratedAddrmap>();
+    } else if (type == "regfile") {
+        return std::make_unique<ElaboratedRegfile>();
+    } else if (type == "reg") {
+        return std::make_unique<ElaboratedReg>();
+    } else if (type == "field") {
+        return std::make_unique<ElaboratedField>();
+    } else if (type == "mem") {
+        return std::make_unique<ElaboratedMem>();
+    }
+
+    report_error("Unknown component type: " + type);
+    return nullptr;
+}
+
+std::string SystemRDLElaborator::get_component_type(
+    SystemRDLParser::Component_typeContext* type_ctx) {
+
+    if (auto primary = type_ctx->component_type_primary()) {
+        return primary->getText();
+    }
+    return "unknown";
+}
+
+Address SystemRDLElaborator::evaluate_address_expression(
+    SystemRDLParser::ExprContext* expr_ctx) {
+
+    // Use enhanced expression evaluator
+    auto result = evaluate_expression(expr_ctx);
+    if (result.type == PropertyValue::INTEGER) {
+        return static_cast<Address>(result.int_val);
+    }
+
+    // If unable to evaluate, try parsing as a number
+    std::string text = expr_ctx->getText();
+    if (!text.empty()) {
+        try {
+            Address result = 0;
+            if (text.substr(0, 2) == "0x" || text.substr(0, 2) == "0X") {
+                result = std::stoull(text, nullptr, 16);
+            } else {
+                result = std::stoull(text, nullptr, 10);
+            }
+            return result;
+        } catch (...) {
+            // Parsing failed, return 0
+        }
+    }
+
+    return 0;
+}
+
+size_t SystemRDLElaborator::evaluate_integer_expression(
+    SystemRDLParser::ExprContext* expr_ctx) {
+
+    return static_cast<size_t>(evaluate_integer_expression_enhanced(expr_ctx));
+}
+
+void SystemRDLElaborator::calculate_node_size(ElaboratedNode* node) {
+    if (!node) return;
+
+    if (auto reg_node = dynamic_cast<ElaboratedReg*>(node)) {
+        reg_node->size = reg_node->register_width / 8; // Byte count
+    } else if (auto field_node = dynamic_cast<ElaboratedField*>(node)) {
+        field_node->size = 0; // Field does not occupy independent address space
+    } else if (auto regfile_node = dynamic_cast<ElaboratedRegfile*>(node)) {
+        // regfile size is the address range of all its children
+        Address max_addr = 0;
+        for (const auto& child : regfile_node->children) {
+            Address child_end = child->absolute_address + child->size;
+            if (child_end > max_addr) {
+                max_addr = child_end;
+            }
+        }
+        regfile_node->size = max_addr - regfile_node->absolute_address;
+        if (regfile_node->size == 0) {
+            regfile_node->size = 4; // Minimum size
+        }
+    } else if (auto mem_node = dynamic_cast<ElaboratedMem*>(node)) {
+        // Memory size can be obtained from parameter or attribute
+        // First, try MEM_SIZE parameter
+        auto mem_size_param = resolve_parameter_reference("MEM_SIZE");
+        if (mem_size_param.type == PropertyValue::INTEGER && mem_size_param.int_val > 0) {
+            mem_node->size = static_cast<Size>(mem_size_param.int_val);
+            mem_node->memory_size = static_cast<Size>(mem_size_param.int_val);
+        } else {
+            // Try SIZE parameter
+            auto size_param = resolve_parameter_reference("SIZE");
+            if (size_param.type == PropertyValue::INTEGER && size_param.int_val > 0) {
+                mem_node->size = static_cast<Size>(size_param.int_val);
+                mem_node->memory_size = static_cast<Size>(size_param.int_val);
+            } else if (mem_node->memory_size > 0) {
+                mem_node->size = mem_node->memory_size;
+            } else {
+                // Default memory size: 4KB
+                mem_node->size = 4096;
+                mem_node->memory_size = 4096;
+            }
+        }
+
+        // Set memory type parameter
+        auto type_param = resolve_parameter_reference("TYPE");
+        if (type_param.type == PropertyValue::STRING) {
+            mem_node->memory_type = type_param.string_val;
+        }
+
+        // Set alignment parameter
+        auto align_param = resolve_parameter_reference("ALIGN");
+        if (align_param.type == PropertyValue::INTEGER && align_param.int_val > 0) {
+            // Can handle alignment requirements here, temporarily store as attribute
+            mem_node->set_property("alignment", align_param);
+        }
+
+        // Set KB_SIZE parameter (if exists)
+        auto kb_size_param = resolve_parameter_reference("KB_SIZE");
+        if (kb_size_param.type == PropertyValue::INTEGER) {
+            mem_node->set_property("kb_size", kb_size_param);
+        }
+    } else {
+        // For addrmap, simplified calculation: default size
+        node->size = 4; // Default 4 bytes
+    }
+}
+
+void SystemRDLElaborator::report_error(const std::string& message,
+                                      antlr4::ParserRuleContext* ctx) {
+    ElaborationError error;
+    error.message = message;
+    if (ctx) {
+        error.line = ctx->getStart()->getLine();
+        error.column = ctx->getStart()->getCharPositionInLine();
+    }
+    errors_.push_back(error);
+}
+
+// ElaboratedModelTraverser implementation
+void ElaboratedModelTraverser::traverse(ElaboratedNode& root) {
+    pre_visit(root);
+    root.accept_visitor(*this);
+    post_visit(root);
+}
+
+void ElaboratedModelTraverser::visit(ElaboratedAddrmap& node) {
+    for (auto& child : node.children) {
+        traverse(*child);
+    }
+}
+
+void ElaboratedModelTraverser::visit(ElaboratedRegfile& node) {
+    for (auto& child : node.children) {
+        traverse(*child);
+    }
+}
+
+void ElaboratedModelTraverser::visit(ElaboratedReg& node) {
+    for (auto& child : node.children) {
+        traverse(*child);
+    }
+}
+
+void ElaboratedModelTraverser::visit(ElaboratedField& node) {
+    // Field usually has no children
+}
+
+void ElaboratedModelTraverser::visit(ElaboratedMem& node) {
+    for (auto& child : node.children) {
+        traverse(*child);
+    }
+}
+
+// AddressMapGenerator implementation
+std::vector<AddressMapGenerator::AddressEntry>
+AddressMapGenerator::generate_address_map(ElaboratedAddrmap& root) {
+    address_map_.clear();
+    traverse(root);
+
+    // Sort by address
+    std::sort(address_map_.begin(), address_map_.end(),
+              [](const AddressEntry& a, const AddressEntry& b) {
+                  return a.address < b.address;
+              });
+
+    return address_map_;
+}
+
+void AddressMapGenerator::visit(ElaboratedRegfile& node) {
+    AddressEntry entry;
+    entry.address = node.absolute_address;
+    entry.size = node.size;
+    entry.name = node.inst_name;
+    entry.path = node.get_hierarchical_path();
+    entry.type = node.get_node_type();
+
+    address_map_.push_back(entry);
+
+    // Continue traversing child nodes
+    ElaboratedModelTraverser::visit(node);
+}
+
+void AddressMapGenerator::visit(ElaboratedReg& node) {
+    AddressEntry entry;
+    entry.address = node.absolute_address;
+    entry.size = node.size;
+    entry.name = node.inst_name;
+    entry.path = node.get_hierarchical_path();
+    entry.type = node.get_node_type();
+
+
+
+    address_map_.push_back(entry);
+
+    // Continue traversing child nodes
+    ElaboratedModelTraverser::visit(node);
+}
+
+void AddressMapGenerator::visit(ElaboratedMem& node) {
+    AddressEntry entry;
+    entry.address = node.absolute_address;
+    entry.size = node.size;
+    entry.name = node.inst_name;
+    entry.path = node.get_hierarchical_path();
+    entry.type = node.get_node_type();
+
+    address_map_.push_back(entry);
+
+    // Continue traversing child nodes
+    ElaboratedModelTraverser::visit(node);
+}
+
+// New method implementation
+void SystemRDLElaborator::collect_component_definitions(
+    SystemRDLParser::RootContext* ast_root) {
+
+    // Collect top-level definitions
+    for (auto root_elem : ast_root->root_elem()) {
+        if (auto comp_def = root_elem->component_def()) {
+            if (auto named_def = comp_def->component_named_def()) {
+                register_component_definition(named_def);
+
+                // Recursively collect internal definitions
+                if (auto body = named_def->component_body()) {
+                    collect_component_definitions_from_body(body);
+                }
+            }
+        }
+    }
+}
+
+void SystemRDLElaborator::collect_component_definitions_from_body(
+    SystemRDLParser::Component_bodyContext* body_ctx) {
+
+    for (auto body_elem : body_ctx->component_body_elem()) {
+        if (auto comp_def = body_elem->component_def()) {
+            if (auto named_def = comp_def->component_named_def()) {
+                register_component_definition(named_def);
+
+                // Recursively collect internal definitions
+                if (auto body = named_def->component_body()) {
+                    collect_component_definitions_from_body(body);
+                }
+            }
+        }
+    }
+}
+
+void SystemRDLElaborator::register_component_definition(
+    SystemRDLParser::Component_named_defContext* named_def) {
+
+    std::string comp_name = named_def->ID()->getText();
+    std::string comp_type = get_component_type(named_def->component_type());
+
+    ComponentDefinition def;
+    def.name = comp_name;
+    def.type = comp_type;
+    def.def_ctx = named_def;
+
+    // Parse parameter definitions
+    if (auto param_def = named_def->param_def()) {
+        def.parameters = parse_parameter_definitions(param_def);
+    }
+
+    component_definitions_[comp_name] = def;
+}
+
+void SystemRDLElaborator::elaborate_explicit_component_inst(
+    SystemRDLParser::Explicit_component_instContext* explicit_inst,
+    ElaboratedNode* parent,
+    Address& current_address) {
+
+    std::string type_name = explicit_inst->ID()->getText();
+
+    // Find named component definition
+    auto it = component_definitions_.find(type_name);
+    if (it == component_definitions_.end()) {
+        report_error("Undefined component type: " + type_name, explicit_inst);
+        return;
+    }
+
+    const ComponentDefinition& comp_def = it->second;
+
+    // Process parameter instantiation
+    std::vector<ParameterAssignment> param_assignments;
+    if (auto param_inst = explicit_inst->component_insts()->param_inst()) {
+        param_assignments = parse_parameter_assignments(param_inst);
+    }
+
+    // Apply parameter values
+    apply_parameter_assignments(comp_def.parameters, param_assignments);
+
+    if (auto insts = explicit_inst->component_insts()) {
+        for (auto inst : insts->component_inst()) {
+            elaborate_named_component_instance(type_name, inst, parent, current_address);
+        }
+    }
+
+    // Clear parameter context
+    clear_parameter_context();
+}
+
+void SystemRDLElaborator::elaborate_named_component_instance(
+    const std::string& type_name,
+    SystemRDLParser::Component_instContext* inst_ctx,
+    ElaboratedNode* parent,
+    Address& current_address) {
+
+    // Find component definition
+    auto it = component_definitions_.find(type_name);
+    if (it == component_definitions_.end()) {
+        report_error("Undefined component type: " + type_name, inst_ctx);
+        return;
+    }
+
+    const ComponentDefinition& comp_def = it->second;
+    std::string inst_name = inst_ctx->ID()->getText();
+
+    // Check if it's an array
+    auto array_suffixes = inst_ctx->array_suffix();
+    if (!array_suffixes.empty()) {
+        elaborate_named_array_instance(type_name, inst_ctx, parent, current_address);
+    } else {
+        // Single instance
+        auto node = create_elaborated_node(comp_def.type);
+        if (!node) return;
+
+        node->inst_name = inst_name;
+        node->type_name = comp_def.type;
+
+        // Calculate address
+        Address instance_address = current_address;
+        if (auto fixed_addr = inst_ctx->inst_addr_fixed()) {
+            instance_address = evaluate_address_expression(fixed_addr->expr());
+        }
+
+        node->absolute_address = parent->absolute_address + instance_address;
+
+        // Process component body (from named definition)
+        if (auto body = comp_def.def_ctx->component_body()) {
+            elaborate_component_body(body, node.get());
+        }
+
+        // Calculate size
+        calculate_node_size(node.get());
+
+        // Save size, because node is about to be moved
+        Size node_size = node->size;
+
+        parent->add_child(std::move(node));
+        current_address = instance_address + node_size;
+    }
+}
+
+void SystemRDLElaborator::elaborate_named_array_instance(
+    const std::string& type_name,
+    SystemRDLParser::Component_instContext* inst_ctx,
+    ElaboratedNode* parent,
+    Address& current_address) {
+
+    // Find component definition
+    auto it = component_definitions_.find(type_name);
+    if (it == component_definitions_.end()) {
+        report_error("Undefined component type: " + type_name, inst_ctx);
+        return;
+    }
+
+    const ComponentDefinition& comp_def = it->second;
+    std::string base_name = inst_ctx->ID()->getText();
+
+    // Parse array dimensions
+    auto array_suffixes = inst_ctx->array_suffix();
+    std::vector<size_t> dimensions;
+
+    if (!array_suffixes.empty()) {
+        auto array_suffix = array_suffixes[0]; // Take the first array suffix
+        if (auto expr = array_suffix->expr()) {
+            // Get array size from expression
+            size_t dim = evaluate_integer_expression(expr);
+            dimensions.push_back(dim > 0 ? dim : 4); // Default to 4 if parsing fails
+        } else {
+            dimensions.push_back(4); // Default size
+        }
+    }
+
+    // Calculate base address
+    Address base_address = current_address;
+    if (auto fixed_addr = inst_ctx->inst_addr_fixed()) {
+        base_address = evaluate_address_expression(fixed_addr->expr());
+    }
+
+    // Calculate stride
+    Address stride = 4; // Default 4-byte alignment
+    if (auto stride_addr = inst_ctx->inst_addr_stride()) {
+        stride = evaluate_address_expression(stride_addr->expr());
+    }
+
+    // Generate array instances
+    for (size_t i = 0; i < dimensions[0]; ++i) {
+        auto node = create_elaborated_node(comp_def.type);
+        if (!node) continue;
+
+        node->inst_name = base_name + "[" + std::to_string(i) + "]";
+        node->type_name = comp_def.type;
+        node->absolute_address = parent->absolute_address + base_address + i * stride;
+        node->array_dimensions = dimensions;
+        node->array_indices = {i};
+
+        // Process component body (from named definition)
+        if (auto body = comp_def.def_ctx->component_body()) {
+            elaborate_component_body(body, node.get());
+        }
+
+        calculate_node_size(node.get());
+        parent->add_child(std::move(node));
+    }
+
+    current_address = base_address + dimensions[0] * stride;
+}
+
+// Property processing method implementation
+void SystemRDLElaborator::elaborate_local_property_assignment(
+    SystemRDLParser::Local_property_assignmentContext* local_prop,
+    ElaboratedNode* parent) {
+
+    if (auto normal_prop = local_prop->normal_prop_assign()) {
+        std::string prop_name;
+
+        // Get property name
+        if (auto prop_keyword = normal_prop->prop_keyword()) {
+            prop_name = prop_keyword->getText();
+        } else if (auto id = normal_prop->ID()) {
+            prop_name = id->getText();
+        }
+
+        // Get property value
+        if (auto rhs = normal_prop->prop_assignment_rhs()) {
+            PropertyValue value = evaluate_property_value(rhs);
+            parent->set_property(prop_name, value);
+
+            // Special handling for encode attribute
+            if (prop_name == "encode" && value.type == PropertyValue::STRING) {
+                // Check if it's an enum type
+                auto enum_def = find_enum_definition(value.string_val);
+                if (enum_def) {
+                    // Store enum information
+                    parent->set_property("encode_type", PropertyValue("enum"));
+                    parent->set_property("encode_name", value);
+
+                    // Store enum value mapping
+                    std::string enum_values = "";
+                    for (const auto& entry : enum_def->entries) {
+                        if (!enum_values.empty()) enum_values += ",";
+                        enum_values += entry.name + "=" + std::to_string(entry.value);
+                    }
+                    parent->set_property("encode_values", PropertyValue(enum_values));
+                }
+            }
+        } else {
+            // No value assigned, set to true (for boolean attributes)
+            parent->set_property(prop_name, PropertyValue(true));
+        }
+    } else if (auto encode_prop = local_prop->encode_prop_assign()) {
+        // Process encode attribute assignment
+        std::string enum_name;
+        if (auto id = encode_prop->ID()) {
+            // Get enum name
+            enum_name = id->getText();
+        }
+
+        // Set encode attribute
+        parent->set_property("encode", PropertyValue(enum_name));
+
+        // Find enum definition
+        auto enum_def = find_enum_definition(enum_name);
+        if (enum_def) {
+            // Store enum information
+            parent->set_property("encode_type", PropertyValue("enum"));
+            parent->set_property("encode_name", PropertyValue(enum_name));
+
+            // Store enum value mapping
+            std::string enum_values = "";
+            for (const auto& entry : enum_def->entries) {
+                if (!enum_values.empty()) enum_values += ",";
+                enum_values += entry.name + "=" + std::to_string(entry.value);
+            }
+            parent->set_property("encode_values", PropertyValue(enum_values));
+        }
+    }
+    // TODO: Handle prop_mod_assign
+}
+
+void SystemRDLElaborator::elaborate_dynamic_property_assignment(
+    SystemRDLParser::Dynamic_property_assignmentContext* dynamic_prop,
+    ElaboratedNode* parent) {
+
+    // Dynamic property assignment: instance_ref -> property = value
+    // This requires finding the target instance, temporarily skipping complex implementation
+    // TODO: Implement dynamic property assignment
+}
+
+PropertyValue SystemRDLElaborator::evaluate_property_value(
+    SystemRDLParser::Prop_assignment_rhsContext* rhs_ctx) {
+
+    if (auto precedence = rhs_ctx->precedencetype_literal()) {
+        return PropertyValue(precedence->getText());
+    } else if (auto expr = rhs_ctx->expr()) {
+        return evaluate_property_value(expr);
+    }
+
+    return PropertyValue("");
+}
+
+PropertyValue SystemRDLElaborator::evaluate_property_value(
+    SystemRDLParser::ExprContext* expr_ctx) {
+
+    // Use enhanced expression evaluator
+    return evaluate_expression(expr_ctx);
+}
+
+// Enhanced expression evaluator implementation
+PropertyValue SystemRDLElaborator::evaluate_expression(
+    SystemRDLParser::ExprContext* expr_ctx) {
+
+    if (!expr_ctx) {
+        return PropertyValue("");
+    }
+
+    // Process unary expression
+    if (auto unary_ctx = dynamic_cast<SystemRDLParser::UnaryExprContext*>(expr_ctx)) {
+        auto operand = evaluate_expression_primary(unary_ctx->expr_primary());
+        std::string op = unary_ctx->op->getText();
+
+        if (operand.type == PropertyValue::INTEGER) {
+            int64_t val = operand.int_val;
+            if (op == "+") return PropertyValue(val);
+            else if (op == "-") return PropertyValue(-val);
+            else if (op == "~") return PropertyValue(~val);
+            else if (op == "!") return PropertyValue(static_cast<int64_t>(val == 0 ? 1 : 0));
+        }
+        return PropertyValue(expr_ctx->getText());
+    }
+
+    // Process binary expression
+    if (auto binary_ctx = dynamic_cast<SystemRDLParser::BinaryExprContext*>(expr_ctx)) {
+        auto left = evaluate_expression(binary_ctx->expr(0));
+        auto right = evaluate_expression(binary_ctx->expr(1));
+        std::string op = binary_ctx->op->getText();
+
+        // If both operands are integers, perform numerical calculation
+        if (left.type == PropertyValue::INTEGER && right.type == PropertyValue::INTEGER) {
+            int64_t l = left.int_val;
+            int64_t r = right.int_val;
+
+            // Arithmetic operations
+            if (op == "+") return PropertyValue(l + r);
+            else if (op == "-") return PropertyValue(l - r);
+            else if (op == "*") return PropertyValue(l * r);
+            else if (op == "/") return PropertyValue(r != 0 ? l / r : 0);
+            else if (op == "%") return PropertyValue(r != 0 ? l % r : 0);
+            else if (op == "**") {
+                // Simple power operation implementation
+                int64_t result = 1;
+                for (int64_t i = 0; i < r && i < 64; ++i) {
+                    result *= l;
+                }
+                return PropertyValue(result);
+            }
+            // Bitwise operations
+            else if (op == "&") return PropertyValue(l & r);
+            else if (op == "|") return PropertyValue(l | r);
+            else if (op == "^") return PropertyValue(l ^ r);
+            else if (op == "<<") return PropertyValue(l << (r & 63)); // Limit shift bit count
+            else if (op == ">>") return PropertyValue(l >> (r & 63));
+            // Comparison operations
+            else if (op == "<") return PropertyValue(static_cast<int64_t>(l < r ? 1 : 0));
+            else if (op == "<=") return PropertyValue(static_cast<int64_t>(l <= r ? 1 : 0));
+            else if (op == ">") return PropertyValue(static_cast<int64_t>(l > r ? 1 : 0));
+            else if (op == ">=") return PropertyValue(static_cast<int64_t>(l >= r ? 1 : 0));
+            else if (op == "==") return PropertyValue(static_cast<int64_t>(l == r ? 1 : 0));
+            else if (op == "!=") return PropertyValue(static_cast<int64_t>(l != r ? 1 : 0));
+            // Logical operations
+            else if (op == "&&") return PropertyValue(static_cast<int64_t>((l != 0 && r != 0) ? 1 : 0));
+            else if (op == "||") return PropertyValue(static_cast<int64_t>((l != 0 || r != 0) ? 1 : 0));
+        }
+
+        // String concatenation
+        if (op == "+" && (left.type == PropertyValue::STRING || right.type == PropertyValue::STRING)) {
+            std::string l_str = (left.type == PropertyValue::STRING) ? left.string_val : std::to_string(left.int_val);
+            std::string r_str = (right.type == PropertyValue::STRING) ? right.string_val : std::to_string(right.int_val);
+            return PropertyValue(l_str + r_str);
+        }
+
+        return PropertyValue(expr_ctx->getText());
+    }
+
+    // Process ternary expression (condition ? true_val : false_val)
+    if (auto ternary_ctx = dynamic_cast<SystemRDLParser::TernaryExprContext*>(expr_ctx)) {
+        auto condition = evaluate_expression(ternary_ctx->expr(0));
+        bool cond_true = false;
+
+        if (condition.type == PropertyValue::INTEGER) {
+            cond_true = (condition.int_val != 0);
+        } else if (condition.type == PropertyValue::BOOLEAN) {
+            cond_true = condition.bool_val;
+        }
+
+        if (cond_true) {
+            return evaluate_expression(ternary_ctx->expr(1)); // true branch
+        } else {
+            return evaluate_expression(ternary_ctx->expr(2)); // false branch
+        }
+    }
+
+    // Process simple expression (NOPContext)
+    if (auto nop_ctx = dynamic_cast<SystemRDLParser::NOPContext*>(expr_ctx)) {
+        return evaluate_expression_primary(nop_ctx->expr_primary());
+    }
+
+    // If unable to evaluate, return expression text
+    return PropertyValue(expr_ctx->getText());
+}
+
+// Enhanced integer expression evaluation
+int64_t SystemRDLElaborator::evaluate_integer_expression_enhanced(
+    SystemRDLParser::ExprContext* expr_ctx) {
+
+    auto result = evaluate_expression(expr_ctx);
+    if (result.type == PropertyValue::INTEGER) {
+        return result.int_val;
+    }
+
+    // Try parsing string as a number
+    if (result.type == PropertyValue::STRING) {
+        try {
+            std::string str = result.string_val;
+            if (str.substr(0, 2) == "0x" || str.substr(0, 2) == "0X") {
+                return std::stoll(str, nullptr, 16);
+            } else {
+                return std::stoll(str, nullptr, 10);
+            }
+        } catch (...) {
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+// Expression primary part evaluation implementation
+PropertyValue SystemRDLElaborator::evaluate_expression_primary(
+    SystemRDLParser::Expr_primaryContext* primary_ctx) {
+
+    if (!primary_ctx) {
+        return PropertyValue("");
+    }
+
+    if (auto literal = primary_ctx->literal()) {
+        // Process number literal
+        if (auto number = literal->number()) {
+            std::string num_str = number->getText();
+            int64_t result = 0;
+            if (num_str.substr(0, 2) == "0x" || num_str.substr(0, 2) == "0X") {
+                result = std::stoll(num_str, nullptr, 16);
+            } else {
+                result = std::stoll(num_str, nullptr, 10);
+            }
+            return PropertyValue(result);
+        }
+        // Process string literal
+        else if (auto string_lit = literal->string_literal()) {
+            std::string str = string_lit->getText();
+            // Remove quotes
+            if (str.length() >= 2 && str[0] == '"' && str.back() == '"') {
+                str = str.substr(1, str.length() - 2);
+            }
+            return PropertyValue(str);
+        }
+        // Process boolean literal
+        else if (auto bool_lit = literal->boolean_literal()) {
+            bool value = (bool_lit->getText() == "true");
+            return PropertyValue(value);
+        }
+        // Process access type literal
+        else if (auto access_lit = literal->accesstype_literal()) {
+            return PropertyValue(access_lit->getText());
+        }
+        // Process other literal types
+        else {
+            return PropertyValue(literal->getText());
+        }
+    }
+    // Process parentheses expression
+    else if (auto paren = primary_ctx->paren_expr()) {
+        return evaluate_expression(paren->expr());
+    }
+    // Process identifier (possibly parameter reference)
+    else if (primary_ctx->getText().find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") == std::string::npos) {
+        // This is an identifier, check if it's a parameter reference
+        std::string identifier = primary_ctx->getText();
+        auto param_value = resolve_parameter_reference(identifier);
+        if (param_value.type != PropertyValue::STRING || param_value.string_val != identifier) {
+            return param_value;  // Found parameter value
+        }
+    }
+
+    // If unable to evaluate, return expression text
+    return PropertyValue(primary_ctx->getText());
+}
+
+// Field bit range processing method implementation
+void SystemRDLElaborator::elaborate_field_bit_range(
+    SystemRDLParser::Component_instContext* inst_ctx,
+    ElaboratedField* field_node) {
+
+    if (!field_node) return;
+
+    // Check if there's bit range definition
+    if (auto range_suffix = inst_ctx->range_suffix()) {
+        auto exprs = range_suffix->expr();
+        if (exprs.size() == 2) {
+            // Parse [msb:lsb] format
+            size_t msb = evaluate_integer_expression_enhanced(exprs[0]);
+            size_t lsb = evaluate_integer_expression_enhanced(exprs[1]);
+
+            field_node->msb = msb;
+            field_node->lsb = lsb;
+            field_node->width = (msb >= lsb) ? (msb - lsb + 1) : 0;
+
+            // Verify the reasonability of the bit range
+            if (msb < lsb) {
+                report_error("Invalid bit range: MSB (" + std::to_string(msb) +
+                           ") is less than LSB (" + std::to_string(lsb) + ")", inst_ctx);
+            }
+
+            // Set bit range attribute
+            field_node->set_property("msb", PropertyValue(static_cast<int64_t>(msb)));
+            field_node->set_property("lsb", PropertyValue(static_cast<int64_t>(lsb)));
+            field_node->set_property("width", PropertyValue(static_cast<int64_t>(field_node->width)));
+        }
+    } else {
+        // No bit range definition, set default value
+        field_node->msb = 0;
+        field_node->lsb = 0;
+        field_node->width = 1;
+
+        field_node->set_property("msb", PropertyValue(static_cast<int64_t>(0)));
+        field_node->set_property("lsb", PropertyValue(static_cast<int64_t>(0)));
+        field_node->set_property("width", PropertyValue(static_cast<int64_t>(1)));
+    }
+}
+
+// Parameter processing method implementation
+std::vector<ParameterDefinition> SystemRDLElaborator::parse_parameter_definitions(
+    SystemRDLParser::Param_defContext* param_def_ctx) {
+
+    std::vector<ParameterDefinition> parameters;
+
+    for (auto param_elem : param_def_ctx->param_def_elem()) {
+        ParameterDefinition param;
+
+        // Get parameter name
+        param.name = param_elem->ID()->getText();
+
+        // Get data type
+        if (auto data_type = param_elem->data_type()) {
+            if (auto basic_type = data_type->basic_data_type()) {
+                param.data_type = basic_type->getText();
+            } else {
+                param.data_type = data_type->getText();
+            }
+        }
+
+        // Check if it's an array type
+        param.is_array = (param_elem->array_type_suffix() != nullptr);
+
+        // Get default value (temporarily store as string, will evaluate later when applying parameters)
+        if (auto default_expr = param_elem->expr()) {
+            // First try direct evaluation, if failed then store expression text
+            auto value = evaluate_expression(default_expr);
+            if (value.type != PropertyValue::STRING || value.string_val != default_expr->getText()) {
+                param.default_value = value;
+            } else {
+                // Include parameter reference, store expression text for later evaluation
+                param.default_value = PropertyValue(default_expr->getText());
+            }
+            param.has_default = true;
+        }
+
+        parameters.push_back(param);
+    }
+
+    return parameters;
+}
+
+std::vector<ParameterAssignment> SystemRDLElaborator::parse_parameter_assignments(
+    SystemRDLParser::Param_instContext* param_inst_ctx) {
+
+    std::vector<ParameterAssignment> assignments;
+
+    for (auto param_assign : param_inst_ctx->param_assignment()) {
+        ParameterAssignment assignment;
+
+        // Get parameter name
+        assignment.name = param_assign->ID()->getText();
+
+        // Get parameter value
+        assignment.value = evaluate_expression(param_assign->expr());
+
+        assignments.push_back(assignment);
+    }
+
+    return assignments;
+}
+
+void SystemRDLElaborator::apply_parameter_assignments(
+    const std::vector<ParameterDefinition>& param_defs,
+    const std::vector<ParameterAssignment>& param_assignments) {
+
+    // Clear current parameter context
+    current_parameter_values_.clear();
+
+    // First apply default values (multi-round evaluation to handle parameter dependencies)
+    std::set<std::string> resolved_params;
+    bool progress = true;
+
+    while (progress && resolved_params.size() < param_defs.size()) {
+        progress = false;
+
+        for (const auto& param_def : param_defs) {
+            if (!param_def.has_default || resolved_params.count(param_def.name)) {
+                continue; // Skip already resolved parameters
+            }
+
+            if (param_def.default_value.type != PropertyValue::STRING) {
+                // Direct value, no need to re-evaluate
+                current_parameter_values_[param_def.name] = param_def.default_value;
+                resolved_params.insert(param_def.name);
+                progress = true;
+            } else {
+                // Try re-evaluating expression
+                auto value = evaluate_expression_from_string(param_def.default_value.string_val);
+                if (value.type != PropertyValue::STRING || value.string_val != param_def.default_value.string_val) {
+                    // Evaluation succeeded
+                    current_parameter_values_[param_def.name] = value;
+                    resolved_params.insert(param_def.name);
+                    progress = true;
+                }
+            }
+        }
+    }
+
+    // Process remaining unparsed parameters (may exist circular dependencies)
+    for (const auto& param_def : param_defs) {
+        if (param_def.has_default && !resolved_params.count(param_def.name)) {
+            current_parameter_values_[param_def.name] = param_def.default_value;
+        }
+    }
+
+    // Then apply instantiation-time assignments
+    for (const auto& assignment : param_assignments) {
+        // Check if parameter exists
+        bool param_exists = false;
+        for (const auto& param_def : param_defs) {
+            if (param_def.name == assignment.name) {
+                param_exists = true;
+                break;
+            }
+        }
+
+        if (param_exists) {
+            current_parameter_values_[assignment.name] = assignment.value;
+        } else {
+            report_error("Unknown parameter: " + assignment.name);
+        }
+    }
+
+    // Check if all required parameters have values
+    for (const auto& param_def : param_defs) {
+        if (!param_def.has_default &&
+            current_parameter_values_.find(param_def.name) == current_parameter_values_.end()) {
+            report_error("Missing required parameter: " + param_def.name);
+        }
+    }
+}
+
+void SystemRDLElaborator::clear_parameter_context() {
+    current_parameter_values_.clear();
+}
+
+PropertyValue SystemRDLElaborator::resolve_parameter_reference(const std::string& param_name) {
+    auto it = current_parameter_values_.find(param_name);
+    if (it != current_parameter_values_.end()) {
+        return it->second;
+    }
+
+    // If parameter not found, return original string
+    return PropertyValue(param_name);
+}
+
+PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::string& expr_text) {
+    // Enhanced expression evaluator: support more complex expression patterns
+
+    // Check if it's a simple parameter reference
+    if (expr_text.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") == std::string::npos) {
+        return resolve_parameter_reference(expr_text);
+    }
+
+    // Process "(1<<BASE_WIDTH)-1" pattern
+    if (expr_text.find("(1<<") != std::string::npos && expr_text.find(")-1") != std::string::npos) {
+        size_t start = expr_text.find("(1<<") + 4;
+        size_t end = expr_text.find(")-1");
+        if (start < end) {
+            std::string param_name = expr_text.substr(start, end - start);
+            auto param_val = resolve_parameter_reference(param_name);
+            if (param_val.type == PropertyValue::INTEGER) {
+                return PropertyValue(static_cast<int64_t>((1LL << param_val.int_val) - 1));
+            }
+        }
+    }
+
+    // Process "param*number" or "number*param" pattern
+    if (expr_text.find('*') != std::string::npos) {
+        size_t pos = expr_text.find('*');
+        std::string left = expr_text.substr(0, pos);
+        std::string right = expr_text.substr(pos + 1);
+
+        // Remove spaces
+        left.erase(std::remove(left.begin(), left.end(), ' '), left.end());
+        right.erase(std::remove(right.begin(), right.end(), ' '), right.end());
+
+        auto left_val = resolve_parameter_reference(left);
+        auto right_val = resolve_parameter_reference(right);
+
+        // If both are integers, directly multiply
+        if (left_val.type == PropertyValue::INTEGER && right_val.type == PropertyValue::INTEGER) {
+            return PropertyValue(left_val.int_val * right_val.int_val);
+        }
+
+        // If left is parameter, right is number
+        if (left_val.type == PropertyValue::INTEGER && right_val.type == PropertyValue::STRING) {
+            try {
+                int64_t right_num = std::stoll(right);
+                return PropertyValue(left_val.int_val * right_num);
+            } catch (...) {}
+        }
+
+        // If right is parameter, left is number
+        if (left_val.type == PropertyValue::STRING && right_val.type == PropertyValue::INTEGER) {
+            try {
+                int64_t left_num = std::stoll(left);
+                return PropertyValue(left_num * right_val.int_val);
+            } catch (...) {}
+        }
+    }
+
+    // Process "param+number" or "number+param" pattern
+    if (expr_text.find('+') != std::string::npos) {
+        size_t pos = expr_text.find('+');
+        std::string left = expr_text.substr(0, pos);
+        std::string right = expr_text.substr(pos + 1);
+
+        // Remove spaces
+        left.erase(std::remove(left.begin(), left.end(), ' '), left.end());
+        right.erase(std::remove(right.begin(), right.end(), ' '), right.end());
+
+        auto left_val = resolve_parameter_reference(left);
+        auto right_val = resolve_parameter_reference(right);
+
+        // If both are integers, directly add
+        if (left_val.type == PropertyValue::INTEGER && right_val.type == PropertyValue::INTEGER) {
+            return PropertyValue(left_val.int_val + right_val.int_val);
+        }
+
+        // If left is parameter, right is number
+        if (left_val.type == PropertyValue::INTEGER && right_val.type == PropertyValue::STRING) {
+            try {
+                int64_t right_num = std::stoll(right);
+                return PropertyValue(left_val.int_val + right_num);
+            } catch (...) {}
+        }
+
+        // If right is parameter, left is number
+        if (left_val.type == PropertyValue::STRING && right_val.type == PropertyValue::INTEGER) {
+            try {
+                int64_t left_num = std::stoll(left);
+                return PropertyValue(left_num + right_val.int_val);
+            } catch (...) {}
+        }
+    }
+
+    // Process "param-number" pattern
+    if (expr_text.find('-') != std::string::npos) {
+        size_t pos = expr_text.find('-');
+        std::string left = expr_text.substr(0, pos);
+        std::string right = expr_text.substr(pos + 1);
+
+        // Remove spaces
+        left.erase(std::remove(left.begin(), left.end(), ' '), left.end());
+        right.erase(std::remove(right.begin(), right.end(), ' '), right.end());
+
+        auto left_val = resolve_parameter_reference(left);
+        auto right_val = resolve_parameter_reference(right);
+
+        // If both are integers, directly subtract
+        if (left_val.type == PropertyValue::INTEGER && right_val.type == PropertyValue::INTEGER) {
+            return PropertyValue(left_val.int_val - right_val.int_val);
+        }
+
+        // If left is parameter, right is number
+        if (left_val.type == PropertyValue::INTEGER && right_val.type == PropertyValue::STRING) {
+            try {
+                int64_t right_num = std::stoll(right);
+                return PropertyValue(left_val.int_val - right_num);
+            } catch (...) {}
+        }
+    }
+
+    // Process "TOTAL_WIDTH-1" type expression (for bit range)
+    if (expr_text.find("-1") != std::string::npos) {
+        size_t pos = expr_text.find("-1");
+        std::string param_part = expr_text.substr(0, pos);
+        param_part.erase(std::remove(param_part.begin(), param_part.end(), ' '), param_part.end());
+
+        auto param_val = resolve_parameter_reference(param_part);
+        if (param_val.type == PropertyValue::INTEGER) {
+            return PropertyValue(param_val.int_val - 1);
+        }
+    }
+
+    // Process complex expression: like "8 * 1024 + 512"
+    if (expr_text.find("*") != std::string::npos && expr_text.find("+") != std::string::npos) {
+        size_t mult_pos = expr_text.find("*");
+        size_t plus_pos = expr_text.find("+");
+
+        if (mult_pos < plus_pos) {
+            // Format: A * B + C
+            std::string a_str = expr_text.substr(0, mult_pos);
+            std::string b_str = expr_text.substr(mult_pos + 1, plus_pos - mult_pos - 1);
+            std::string c_str = expr_text.substr(plus_pos + 1);
+
+            // Remove spaces
+            a_str.erase(std::remove(a_str.begin(), a_str.end(), ' '), a_str.end());
+            b_str.erase(std::remove(b_str.begin(), b_str.end(), ' '), b_str.end());
+            c_str.erase(std::remove(c_str.begin(), c_str.end(), ' '), c_str.end());
+
+            auto a_val = resolve_parameter_reference(a_str);
+            auto b_val = resolve_parameter_reference(b_str);
+            auto c_val = resolve_parameter_reference(c_str);
+
+            // Try parsing as a number
+            int64_t a_num = 0, b_num = 0, c_num = 0;
+            bool a_ok = false, b_ok = false, c_ok = false;
+
+            if (a_val.type == PropertyValue::INTEGER) {
+                a_num = a_val.int_val;
+                a_ok = true;
+            } else {
+                try { a_num = std::stoll(a_str); a_ok = true; } catch (...) {}
+            }
+
+            if (b_val.type == PropertyValue::INTEGER) {
+                b_num = b_val.int_val;
+                b_ok = true;
+            } else {
+                try { b_num = std::stoll(b_str); b_ok = true; } catch (...) {}
+            }
+
+            if (c_val.type == PropertyValue::INTEGER) {
+                c_num = c_val.int_val;
+                c_ok = true;
+            } else {
+                try { c_num = std::stoll(c_str); c_ok = true; } catch (...) {}
+            }
+
+            if (a_ok && b_ok && c_ok) {
+                return PropertyValue(a_num * b_num + c_num);
+            }
+        }
+    }
+
+    // Process parentheses expression: like "(2 * 1024) * 2"
+    if (expr_text.find("(") != std::string::npos && expr_text.find(")") != std::string::npos) {
+        size_t open_paren = expr_text.find("(");
+        size_t close_paren = expr_text.find(")");
+
+        if (open_paren < close_paren) {
+            std::string inner_expr = expr_text.substr(open_paren + 1, close_paren - open_paren - 1);
+            std::string remaining = expr_text.substr(close_paren + 1);
+
+            // Recursively evaluate expression inside parentheses
+            auto inner_val = evaluate_expression_from_string(inner_expr);
+
+            if (inner_val.type == PropertyValue::INTEGER && !remaining.empty()) {
+                // Process operator after parentheses
+                remaining.erase(std::remove(remaining.begin(), remaining.end(), ' '), remaining.end());
+
+                if (remaining.substr(0, 1) == "*") {
+                    std::string right_part = remaining.substr(1);
+                    auto right_val = resolve_parameter_reference(right_part);
+
+                    if (right_val.type == PropertyValue::INTEGER) {
+                        return PropertyValue(inner_val.int_val * right_val.int_val);
+                    } else {
+                        try {
+                            int64_t right_num = std::stoll(right_part);
+                            return PropertyValue(inner_val.int_val * right_num);
+                        } catch (...) {}
+                    }
+                }
+            }
+        }
+    }
+
+    // If unable to parse, return original string
+    return PropertyValue(expr_text);
+}
+
+// Enum and struct processing method implementation
+void SystemRDLElaborator::collect_enum_and_struct_definitions(
+    SystemRDLParser::RootContext* ast_root) {
+
+    // Collect top-level definitions
+    for (auto root_elem : ast_root->root_elem()) {
+        if (auto enum_def = root_elem->enum_def()) {
+            register_enum_definition(enum_def);
+        } else if (auto struct_def = root_elem->struct_def()) {
+            register_struct_definition(struct_def);
+        } else if (auto comp_def = root_elem->component_def()) {
+            if (auto named_def = comp_def->component_named_def()) {
+                // Recursively collect internal definitions
+                if (auto body = named_def->component_body()) {
+                    collect_enum_and_struct_definitions_from_body(body);
+                }
+            }
+        }
+    }
+}
+
+void SystemRDLElaborator::collect_enum_and_struct_definitions_from_body(
+    SystemRDLParser::Component_bodyContext* body_ctx) {
+
+    for (auto body_elem : body_ctx->component_body_elem()) {
+        if (auto enum_def = body_elem->enum_def()) {
+            register_enum_definition(enum_def);
+        } else if (auto struct_def = body_elem->struct_def()) {
+            register_struct_definition(struct_def);
+        } else if (auto comp_def = body_elem->component_def()) {
+            if (auto named_def = comp_def->component_named_def()) {
+                // Recursively collect internal definitions
+                if (auto body = named_def->component_body()) {
+                    collect_enum_and_struct_definitions_from_body(body);
+                }
+            }
+        }
+    }
+}
+
+void SystemRDLElaborator::register_enum_definition(
+    SystemRDLParser::Enum_defContext* enum_def) {
+
+    std::string enum_name = enum_def->ID()->getText();
+
+    EnumDefinition def;
+    def.name = enum_name;
+
+    // Parse enum entries
+    int64_t current_value = 0;
+
+    for (auto entry : enum_def->enum_entry()) {
+        EnumEntry enum_entry;
+        enum_entry.name = entry->ID()->getText();
+
+        // Check if there's an explicit value
+        if (auto expr = entry->expr()) {
+            enum_entry.value = evaluate_integer_expression_enhanced(expr);
+            current_value = enum_entry.value + 1;
+        } else {
+            enum_entry.value = current_value++;
+        }
+
+        def.entries.push_back(enum_entry);
+    }
+
+    enum_definitions_[enum_name] = def;
+}
+
+void SystemRDLElaborator::register_struct_definition(
+    SystemRDLParser::Struct_defContext* struct_def) {
+
+    // Get struct name (first ID)
+    auto ids = struct_def->ID();
+    if (ids.empty()) return;
+
+    std::string struct_name = ids[0]->getText();
+
+    StructDefinition def;
+    def.name = struct_name;
+
+    // Parse struct members
+    for (auto elem : struct_def->struct_elem()) {
+        StructMember struct_member;
+        struct_member.name = elem->ID()->getText();
+
+        // Get member type
+        if (auto struct_type = elem->struct_type()) {
+            if (auto data_type = struct_type->data_type()) {
+                if (auto basic_type = data_type->basic_data_type()) {
+                    struct_member.type = basic_type->getText();
+                } else {
+                    struct_member.type = data_type->getText();
+                }
+            } else if (auto comp_type = struct_type->component_type()) {
+                struct_member.type = comp_type->getText();
+            }
+        }
+
+        // Note: SystemRDL struct members usually have no default values, here temporarily skipping
+
+        def.members.push_back(struct_member);
+    }
+
+    struct_definitions_[struct_name] = def;
+}
+
+EnumDefinition* SystemRDLElaborator::find_enum_definition(const std::string& name) {
+    auto it = enum_definitions_.find(name);
+    return (it != enum_definitions_.end()) ? &it->second : nullptr;
+}
+
+StructDefinition* SystemRDLElaborator::find_struct_definition(const std::string& name) {
+    auto it = struct_definitions_.find(name);
+    return (it != struct_definitions_.end()) ? &it->second : nullptr;
+}
+
+} // namespace systemrdl

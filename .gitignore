@@ -1,0 +1,110 @@
+# Build directories
+build/
+bin/
+lib/
+obj/
+out/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Compiled Object files
+*.o
+*.obj
+*.lo
+*.slo
+
+# Compiled Dynamic libraries
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.a
+*.la
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+systemrdl_parser
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Generated files from ANTLR4 (keep the current ones, ignore future regenerations)
+# Uncomment the following lines if you want to ignore generated files:
+# SystemRDLLexer.h
+# SystemRDLLexer.cpp
+# SystemRDLParser.h
+# SystemRDLParser.cpp
+# SystemRDLBaseVisitor.h
+# SystemRDLBaseVisitor.cpp
+# SystemRDLVisitor.h
+# SystemRDLVisitor.cpp
+# *.tokens
+# *.interp
+
+# ANTLR4 JAR files (keep for reproducibility)
+# antlr-*.jar
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Core dumps
+core
+core.*
+
+# Valgrind output
+*.valgrind
+
+# GDB history
+.gdb_history
+
+# Clang format
+.clang-format
+
+# Package managers
+conan.lock
+vcpkg_installed/
+
+# Test outputs
+test_results/
+coverage/
+*.gcov
+*.gcda
+*.gcno
+
+# Documentation generated files
+docs/html/
+docs/latex/
+*.pdf
+!README.md

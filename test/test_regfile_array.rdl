@@ -1,0 +1,15 @@
+reg my_reg {
+    field {
+        sw = rw;
+        hw = rw;
+    } data[31:0];
+};
+
+regfile my_regfile {
+    my_reg reg1 @ 0x0;
+    my_reg reg2 @ 0x4;
+};
+
+addrmap top {
+    my_regfile regfile_array[4] @ 0x1000 += 0x20;
+};

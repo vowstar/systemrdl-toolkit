@@ -1,0 +1,54 @@
+// Test property parsing and setting
+addrmap test_properties {
+    // Test basic properties
+    reg basic_reg {
+        field {
+            sw = rw;
+            hw = r;
+            reset = 0x5A;
+            desc = "Basic data field";
+        } data[31:0];
+    };
+    basic_reg reg1 @ 0x0000;
+
+    // Test different access types
+    reg access_reg {
+        field {
+            sw = r;
+            hw = w;
+        } status[7:0];
+
+        field {
+            sw = w;
+            hw = r;
+        } control[15:8];
+
+        field {
+            sw = rw;
+            hw = rw;
+            reset = 0xFF;
+        } data[31:16];
+    };
+    access_reg reg2 @ 0x0004;
+
+    // Test string properties
+    reg string_reg {
+        desc = "Register with string description";
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Command field";
+            reset = 0x0;
+        } command[31:0];
+    };
+    string_reg reg3 @ 0x0008;
+
+    // Test boolean properties
+    reg bool_reg {
+        field {
+            sw = rw;
+            hw = rw;
+        } data[31:0];
+    };
+    bool_reg reg4 @ 0x000C;
+};
