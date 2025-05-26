@@ -81,19 +81,30 @@ antlr4 -Dlanguage=Cpp -no-listener -visitor SystemRDL.g4
 
 ## Building
 
-### Using Build Script (Recommended)
-
-```bash
-./build.sh
-```
-
-### Manual Build
+### Standard Build
 
 ```bash
 mkdir build
 cd build
 cmake ..
 make -j$(nproc)
+```
+
+### Build with Tests
+
+The project includes comprehensive testing capabilities through CMake's CTest framework:
+
+```bash
+mkdir build
+cd build
+cmake ..
+make -j$(nproc)
+
+# Run all tests
+make test
+
+# Or run tests with detailed output
+ctest --output-on-failure --verbose
 ```
 
 ## Usage
@@ -120,16 +131,59 @@ After successful build, the executables are located in the `build/` directory.
 ./build/systemrdl_elaborator your_file.rdl
 ```
 
+## Testing
+
+The project includes automatic testing of all SystemRDL files in the `test/` directory. Several testing options are available:
+
+### Run All Tests
+
+```bash
+# Standard CTest execution
+cd build
+make test
+
+# Verbose output with details
+ctest --output-on-failure --verbose
+
+# Custom target for comprehensive testing
+make run-tests
+```
+
+### Run Specific Test Categories
+
+```bash
+# Test only the parser
+make test-parser
+
+# Test only the elaborator
+make test-elaborator
+
+# Or using CTest labels
+ctest -L parser --output-on-failure
+ctest -L elaborator --output-on-failure
+```
+
+### Run Individual Tests
+
+```bash
+# Test specific file with parser
+ctest -R "parser_test_minimal" --output-on-failure
+
+# Test specific file with elaborator
+ctest -R "elaborator_test_minimal" --output-on-failure
+```
+
 ## File Description
 
-- `main.cpp` - Main program containing AST printing and elaboration logic
-- `CMakeLists.txt` - CMake build configuration
+- `parser_main.cpp` - Main program for the SystemRDL parser
+- `elaborator_main.cpp` - Main program for the SystemRDL elaborator
+- `elaborator.cpp/.h` - Elaboration engine implementation
+- `CMakeLists.txt` - CMake build configuration with integrated testing
 - `SystemRDL.g4` - ANTLR4 grammar file
 - `SystemRDLLexer.*` - Generated lexer
 - `SystemRDLParser.*` - Generated parser
 - `SystemRDLBaseVisitor.*` - Generated base visitor class
-- `example.rdl` - Example SystemRDL file
-- `build.sh` - Automated build script
+- `test/*.rdl` - Test SystemRDL files for validation
 
 ## Features
 
@@ -138,6 +192,8 @@ After successful build, the executables are located in the `build/` directory.
 - **Elaboration Engine**: Semantic analysis and elaboration of SystemRDL descriptions
 - **Error Reporting**: Comprehensive error detection and reporting
 - **Extensible Architecture**: Modular design for easy extension and customization
+- **Integrated Testing**: CMake-based testing framework with comprehensive test coverage
+- **Cross-platform Support**: Compatible with Linux, macOS, and Windows
 
 ## Troubleshooting
 
@@ -152,6 +208,10 @@ After successful build, the executables are located in the `build/` directory.
 3. **Runtime errors**
    - Ensure input SystemRDL file has correct syntax
    - Check if file path is correct
+
+4. **Test failures**
+   - Run individual tests to identify specific issues: `ctest -R "test_name" --output-on-failure`
+   - Check test file syntax and ensure it complies with SystemRDL 2.0 specification
 
 ## Acknowledgments
 

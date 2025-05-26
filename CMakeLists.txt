@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
-project(SystemRDLParser)
+project(SystemRDLToolbox)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Enable testing
+enable_testing()
 
 # Find ANTLR4 runtime library
 # find_package(PkgConfig REQUIRED)
@@ -110,10 +113,69 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang
 endif()
 
 # Install target (optional)
-install(TARGETS systemrdl_parser
+install(TARGETS systemrdl_parser systemrdl_elaborator
     RUNTIME DESTINATION bin
+)
+
+# Find all RDL test files
+file(GLOB RDL_TEST_FILES "${CMAKE_SOURCE_DIR}/test/*.rdl")
+
+# Create tests for parser
+foreach(rdl_file ${RDL_TEST_FILES})
+    get_filename_component(test_name ${rdl_file} NAME_WE)
+    add_test(
+        NAME "parser_${test_name}"
+        COMMAND systemrdl_parser ${rdl_file}
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+    set_tests_properties("parser_${test_name}" PROPERTIES
+        LABELS "parser"
+    )
+endforeach()
+
+# Create tests for elaborator
+foreach(rdl_file ${RDL_TEST_FILES})
+    get_filename_component(test_name ${rdl_file} NAME_WE)
+    add_test(
+        NAME "elaborator_${test_name}"
+        COMMAND systemrdl_elaborator ${rdl_file}
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+    set_tests_properties("elaborator_${test_name}" PROPERTIES
+        LABELS "elaborator"
+    )
+endforeach()
+
+# Custom target to run all tests with nice output
+add_custom_target(run-tests
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose
+    DEPENDS systemrdl_parser systemrdl_elaborator
+    COMMENT "Running all SystemRDL tests..."
+)
+
+# Custom target to run only parser tests
+add_custom_target(test-parser
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -L parser
+    DEPENDS systemrdl_parser
+    COMMENT "Running SystemRDL parser tests..."
+)
+
+# Custom target to run only elaborator tests
+add_custom_target(test-elaborator
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -L elaborator
+    DEPENDS systemrdl_elaborator
+    COMMENT "Running SystemRDL elaborator tests..."
 )
 
 # Print configuration information
 message(STATUS "ANTLR4 include dirs: ${ANTLR4_INCLUDE_DIRS}")
 message(STATUS "ANTLR4 libraries: ${ANTLR4_LIBRARIES}")
+message(STATUS "Found ${list_length} RDL test files")
+
+# Print found test files
+list(LENGTH RDL_TEST_FILES test_files_count)
+message(STATUS "Found ${test_files_count} RDL test files:")
+foreach(rdl_file ${RDL_TEST_FILES})
+    get_filename_component(test_name ${rdl_file} NAME)
+    message(STATUS "  - ${test_name}")
+endforeach()
