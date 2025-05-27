@@ -5,6 +5,8 @@
 #include "antlr4-runtime.h"
 #include "SystemRDLLexer.h"
 #include "SystemRDLParser.h"
+#include "cmdline_parser.h"
+#include "json_output.h"
 
 using namespace antlr4;
 
@@ -72,12 +74,23 @@ void printAST(tree::ParseTree* tree, SystemRDLParser* parser, int depth = 0) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " <input_file.rdl>" << std::endl;
+    // Setup command line parser
+    CmdLineParser cmdline("SystemRDL Parser - Parse SystemRDL files and display AST");
+    cmdline.add_option_with_optional_value("j", "json", "Enable JSON output, optionally specify filename");
+    cmdline.add_option("h", "help", "Show this help message");
+
+    if (!cmdline.parse(argc, argv)) {
+        return argc == 2 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") ? 0 : 1;
+    }
+
+    const auto& args = cmdline.get_positional_args();
+    if (args.empty()) {
+        std::cerr << "Error: No input file specified" << std::endl;
+        cmdline.print_help();
         return 1;
     }
 
-    std::string inputFile = argv[1];
+    std::string inputFile = args[0];
 
     try {
         // Read input file
@@ -105,11 +118,35 @@ int main(int argc, char* argv[]) {
         // Check for syntax errors
         if (parser.getNumberOfSyntaxErrors() > 0) {
             std::cerr << "Syntax errors found: " << parser.getNumberOfSyntaxErrors() << std::endl;
+            return 1;
         }
 
-        // Print AST
-        std::cout << "=== Abstract Syntax Tree ===" << std::endl;
+        std::cout << "✅ Parsing successful!" << std::endl;
+
+        // Print AST to console
+        std::cout << "\n=== Abstract Syntax Tree ===" << std::endl;
         printAST(tree, &parser);
+
+        // Generate JSON output if requested
+        if (cmdline.is_set("json")) {
+            std::string output_file = cmdline.get_value("json");
+            
+            // If no filename provided, use default
+            if (output_file.empty()) {
+                output_file = get_default_json_filename(inputFile, "_ast");
+            }
+
+            std::cout << "\n🔧 Generating JSON output..." << std::endl;
+
+            ASTToJsonConverter converter;
+            std::string json_content = converter.convert_to_json(tree, &parser);
+
+            if (!write_json_to_file(json_content, output_file)) {
+                return 1;
+            }
+        }
+
+        std::cout << "\n🎉 Parser completed successfully!" << std::endl;
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

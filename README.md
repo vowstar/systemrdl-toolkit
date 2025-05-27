@@ -113,22 +113,159 @@ After successful build, the executables are located in the `build/` directory.
 
 ### Parser Usage
 
-```bash
-# Parse and print AST
-./build/systemrdl_parser example.rdl
+The parser can display the Abstract Syntax Tree (AST) and optionally export it to JSON format:
 
-# Or parse your own SystemRDL file
-./build/systemrdl_parser your_file.rdl
+```bash
+# Parse and print AST to console
+./build/systemrdl_parser input.rdl
+
+# Parse and generate JSON output with default filename (input_ast.json)
+./build/systemrdl_parser input.rdl --json
+
+# Parse and generate JSON output with custom filename
+./build/systemrdl_parser input.rdl --json=my_ast.json
+
+# Short option variant
+./build/systemrdl_parser input.rdl -j=output.json
 ```
 
 ### Elaborator Usage
 
-```bash
-# Elaborate SystemRDL file
-./build/systemrdl_elaborator example.rdl
+The elaborator processes SystemRDL files through semantic analysis and can export the elaborated model to JSON:
 
-# Or elaborate your own SystemRDL file
-./build/systemrdl_elaborator your_file.rdl
+```bash
+# Elaborate SystemRDL file and display to console
+./build/systemrdl_elaborator input.rdl
+
+# Elaborate and generate JSON output with default filename (input_elaborated.json)
+./build/systemrdl_elaborator input.rdl --json
+
+# Elaborate and generate JSON output with custom filename
+./build/systemrdl_elaborator input.rdl --json=my_model.json
+
+# Short option variant
+./build/systemrdl_elaborator input.rdl -j=output.json
+```
+
+### Command Line Options
+
+Both tools support the following options:
+
+- `-j, --json[=<filename>]` - Enable JSON output, optionally specify custom filename
+- `-h, --help` - Show help message
+
+If no filename is specified with `--json`, the tools automatically generate a filename based on the input file:
+
+- Parser: `<input_basename>_ast.json`
+- Elaborator: `<input_basename>_elaborated.json`
+
+### Input/Output Examples
+
+**Input file** (`example.rdl`):
+
+```systemrdl
+addrmap simple_chip {
+    reg {
+        field {
+            sw = rw;
+        } data[31:0];
+    } reg1 @ 0x0;
+
+    reg {
+        field {
+            sw = rw;
+        } status[7:0];
+    } reg2 @ 0x4;
+};
+```
+
+**Parser console output**:
+
+```bash
+✅ Parsing successful!
+
+=== Abstract Syntax Tree ===
+📦 Component Definition
+    🔧 Type: addrmap
+        🔧 Type: reg
+            🔧 Type: field
+              ⚙️ Property: sw=rw
+          📋 Instance: data[31:0]
+            📏 Range: [31:0]
+      📋 Instance: reg1@0x0
+        📍 Address: @0x0
+        ...
+```
+
+**Elaborator console output**:
+
+```bash
+🔧 Parsing SystemRDL file: example.rdl
+✅ Parsing successful!
+
+🚀 Starting elaboration...
+✅ Elaboration successful!
+
+=== Elaborated SystemRDL Model ===
+📦 addrmap: simple_chip @ 0x0
+  🔧 reg: reg1 (size: 4 bytes)
+    🔧 field: data [31:0]
+      📝 width: 32
+      📝 lsb: 0
+      📝 sw: "rw"
+      📝 msb: 31
+  🔧 reg: reg2 @ 0x4 (size: 4 bytes)
+    🔧 field: status @ 0x4 [7:0]
+      📝 width: 8
+      📝 lsb: 0
+      📝 sw: "rw"
+      📝 msb: 7
+
+📊 Address Map:
+Address     Size    Name      Path
+------------------------------------
+0x00000000  4       reg1      simple_chip.reg1
+0x00000004  4       reg2      simple_chip.reg2
+```
+
+**JSON output** (example of elaborated model):
+
+```json
+{
+  "format": "SystemRDL_ElaboratedModel",
+  "version": "1.0",
+  "model": [
+    {
+      "node_type": "addrmap",
+      "inst_name": "simple_chip",
+      "absolute_address": "0x0",
+      "size": 0,
+      "children": [
+        {
+          "node_type": "reg",
+          "inst_name": "reg1",
+          "absolute_address": "0x0",
+          "size": 4,
+          "children": [
+            {
+              "node_type": "field",
+              "inst_name": "data",
+              "absolute_address": "0x0",
+              "size": 0,
+              {
+                "_section": "properties",
+                "width": 32,
+                "lsb": 0,
+                "sw": "rw",
+                "msb": 31
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ## Testing
@@ -190,10 +327,21 @@ ctest -R "elaborator_test_minimal" --output-on-failure
 - **Complete SystemRDL 2.0 Support**: Full implementation of the SystemRDL 2.0 specification
 - **AST Generation**: Detailed Abstract Syntax Tree representation of SystemRDL designs
 - **Elaboration Engine**: Semantic analysis and elaboration of SystemRDL descriptions
-- **Error Reporting**: Comprehensive error detection and reporting
+- **JSON Export**: Export parsed AST and elaborated model to structured JSON format
+  - Standardized JSON schema for interoperability
+  - Support for both AST and elaborated model formats
+  - Automatic filename generation or custom file specification
+- **Flexible Command Line Interface**: Modern CLI with optional parameters
+  - Support for `--json` (default filename) and `--json=custom.json` formats
+  - Short options (`-j`) and long options (`--json`) support
+  - Future-ready for multiple output formats (e.g., `--yaml`, `--xml`)
+- **Comprehensive Error Reporting**: Detailed error detection and reporting with line/column information
+- **Address Map Generation**: Automatic generation of memory address maps from elaborated models
 - **Extensible Architecture**: Modular design for easy extension and customization
 - **Integrated Testing**: CMake-based testing framework with comprehensive test coverage
 - **Cross-platform Support**: Compatible with Linux, macOS, and Windows
+- **Unicode Emoji Interface**: User-friendly console output with emoji indicators
+- **Property Analysis**: Complete property inheritance and evaluation system
 
 ## Troubleshooting
 

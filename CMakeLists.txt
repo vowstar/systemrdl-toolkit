@@ -60,6 +60,13 @@ set(GENERATED_HEADERS
     SystemRDLVisitor.h
 )
 
+# Add custom headers
+set(CUSTOM_HEADERS
+    cmdline_parser.h
+    json_output.h
+    elaborator.h
+)
+
 # Create AST printer executable
 add_executable(systemrdl_parser
     parser_main.cpp

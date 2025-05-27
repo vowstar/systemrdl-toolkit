@@ -6,6 +6,8 @@
 #include "SystemRDLLexer.h"
 #include "SystemRDLParser.h"
 #include "elaborator.h"
+#include "cmdline_parser.h"
+#include "json_output.h"
 
 using namespace antlr4;
 using namespace systemrdl;
@@ -98,12 +100,23 @@ private:
 };
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " <input_file.rdl>" << std::endl;
+    // Setup command line parser
+    CmdLineParser cmdline("SystemRDL Elaborator - Parse and elaborate SystemRDL files");
+    cmdline.add_option_with_optional_value("j", "json", "Enable JSON output, optionally specify filename");
+    cmdline.add_option("h", "help", "Show this help message");
+
+    if (!cmdline.parse(argc, argv)) {
+        return argc == 2 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") ? 0 : 1;
+    }
+
+    const auto& args = cmdline.get_positional_args();
+    if (args.empty()) {
+        std::cerr << "Error: No input file specified" << std::endl;
+        cmdline.print_help();
         return 1;
     }
 
-    std::string inputFile = argv[1];
+    std::string inputFile = args[0];
 
     try {
         // 1. Parsing phase
@@ -174,6 +187,25 @@ int main(int argc, char* argv[]) {
         for (const auto& entry : address_map) {
             printf("0x%08lx  %-6lu  %-18s  %s\n",
                    entry.address, entry.size, entry.name.c_str(), entry.path.c_str());
+        }
+
+        // 5. Generate JSON output if requested
+        if (cmdline.is_set("json")) {
+            std::string output_file = cmdline.get_value("json");
+            
+            // If no filename provided, use default
+            if (output_file.empty()) {
+                output_file = get_default_json_filename(inputFile, "_elaborated");
+            }
+
+            std::cout << "\n🔧 Generating JSON output..." << std::endl;
+            
+            ElaboratedModelToJsonConverter converter;
+            std::string json_content = converter.convert_to_json(*elaborated_model);
+            
+            if (!write_json_to_file(json_content, output_file)) {
+                return 1;
+            }
         }
 
         std::cout << "\n🎉 Elaboration completed successfully!" << std::endl;
