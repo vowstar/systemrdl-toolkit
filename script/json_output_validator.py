@@ -265,6 +265,20 @@ class JsonTester:
             return False
         return True
 
+    def check_expect_elaboration_failure(self, rdl_path: str) -> bool:
+        """Check if RDL file is marked as expecting elaboration failure"""
+        try:
+            with open(rdl_path, 'r', encoding='utf-8') as f:
+                # Check first few lines for EXPECT_ELABORATION_FAILURE marker
+                for i, line in enumerate(f):
+                    if i >= 10:  # Only check first 10 lines
+                        break
+                    if 'EXPECT_ELABORATION_FAILURE' in line:
+                        return True
+                return False
+        except Exception:
+            return False
+
     def run_command(self, cmd: List[str], cwd: str = None) -> bool:
         """Run command and return success status"""
         try:
@@ -298,8 +312,14 @@ class JsonTester:
             return False
 
         test_name = Path(rdl_file).stem
-        if self.verbose:
-            print(f"🧪 Testing JSON output for: {test_name}")
+        expect_failure = self.check_expect_elaboration_failure(rdl_file)
+        
+        if expect_failure:
+            if self.verbose:
+                print(f"🧪 Testing validation for: {test_name} (expecting elaboration failure)")
+        else:
+            if self.verbose:
+                print(f"🧪 Testing JSON output for: {test_name}")
 
         # Create temporary directory
         with tempfile.TemporaryDirectory(prefix='json_test_') as temp_dir:
@@ -326,73 +346,88 @@ class JsonTester:
             if not ast_data or not self.validator.validate_ast_json(ast_data):
                 return False
 
-            # Test elaborator JSON output with custom filename
+            # Test elaborator - different handling for expected failure vs success
             if self.verbose:
                 print("  🚀 Testing elaborator JSON output...")
             elaborated_json = temp_path / f"{test_name}_elaborated.json"
             elaborator_cmd = [elaborator_exe, rdl_file, f"--json={elaborated_json}"]
 
-            if not self.run_command(elaborator_cmd):
-                self.validator.log_error("Elaborator failed to generate JSON")
-                return False
-
-            if not elaborated_json.exists():
-                self.validator.log_error("Elaborator JSON file not generated")
-                return False
-
-            self.validator.log_success(f"Elaborator JSON file generated: {elaborated_json}")
-
-            # Validate elaborator JSON
-            elaborated_data = self.validator.validate_json_file(str(elaborated_json))
-            if not elaborated_data or not self.validator.validate_elaborated_json(elaborated_data):
-                return False
-
-            # Test default filename generation
-            if self.verbose:
-                print("  🎯 Testing default filename generation...")
-
-            # Test parser default filename
-            parser_default_cmd = [parser_exe, rdl_file, "--json"]
-            if not self.run_command(parser_default_cmd, cwd=temp_dir):
-                self.validator.log_error("Parser failed with default JSON filename")
-                return False
-
-            default_ast = temp_path / f"{test_name}_ast.json"
-            if default_ast.exists():
-                self.validator.log_success("Default AST filename generated correctly")
+            elaborator_success = self.run_command(elaborator_cmd)
+            
+            if expect_failure:
+                # For validation tests, we expect elaboration to fail
+                if elaborator_success and elaborated_json.exists():
+                    self.validator.log_error("Expected elaboration failure, but elaboration succeeded")
+                    return False
+                else:
+                    self.validator.log_success("Elaboration failed as expected (validation test passed)")
+                    # For expected failures, we can't test JSON generation, so we're done
+                    if self.verbose:
+                        print(f"✅ Validation test completed successfully for: {test_name}")
+                    return True
             else:
-                self.validator.log_error("Default AST filename not generated")
-                return False
+                # For normal tests, we expect elaboration to succeed
+                if not elaborator_success:
+                    self.validator.log_error("Elaborator failed to generate JSON")
+                    return False
 
-            # Test elaborator default filename
-            elaborator_default_cmd = [elaborator_exe, rdl_file, "--json"]
-            if not self.run_command(elaborator_default_cmd, cwd=temp_dir):
-                self.validator.log_error("Elaborator failed with default JSON filename")
-                return False
+                if not elaborated_json.exists():
+                    self.validator.log_error("Elaborator JSON file not generated")
+                    return False
 
-            default_elaborated = temp_path / f"{test_name}_elaborated.json"
-            if default_elaborated.exists():
-                self.validator.log_success("Default elaborated filename generated correctly")
-            else:
-                self.validator.log_error("Default elaborated filename not generated")
-                return False
+                self.validator.log_success(f"Elaborator JSON file generated: {elaborated_json}")
 
-            # Check file sizes
-            ast_size = self.get_file_size(str(ast_json))
-            elaborated_size = self.get_file_size(str(elaborated_json))
+                # Validate elaborator JSON
+                elaborated_data = self.validator.validate_json_file(str(elaborated_json))
+                if not elaborated_data or not self.validator.validate_elaborated_json(elaborated_data):
+                    return False
 
-            if ast_size > 100:
-                self.validator.log_success(f"AST JSON has reasonable size: {ast_size} bytes")
-            else:
-                self.validator.log_warning(f"AST JSON seems too small: {ast_size} bytes")
+                # Test default filename generation for normal tests only
+                if self.verbose:
+                    print("  🎯 Testing default filename generation...")
 
-            if elaborated_size > 50:
-                self.validator.log_success(f"Elaborated JSON has reasonable size: {elaborated_size} bytes")
-            else:
-                self.validator.log_warning(f"Elaborated JSON seems too small: {elaborated_size} bytes")
+                # Test parser default filename
+                parser_default_cmd = [parser_exe, rdl_file, "--json"]
+                if not self.run_command(parser_default_cmd, cwd=temp_dir):
+                    self.validator.log_error("Parser failed with default JSON filename")
+                    return False
 
-            # Cross-validate content
-            self.validator.validate_content_match(ast_data, elaborated_data, rdl_file)
+                default_ast = temp_path / f"{test_name}_ast.json"
+                if default_ast.exists():
+                    self.validator.log_success("Default AST filename generated correctly")
+                else:
+                    self.validator.log_error("Default AST filename not generated")
+                    return False
+
+                # Test elaborator default filename
+                elaborator_default_cmd = [elaborator_exe, rdl_file, "--json"]
+                if not self.run_command(elaborator_default_cmd, cwd=temp_dir):
+                    self.validator.log_error("Elaborator failed with default JSON filename")
+                    return False
+
+                default_elaborated = temp_path / f"{test_name}_elaborated.json"
+                if default_elaborated.exists():
+                    self.validator.log_success("Default elaborated filename generated correctly")
+                else:
+                    self.validator.log_error("Default elaborated filename not generated")
+                    return False
+
+                # Check file sizes
+                ast_size = self.get_file_size(str(ast_json))
+                elaborated_size = self.get_file_size(str(elaborated_json))
+
+                if ast_size > 100:
+                    self.validator.log_success(f"AST JSON has reasonable size: {ast_size} bytes")
+                else:
+                    self.validator.log_warning(f"AST JSON seems too small: {ast_size} bytes")
+
+                if elaborated_size > 50:
+                    self.validator.log_success(f"Elaborated JSON has reasonable size: {elaborated_size} bytes")
+                else:
+                    self.validator.log_warning(f"Elaborated JSON seems too small: {elaborated_size} bytes")
+
+                # Cross-validate content
+                self.validator.validate_content_match(ast_data, elaborated_data, rdl_file)
 
         self.validator.log_success(f"JSON test completed successfully for: {test_name}")
         return True

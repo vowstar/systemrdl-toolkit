@@ -1,4 +1,5 @@
 // Test field boundary validation
+// EXPECT_ELABORATION_FAILURE: This test is designed to fail during elaboration to validate field boundary checking
 addrmap test_field_boundary {
     // Test 1: Field exceeding register width
     reg boundary_test1 {

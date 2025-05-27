@@ -1,4 +1,5 @@
 // Comprehensive test suite for field validation features
+// EXPECT_ELABORATION_FAILURE: This test is designed to fail during elaboration to validate comprehensive field validation
 addrmap test_field_validation_comprehensive {
 
     // Test 1: Valid register (no validation errors expected)

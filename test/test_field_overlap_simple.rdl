@@ -1,4 +1,5 @@
 // Test field overlap within register
+// EXPECT_ELABORATION_FAILURE: This test is designed to fail during elaboration to validate field overlap detection
 addrmap test_field_overlap_simple {
     reg overlap_test {
         regwidth = 32;

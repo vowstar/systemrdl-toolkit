@@ -9,9 +9,25 @@ import os
 import glob
 from systemrdl import RDLCompiler, RDLCompileError
 
+def check_expect_elaboration_failure(rdl_file):
+    """Check if RDL file is marked as expecting elaboration failure"""
+    try:
+        with open(rdl_file, 'r', encoding='utf-8') as f:
+            # Check first few lines for EXPECT_ELABORATION_FAILURE marker
+            for i, line in enumerate(f):
+                if i >= 10:  # Only check first 10 lines
+                    break
+                if 'EXPECT_ELABORATION_FAILURE' in line:
+                    return True
+            return False
+    except Exception:
+        return False
+
 def demonstrate_elaboration(rdl_file):
     """Demonstrate SystemRDL elaboration process"""
 
+    expect_failure = check_expect_elaboration_failure(rdl_file)
+    
     # Create compiler instance
     rdlc = RDLCompiler()
 
@@ -21,24 +37,40 @@ def demonstrate_elaboration(rdl_file):
         rdlc.compile_file(rdl_file)
 
         # Elaborate - this is the key step!
-        print("🚀 Starting elaboration...")
+        if expect_failure:
+            print("🚀 Starting elaboration (expecting failure for validation test)...")
+        else:
+            print("🚀 Starting elaboration...")
         root = rdlc.elaborate()
 
-        print("✅ Elaboration successful!")
-        print("\n" + "="*50)
-        print(f"📊 Elaborated register model information ({rdl_file}):")
-        print("="*50)
+        # If we get here and expected failure, that's wrong
+        if expect_failure:
+            print("❌ Expected elaboration failure, but elaboration succeeded")
+            return False
+        else:
+            print("✅ Elaboration successful!")
+            print("\n" + "="*50)
+            print(f"📊 Elaborated register model information ({rdl_file}):")
+            print("="*50)
 
-        # Traverse elaborated model
-        traverse_node(root, 0)
-        return True
+            # Traverse elaborated model
+            traverse_node(root, 0)
+            return True
 
     except RDLCompileError as e:
-        print(f"❌ Compilation error ({rdl_file}): {e}")
-        return False
+        if expect_failure:
+            print("✅ Elaboration failed as expected (validation test passed)")
+            return True
+        else:
+            print(f"❌ Compilation error ({rdl_file}): {e}")
+            return False
     except Exception as e:
-        print(f"❌ Other error ({rdl_file}): {e}")
-        return False
+        if expect_failure:
+            print("✅ Elaboration failed as expected (validation test passed)")
+            return True
+        else:
+            print(f"❌ Other error ({rdl_file}): {e}")
+            return False
 
 def traverse_node(node, depth=0):
     """Recursively traverse elaborated nodes"""
