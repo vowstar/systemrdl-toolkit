@@ -330,6 +330,12 @@ private:
         ElaboratedField* field_node
     );
 
+    // Gap detection and reserved field generation methods
+    void detect_and_fill_register_gaps(ElaboratedReg* reg_node);
+    std::vector<std::pair<size_t, size_t>> find_register_gaps(ElaboratedReg* reg_node);
+    std::unique_ptr<ElaboratedField> create_reserved_field(size_t msb, size_t lsb, const std::string& name);
+    std::string generate_reserved_field_name(size_t msb, size_t lsb);
+
     // Parameter handling methods
     std::vector<ParameterDefinition> parse_parameter_definitions(
         SystemRDLParser::Param_defContext* param_def_ctx

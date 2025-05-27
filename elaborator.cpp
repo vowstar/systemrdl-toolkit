@@ -399,7 +399,9 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode* node) {
     if (!node) return;
 
     if (auto reg_node = dynamic_cast<ElaboratedReg*>(node)) {
-        reg_node->size = reg_node->register_width / 8; // Byte count
+        // Detect and fill register gaps before calculating size
+        detect_and_fill_register_gaps(reg_node);
+        reg_node->size = (reg_node->register_width + 7) / 8; // Byte count (round up)
     } else if (auto field_node = dynamic_cast<ElaboratedField*>(node)) {
         field_node->size = 0; // Field does not occupy independent address space
     } else if (auto regfile_node = dynamic_cast<ElaboratedRegfile*>(node)) {
@@ -794,8 +796,14 @@ void SystemRDLElaborator::elaborate_local_property_assignment(
             PropertyValue value = evaluate_property_value(rhs);
             parent->set_property(prop_name, value);
 
+            // Special handling for regwidth property
+            if (prop_name == "regwidth" && value.type == PropertyValue::INTEGER) {
+                if (auto reg_node = dynamic_cast<ElaboratedReg*>(parent)) {
+                    reg_node->register_width = static_cast<uint32_t>(value.int_val);
+                }
+            }
             // Special handling for encode attribute
-            if (prop_name == "encode" && value.type == PropertyValue::STRING) {
+            else if (prop_name == "encode" && value.type == PropertyValue::STRING) {
                 // Check if it's an enum type
                 auto enum_def = find_enum_definition(value.string_val);
                 if (enum_def) {
@@ -1587,6 +1595,121 @@ EnumDefinition* SystemRDLElaborator::find_enum_definition(const std::string& nam
 StructDefinition* SystemRDLElaborator::find_struct_definition(const std::string& name) {
     auto it = struct_definitions_.find(name);
     return (it != struct_definitions_.end()) ? &it->second : nullptr;
+}
+
+// Gap detection and reserved field generation implementation
+void SystemRDLElaborator::detect_and_fill_register_gaps(ElaboratedReg* reg_node) {
+    if (!reg_node) return;
+
+    // Find gaps in the register
+    auto gaps = find_register_gaps(reg_node);
+
+    // Generate reserved fields for each gap
+    for (const auto& gap : gaps) {
+        size_t gap_msb = gap.first;
+        size_t gap_lsb = gap.second;
+
+        // Generate reserved field name
+        std::string reserved_name = generate_reserved_field_name(gap_msb, gap_lsb);
+
+        // Create reserved field
+        auto reserved_field = create_reserved_field(gap_msb, gap_lsb, reserved_name);
+
+        if (reserved_field) {
+            // Set parent relationship
+            reserved_field->parent = reg_node;
+            reserved_field->absolute_address = reg_node->absolute_address;
+
+            // Add to register's children
+            reg_node->add_child(std::move(reserved_field));
+        }
+    }
+}
+
+std::vector<std::pair<size_t, size_t>> SystemRDLElaborator::find_register_gaps(ElaboratedReg* reg_node) {
+    std::vector<std::pair<size_t, size_t>> gaps;
+
+    if (!reg_node) return gaps;
+
+    // Create a bit coverage vector for the register
+    std::vector<bool> bit_coverage(reg_node->register_width, false);
+
+    // Mark bits covered by existing fields
+    for (const auto& child : reg_node->children) {
+        if (auto field = dynamic_cast<ElaboratedField*>(child.get())) {
+            // Mark bits from lsb to msb as covered
+            for (size_t bit = field->lsb; bit <= field->msb && bit < reg_node->register_width; ++bit) {
+                bit_coverage[bit] = true;
+            }
+        }
+    }
+
+    // Find continuous gaps (uncovered bits)
+    size_t gap_start = 0;
+    bool in_gap = false;
+
+    for (size_t bit = 0; bit < reg_node->register_width; ++bit) {
+        if (!bit_coverage[bit]) {
+            // Uncovered bit - start or continue gap
+            if (!in_gap) {
+                gap_start = bit;
+                in_gap = true;
+            }
+        } else {
+            // Covered bit - end gap if we were in one
+            if (in_gap) {
+                gaps.emplace_back(bit - 1, gap_start); // MSB, LSB format
+                in_gap = false;
+            }
+        }
+    }
+
+    // Handle gap extending to the end of register
+    if (in_gap) {
+        gaps.emplace_back(reg_node->register_width - 1, gap_start); // MSB, LSB format
+    }
+
+    return gaps;
+}
+
+std::unique_ptr<ElaboratedField> SystemRDLElaborator::create_reserved_field(
+    size_t msb, size_t lsb, const std::string& name) {
+
+    auto field = std::make_unique<ElaboratedField>();
+
+    // Set basic properties
+    field->inst_name = name;
+    field->type_name = "field";
+    field->msb = msb;
+    field->lsb = lsb;
+    field->width = (msb >= lsb) ? (msb - lsb + 1) : 0;
+    field->reset_value = 0;
+
+    // Set access properties for reserved fields
+    field->sw_access = ElaboratedField::R;  // Software read-only
+    field->hw_access = ElaboratedField::NA; // Hardware no access
+
+    // Set properties
+    field->set_property("msb", PropertyValue(static_cast<int64_t>(msb)));
+    field->set_property("lsb", PropertyValue(static_cast<int64_t>(lsb)));
+    field->set_property("width", PropertyValue(static_cast<int64_t>(field->width)));
+    field->set_property("sw", PropertyValue("r"));
+    field->set_property("hw", PropertyValue("na"));
+    field->set_property("reset", PropertyValue(static_cast<int64_t>(0)));
+    field->set_property("desc", PropertyValue("Reserved field - auto-generated"));
+    field->set_property("reserved", PropertyValue(true));
+
+    return field;
+}
+
+std::string SystemRDLElaborator::generate_reserved_field_name(size_t msb, size_t lsb) {
+    if (msb == lsb) {
+        // Single bit: RESERVED_X
+        return "RESERVED_" + std::to_string(lsb);
+    } else {
+        // Multiple bits: RESERVED_MSB_LSB
+        return "RESERVED_" + std::to_string(msb) + "_" + std::to_string(lsb);
+    }
 }
 
 } // namespace systemrdl

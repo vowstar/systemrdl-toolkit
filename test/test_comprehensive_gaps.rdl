@@ -1,0 +1,143 @@
+// Comprehensive test suite for automatic gap detection and reserved field generation
+addrmap test_comprehensive_gaps {
+
+    // Test 1: Complete register (no gaps expected)
+    reg complete_reg {
+        regwidth = 32;
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Complete 32-bit field";
+        } full_data[31:0];
+    };
+
+    complete_reg complete @ 0x0000;
+
+    // Test 2: Single bit gaps
+    reg single_bit_gaps {
+        regwidth = 8;
+
+        field {
+            sw = rw;
+            hw = r;
+        } bit0[0:0];
+
+        field {
+            sw = rw;
+            hw = r;
+        } bit2[2:2];
+
+        field {
+            sw = rw;
+            hw = r;
+        } bit4[4:4];
+
+        field {
+            sw = rw;
+            hw = r;
+        } bit6[6:6];
+
+        // Expected reserved fields: RESERVED_1, RESERVED_3, RESERVED_5, RESERVED_7
+    };
+
+    single_bit_gaps single_gaps @ 0x0004;
+
+    // Test 3: Multi-bit gaps with different sizes
+    reg multi_bit_gaps {
+        regwidth = 32;
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Control bits";
+        } ctrl[3:0];        // bits 0-3
+
+        // Gap: bits 4-7 (4 bits)
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Status byte";
+        } status[15:8];     // bits 8-15
+
+        // Gap: bits 16-23 (8 bits)
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Data nibble";
+        } data[27:24];      // bits 24-27
+
+        // Gap: bits 28-31 (4 bits)
+
+        // Expected reserved fields: RESERVED_7_4, RESERVED_23_16, RESERVED_31_28
+    };
+
+    multi_bit_gaps multi_gaps @ 0x0008;
+
+    // Test 4: Large register with big gap
+    reg large_register {
+        regwidth = 128;
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Low control";
+        } low_ctrl[7:0];    // bits 0-7
+
+        // Large gap: bits 8-119 (112 bits)
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "High control";
+        } high_ctrl[127:120]; // bits 120-127
+
+        // Expected reserved field: RESERVED_119_8 (112 bits)
+    };
+
+    large_register large @ 0x000C;
+
+    // Test 5: Edge case - only MSB and LSB used
+    reg edge_case {
+        regwidth = 16;
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "LSB";
+        } lsb_bit[0:0];     // bit 0
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "MSB";
+        } msb_bit[15:15];   // bit 15
+
+        // Expected reserved field: RESERVED_14_1 (14 bits)
+    };
+
+    edge_case edge @ 0x0010;
+
+    // Test 6: Non-power-of-2 register width
+    reg odd_width {
+        regwidth = 48;
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "First field";
+        } field1[11:0];     // bits 0-11
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Last field";
+        } field2[47:36];    // bits 36-47
+
+        // Expected reserved field: RESERVED_35_12 (24 bits)
+    };
+
+    odd_width odd @ 0x0014;
+};

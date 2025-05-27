@@ -1,0 +1,85 @@
+// Test automatic reserved field generation for registers with field gaps
+addrmap test_auto_reserved_fields {
+    // Register with gaps between fields
+    reg gap_reg {
+        regwidth = 32;
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Control bit";
+        } ctrl[0:0];
+
+        // Gap from bit 1 to bit 3 (bits 1, 2, 3 are unspecified)
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Status bits";
+        } status[7:4];
+
+        // Gap from bit 8 to bit 15 (8 bits unspecified)
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Data field";
+        } data[23:16];
+
+        // Gap from bit 24 to bit 30 (7 bits unspecified)
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Enable bit";
+        } enable[31:31];
+    };
+
+    gap_reg test_reg @ 0x0000;
+
+    // Another register with different gap pattern
+    reg sparse_reg {
+        regwidth = 32;
+
+        field {
+            sw = rw;
+            hw = r;
+        } bit0[0:0];
+
+        field {
+            sw = rw;
+            hw = r;
+        } bit2[2:2];
+
+        field {
+            sw = rw;
+            hw = r;
+        } bit5[5:5];
+
+        field {
+            sw = rw;
+            hw = r;
+        } bits31_30[31:30];
+    };
+
+    sparse_reg sparse @ 0x0004;
+
+    // Register with large continuous gap
+    reg large_gap_reg {
+        regwidth = 64;
+
+        field {
+            sw = rw;
+            hw = r;
+        } low_field[7:0];
+
+        // Large gap from bit 8 to bit 55 (48 bits unspecified)
+
+        field {
+            sw = rw;
+            hw = r;
+        } high_field[63:56];
+    };
+
+    large_gap_reg large_gap @ 0x0008;
+};
