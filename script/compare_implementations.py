@@ -48,9 +48,7 @@ class ImplementationComparator:
     def run_cpp_implementation(self, rdl_file):
         """Run C++ implementation and return (success, output)"""
         try:
-            result = subprocess.run(
-                [self.cpp_exe, rdl_file], capture_output=True, text=True, timeout=10
-            )
+            result = subprocess.run([self.cpp_exe, rdl_file], capture_output=True, text=True, timeout=10)
             return result.returncode == 0, result.stdout + result.stderr
         except Exception as e:
             return False, str(e)
