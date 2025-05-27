@@ -1,0 +1,36 @@
+// Simple test for automatic field position assignment
+addrmap test_simple_auto_position {
+
+    reg simple_reg {
+        regwidth = 32;
+
+        // Explicitly positioned field
+        field {
+            sw = rw;
+            hw = r;
+        } status[7:0];    // bits 0-7
+
+        // Fields without bit range - should auto-position
+        field {
+            sw = rw;
+            hw = rw;
+            // This should be auto-positioned to start at bit 8
+        } enable;
+
+        field {
+            sw = rw;
+            hw = r;
+            // This should be auto-positioned to start at bit 9
+        } ready;
+
+        // Multi-bit field
+        field {
+            sw = rw;
+            hw = rw;
+            fieldwidth = 4;
+            // This should be auto-positioned to start at bit 10, occupy bits 10-13
+        } control;
+    };
+
+    simple_reg test_reg @ 0x0000;
+};

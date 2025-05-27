@@ -1,0 +1,51 @@
+// Test automatic field position assignment
+addrmap test_auto_field_positions {
+
+    // Test 1: Simple auto-positioning
+    reg auto_reg {
+        regwidth = 32;
+
+        field {
+            sw = rw;
+            hw = r;
+        } status[7:0];    // Explicitly at bits 0-7
+
+        field {
+            sw = rw;
+            hw = rw;
+        } enable[8];      // Should auto-position to bits 8-15 (8 bits width)
+
+        field {
+            sw = rw;
+            hw = r;
+        } control[4];     // Should auto-position to bits 16-19 (4 bits width)
+
+        field {
+            sw = rw;
+            hw = r;
+        } reserved[8];    // Should auto-position to bits 20-27 (8 bits width)
+    };
+
+    // Test 2: Mixed explicit and auto positioning
+    reg mixed_reg {
+        regwidth = 32;
+
+        field {
+            sw = rw;
+            hw = r;
+        } low_byte[4];    // Should auto-position to bits 0-3 (4 bits)
+
+        field {
+            sw = rw;
+            hw = r;
+        } explicit_field[15:8];  // Explicitly at bits 8-15
+
+        field {
+            sw = rw;
+            hw = r;
+        } auto_field[8];  // Should auto-position to bits 16-23 (8 bits)
+    };
+
+    auto_reg test1 @ 0x0000;
+    mixed_reg test2 @ 0x0004;
+};
