@@ -1,40 +1,55 @@
 #ifndef JSON_OUTPUT_H
 #define JSON_OUTPUT_H
 
-#include <string>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <map>
-#include <iomanip>
-#include "antlr4-runtime.h"
 #include "SystemRDLParser.h"
+#include "antlr4-runtime.h"
 #include "elaborator.h"
+#include <fstream>
+#include <iomanip>
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
 
 // Simple JSON builder without external dependencies
-class JsonBuilder {
+class JsonBuilder
+{
 private:
     std::ostringstream json_;
-    int indent_level_;
-    bool first_item_;
-    std::vector<bool> is_array_stack_;
+    int                indent_level_;
+    bool               first_item_;
+    std::vector<bool>  is_array_stack_;
 
-    void write_indent() {
+    void write_indent()
+    {
         for (int i = 0; i < indent_level_; i++) {
             json_ << "  ";
         }
     }
 
-    std::string escape_string(const std::string& str) {
+    std::string escape_string(const std::string &str)
+    {
         std::string escaped = "\"";
         for (char c : str) {
             switch (c) {
-                case '"': escaped += "\\\""; break;
-                case '\\': escaped += "\\\\"; break;
-                case '\n': escaped += "\\n"; break;
-                case '\r': escaped += "\\r"; break;
-                case '\t': escaped += "\\t"; break;
-                default: escaped += c; break;
+            case '"':
+                escaped += "\\\"";
+                break;
+            case '\\':
+                escaped += "\\\\";
+                break;
+            case '\n':
+                escaped += "\\n";
+                break;
+            case '\r':
+                escaped += "\\r";
+                break;
+            case '\t':
+                escaped += "\\t";
+                break;
+            default:
+                escaped += c;
+                break;
             }
         }
         escaped += "\"";
@@ -42,10 +57,15 @@ private:
     }
 
 public:
-    JsonBuilder() : indent_level_(0), first_item_(true) {}
+    JsonBuilder()
+        : indent_level_(0)
+        , first_item_(true)
+    {}
 
-    void start_object() {
-        if (!first_item_) json_ << ",\n";
+    void start_object()
+    {
+        if (!first_item_)
+            json_ << ",\n";
         write_indent();
         json_ << "{\n";
         indent_level_++;
@@ -53,8 +73,10 @@ public:
         is_array_stack_.push_back(false);
     }
 
-    void start_object(const std::string& key) {
-        if (!first_item_) json_ << ",\n";
+    void start_object(const std::string &key)
+    {
+        if (!first_item_)
+            json_ << ",\n";
         write_indent();
         json_ << escape_string(key) << ": {\n";
         indent_level_++;
@@ -62,7 +84,8 @@ public:
         is_array_stack_.push_back(false);
     }
 
-    void end_object() {
+    void end_object()
+    {
         json_ << "\n";
         indent_level_--;
         write_indent();
@@ -71,9 +94,11 @@ public:
         is_array_stack_.pop_back();
     }
 
-    void start_array(const std::string& key = "") {
+    void start_array(const std::string &key = "")
+    {
         if (!key.empty()) {
-            if (!first_item_) json_ << ",\n";
+            if (!first_item_)
+                json_ << ",\n";
             write_indent();
             json_ << escape_string(key) << ": ";
         } else if (!first_item_) {
@@ -86,7 +111,8 @@ public:
         is_array_stack_.push_back(true);
     }
 
-    void end_array() {
+    void end_array()
+    {
         json_ << "\n";
         indent_level_--;
         write_indent();
@@ -95,51 +121,64 @@ public:
         is_array_stack_.pop_back();
     }
 
-    void add_string(const std::string& key, const std::string& value) {
-        if (!first_item_) json_ << ",\n";
+    void add_string(const std::string &key, const std::string &value)
+    {
+        if (!first_item_)
+            json_ << ",\n";
         write_indent();
         json_ << escape_string(key) << ": " << escape_string(value);
         first_item_ = false;
     }
 
-    void add_number(const std::string& key, long long value) {
-        if (!first_item_) json_ << ",\n";
+    void add_number(const std::string &key, long long value)
+    {
+        if (!first_item_)
+            json_ << ",\n";
         write_indent();
         json_ << escape_string(key) << ": " << value;
         first_item_ = false;
     }
 
-    void add_bool(const std::string& key, bool value) {
-        if (!first_item_) json_ << ",\n";
+    void add_bool(const std::string &key, bool value)
+    {
+        if (!first_item_)
+            json_ << ",\n";
         write_indent();
         json_ << escape_string(key) << ": " << (value ? "true" : "false");
         first_item_ = false;
     }
 
-    void add_hex(const std::string& key, uint64_t value) {
-        if (!first_item_) json_ << ",\n";
+    void add_hex(const std::string &key, uint64_t value)
+    {
+        if (!first_item_)
+            json_ << ",\n";
         write_indent();
         json_ << escape_string(key) << ": \"0x" << std::hex << value << std::dec << "\"";
         first_item_ = false;
     }
 
-    std::string to_string() const {
-        return json_.str();
-    }
+    std::string to_string() const { return json_.str(); }
 };
 
 // AST to JSON converter
-class ASTToJsonConverter {
-private:
-    JsonBuilder json_;
-    SystemRDLParser* parser_;
+class ASTToJsonConverter
+{
+public:
+    ASTToJsonConverter()
+        : parser_(nullptr)
+    {}
 
-    void convert_node(antlr4::tree::ParseTree* tree, int depth = 0) {
-        if (auto* ruleContext = dynamic_cast<antlr4::ParserRuleContext*>(tree)) {
+private:
+    JsonBuilder      json_;
+    SystemRDLParser *parser_;
+
+    void convert_node(antlr4::tree::ParseTree *tree, int depth = 0)
+    {
+        if (auto *ruleContext = dynamic_cast<antlr4::ParserRuleContext *>(tree)) {
             json_.start_object();
 
             std::string ruleName = parser_->getRuleNames()[ruleContext->getRuleIndex()];
-            std::string text = ruleContext->getText();
+            std::string text     = ruleContext->getText();
 
             json_.add_string("type", "rule");
             json_.add_string("rule_name", ruleName);
@@ -151,14 +190,14 @@ private:
 
             if (ruleContext->children.size() > 0) {
                 json_.start_array("children");
-                for (auto* child : ruleContext->children) {
+                for (auto *child : ruleContext->children) {
                     convert_node(child, depth + 1);
                 }
                 json_.end_array();
             }
 
             json_.end_object();
-        } else if (auto* terminal = dynamic_cast<antlr4::tree::TerminalNode*>(tree)) {
+        } else if (auto *terminal = dynamic_cast<antlr4::tree::TerminalNode *>(tree)) {
             json_.start_object();
             json_.add_string("type", "terminal");
             json_.add_string("text", terminal->getText());
@@ -169,7 +208,8 @@ private:
     }
 
 public:
-    std::string convert_to_json(antlr4::tree::ParseTree* tree, SystemRDLParser* parser) {
+    std::string convert_to_json(antlr4::tree::ParseTree *tree, SystemRDLParser *parser)
+    {
         parser_ = parser;
         json_.start_object();
         json_.add_string("format", "SystemRDL_AST");
@@ -185,33 +225,41 @@ public:
 };
 
 // Elaborated model to JSON converter
-class ElaboratedModelToJsonConverter : public systemrdl::ElaboratedModelTraverser {
+class ElaboratedModelToJsonConverter : public systemrdl::ElaboratedModelTraverser
+{
+public:
+    ElaboratedModelToJsonConverter()
+        : first_node_(true)
+    {}
+
 private:
     JsonBuilder json_;
-    bool first_node_;
+    bool        first_node_;
 
-    void write_property(const std::string& name, const systemrdl::PropertyValue& prop) {
+    void write_property(const std::string &name, const systemrdl::PropertyValue &prop)
+    {
         switch (prop.type) {
-            case systemrdl::PropertyValue::STRING:
-                json_.add_string(name, prop.string_val);
-                break;
-            case systemrdl::PropertyValue::INTEGER:
-                json_.add_number(name, prop.int_val);
-                break;
-            case systemrdl::PropertyValue::BOOLEAN:
-                json_.add_bool(name, prop.bool_val);
-                break;
-            case systemrdl::PropertyValue::ENUM:
-                json_.add_string(name, prop.string_val);  // Treat enum as string
-                break;
-            default:
-                json_.add_string(name, "unknown_type");
-                break;
+        case systemrdl::PropertyValue::STRING:
+            json_.add_string(name, prop.string_val);
+            break;
+        case systemrdl::PropertyValue::INTEGER:
+            json_.add_number(name, prop.int_val);
+            break;
+        case systemrdl::PropertyValue::BOOLEAN:
+            json_.add_bool(name, prop.bool_val);
+            break;
+        case systemrdl::PropertyValue::ENUM:
+            json_.add_string(name, prop.string_val); // Treat enum as string
+            break;
+        default:
+            json_.add_string(name, "unknown_type");
+            break;
         }
     }
 
 protected:
-    void pre_visit(systemrdl::ElaboratedNode& node) override {
+    void pre_visit(systemrdl::ElaboratedNode &node) override
+    {
         json_.start_object();
 
         json_.add_string("node_type", node.get_node_type());
@@ -231,7 +279,7 @@ protected:
 
         if (!node.properties.empty()) {
             json_.start_object("properties");
-            for (const auto& prop : node.properties) {
+            for (const auto &prop : node.properties) {
                 write_property(prop.first, prop.second);
             }
             json_.end_object();
@@ -243,7 +291,8 @@ protected:
         }
     }
 
-    void post_visit(systemrdl::ElaboratedNode& node) override {
+    void post_visit(systemrdl::ElaboratedNode &node) override
+    {
         if (node.children.size() > 0) {
             json_.end_array();
         }
@@ -252,7 +301,8 @@ protected:
     }
 
 public:
-    std::string convert_to_json(systemrdl::ElaboratedAddrmap& root) {
+    std::string convert_to_json(systemrdl::ElaboratedAddrmap &root)
+    {
         first_node_ = true;
         json_.start_object();
         json_.add_string("format", "SystemRDL_ElaboratedModel");
@@ -268,7 +318,8 @@ public:
 };
 
 // Helper function to write JSON to file
-inline bool write_json_to_file(const std::string& json_content, const std::string& filename) {
+inline bool write_json_to_file(const std::string &json_content, const std::string &filename)
+{
     std::ofstream file(filename);
     if (!file.is_open()) {
         std::cerr << "Error: Cannot write to file " << filename << std::endl;
@@ -281,10 +332,12 @@ inline bool write_json_to_file(const std::string& json_content, const std::strin
 }
 
 // Helper function to generate default JSON filename
-inline std::string get_default_json_filename(const std::string& input_file, const std::string& suffix = "") {
+inline std::string get_default_json_filename(
+    const std::string &input_file, const std::string &suffix = "")
+{
     // Simple basename extraction without filesystem dependency
     size_t last_slash = input_file.find_last_of("/\\");
-    size_t last_dot = input_file.find_last_of('.');
+    size_t last_dot   = input_file.find_last_of('.');
 
     std::string basename;
     if (last_slash != std::string::npos) {
@@ -294,7 +347,8 @@ inline std::string get_default_json_filename(const std::string& input_file, cons
     }
 
     if (last_dot != std::string::npos && last_dot > last_slash) {
-        basename = basename.substr(0, last_dot - (last_slash != std::string::npos ? last_slash + 1 : 0));
+        size_t trim_pos = last_dot - (last_slash != std::string::npos ? last_slash + 1 : 0);
+        basename.resize(trim_pos);
     }
 
     return basename + suffix + ".json";

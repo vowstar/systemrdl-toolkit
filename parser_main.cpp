@@ -1,39 +1,41 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <sstream>
-#include "antlr4-runtime.h"
 #include "SystemRDLLexer.h"
 #include "SystemRDLParser.h"
+#include "antlr4-runtime.h"
 #include "cmdline_parser.h"
 #include "json_output.h"
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
 
 using namespace antlr4;
 
 // Recursive function to print AST (optimized alignment version)
-void printAST(tree::ParseTree* tree, SystemRDLParser* parser, int depth = 0) {
-    if (ParserRuleContext* ruleContext = dynamic_cast<ParserRuleContext*>(tree)) {
+void printAST(tree::ParseTree *tree, SystemRDLParser *parser, int depth = 0)
+{
+    if (ParserRuleContext *ruleContext = dynamic_cast<ParserRuleContext *>(tree)) {
         std::string ruleName = parser->getRuleNames()[ruleContext->getRuleIndex()];
-        std::string text = ruleContext->getText();
+        std::string text     = ruleContext->getText();
 
         // Print indentation
         auto indent = [depth]() {
-            for (int i = 0; i < depth; i++) std::cout << "  ";
+            for (int i = 0; i < depth; i++)
+                std::cout << "  ";
         };
 
         // Function to handle multi-line text alignment
-        auto printAligned = [&](const std::string& prefix, const std::string& content) {
+        auto printAligned = [&](const std::string &prefix, const std::string &content) {
             indent();
             std::cout << prefix;
 
             // Calculate alignment position (indentation + prefix length)
-            size_t alignPos = depth * 2 + prefix.length();
+            size_t      alignPos = depth * 2 + prefix.length();
             std::string alignSpaces(alignPos, ' ');
 
             // Split text into lines
             std::istringstream iss(content);
-            std::string line;
-            bool firstLine = true;
+            std::string        line;
+            bool               firstLine = true;
 
             while (std::getline(iss, line)) {
                 if (firstLine) {
@@ -49,20 +51,15 @@ void printAST(tree::ParseTree* tree, SystemRDLParser* parser, int depth = 0) {
         if (ruleName == "component_named_def") {
             indent();
             std::cout << "📦 Component Definition" << std::endl;
-        }
-        else if (ruleName == "component_type_primary") {
+        } else if (ruleName == "component_type_primary") {
             printAligned("🔧 Type: ", text);
-        }
-        else if (ruleName == "component_inst") {
+        } else if (ruleName == "component_inst") {
             printAligned("📋 Instance: ", text);
-        }
-        else if (ruleName == "local_property_assignment") {
+        } else if (ruleName == "local_property_assignment") {
             printAligned("⚙️  Property: ", text);
-        }
-        else if (ruleName == "range_suffix") {
+        } else if (ruleName == "range_suffix") {
             printAligned("📏 Range: ", text);
-        }
-        else if (ruleName == "inst_addr_fixed") {
+        } else if (ruleName == "inst_addr_fixed") {
             printAligned("📍 Address: ", text);
         }
 
@@ -73,17 +70,20 @@ void printAST(tree::ParseTree* tree, SystemRDLParser* parser, int depth = 0) {
     }
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[])
+{
     // Setup command line parser
     CmdLineParser cmdline("SystemRDL Parser - Parse SystemRDL files and display AST");
-    cmdline.add_option_with_optional_value("j", "json", "Enable JSON output, optionally specify filename");
+    cmdline.add_option_with_optional_value(
+        "j", "json", "Enable JSON output, optionally specify filename");
     cmdline.add_option("h", "help", "Show this help message");
 
     if (!cmdline.parse(argc, argv)) {
-        return argc == 2 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") ? 0 : 1;
+        return argc == 2 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") ? 0
+                                                                                               : 1;
     }
 
-    const auto& args = cmdline.get_positional_args();
+    const auto &args = cmdline.get_positional_args();
     if (args.empty()) {
         std::cerr << "Error: No input file specified" << std::endl;
         cmdline.print_help();
@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
         SystemRDLParser parser(&tokens);
 
         // Parse, starting from root rule
-        tree::ParseTree* tree = parser.root();
+        tree::ParseTree *tree = parser.root();
 
         // Check for syntax errors
         if (parser.getNumberOfSyntaxErrors() > 0) {
@@ -130,7 +130,7 @@ int main(int argc, char* argv[]) {
         // Generate JSON output if requested
         if (cmdline.is_set("json")) {
             std::string output_file = cmdline.get_value("json");
-            
+
             // If no filename provided, use default
             if (output_file.empty()) {
                 output_file = get_default_json_filename(inputFile, "_ast");
@@ -139,7 +139,7 @@ int main(int argc, char* argv[]) {
             std::cout << "\n🔧 Generating JSON output..." << std::endl;
 
             ASTToJsonConverter converter;
-            std::string json_content = converter.convert_to_json(tree, &parser);
+            std::string        json_content = converter.convert_to_json(tree, &parser);
 
             if (!write_json_to_file(json_content, output_file)) {
                 return 1;
@@ -148,7 +148,7 @@ int main(int argc, char* argv[]) {
 
         std::cout << "\n🎉 Parser completed successfully!" << std::endl;
 
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;
     }

@@ -1,27 +1,30 @@
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-#include <cstdio>
-#include "antlr4-runtime.h"
 #include "SystemRDLLexer.h"
 #include "SystemRDLParser.h"
-#include "elaborator.h"
+#include "antlr4-runtime.h"
 #include "cmdline_parser.h"
+#include "elaborator.h"
 #include "json_output.h"
+#include <cstdio>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
 
 using namespace antlr4;
 using namespace systemrdl;
 
 // Printer for elaborated model
-class ElaboratedModelPrinter : public ElaboratedModelTraverser {
+class ElaboratedModelPrinter : public ElaboratedModelTraverser
+{
 public:
-    void print_model(ElaboratedAddrmap& root) {
+    void print_model(ElaboratedAddrmap &root)
+    {
         std::cout << "=== Elaborated SystemRDL Model ===" << std::endl;
         traverse(root);
     }
 
 protected:
-    void pre_visit(ElaboratedNode& node) override {
+    void pre_visit(ElaboratedNode &node) override
+    {
         // Print indentation
         for (int i = 0; i < depth_; i++) {
             std::cout << "  ";
@@ -29,11 +32,16 @@ protected:
 
         // Print node information
         std::string icon = "🔧";
-        if (node.get_node_type() == "addrmap") icon = "📦";
-        else if (node.get_node_type() == "regfile") icon = "📁";
-        else if (node.get_node_type() == "reg") icon = "🔧";
-        else if (node.get_node_type() == "field") icon = "🔧";
-        else if (node.get_node_type() == "mem") icon = "💾";
+        if (node.get_node_type() == "addrmap")
+            icon = "📦";
+        else if (node.get_node_type() == "regfile")
+            icon = "📁";
+        else if (node.get_node_type() == "reg")
+            icon = "🔧";
+        else if (node.get_node_type() == "field")
+            icon = "🔧";
+        else if (node.get_node_type() == "mem")
+            icon = "💾";
 
         std::cout << icon << " " << node.get_node_type() << ": " << node.inst_name;
 
@@ -57,7 +65,8 @@ protected:
         if (!node.array_dimensions.empty()) {
             std::cout << " [array: ";
             for (size_t i = 0; i < node.array_dimensions.size(); ++i) {
-                if (i > 0) std::cout << "x";
+                if (i > 0)
+                    std::cout << "x";
                 std::cout << node.array_dimensions[i];
             }
             std::cout << "]";
@@ -66,24 +75,24 @@ protected:
         std::cout << std::endl;
 
         // Print properties
-        for (const auto& prop : node.properties) {
+        for (const auto &prop : node.properties) {
             for (int i = 0; i <= depth_; i++) {
                 std::cout << "  ";
             }
             std::cout << "📝 " << prop.first << ": ";
 
             switch (prop.second.type) {
-                case PropertyValue::STRING:
-                    std::cout << "\"" << prop.second.string_val << "\"";
-                    break;
-                case PropertyValue::INTEGER:
-                    std::cout << prop.second.int_val;
-                    break;
-                case PropertyValue::BOOLEAN:
-                    std::cout << (prop.second.bool_val ? "true" : "false");
-                    break;
-                default:
-                    std::cout << "unknown";
+            case PropertyValue::STRING:
+                std::cout << "\"" << prop.second.string_val << "\"";
+                break;
+            case PropertyValue::INTEGER:
+                std::cout << prop.second.int_val;
+                break;
+            case PropertyValue::BOOLEAN:
+                std::cout << (prop.second.bool_val ? "true" : "false");
+                break;
+            default:
+                std::cout << "unknown";
             }
             std::cout << std::endl;
         }
@@ -91,25 +100,26 @@ protected:
         depth_++;
     }
 
-    void post_visit(ElaboratedNode& node) override {
-        depth_--;
-    }
+    void post_visit(ElaboratedNode &node) override { depth_--; }
 
 private:
     int depth_ = 0;
 };
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[])
+{
     // Setup command line parser
     CmdLineParser cmdline("SystemRDL Elaborator - Parse and elaborate SystemRDL files");
-    cmdline.add_option_with_optional_value("j", "json", "Enable JSON output, optionally specify filename");
+    cmdline.add_option_with_optional_value(
+        "j", "json", "Enable JSON output, optionally specify filename");
     cmdline.add_option("h", "help", "Show this help message");
 
     if (!cmdline.parse(argc, argv)) {
-        return argc == 2 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") ? 0 : 1;
+        return argc == 2 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") ? 0
+                                                                                               : 1;
     }
 
-    const auto& args = cmdline.get_positional_args();
+    const auto &args = cmdline.get_positional_args();
     if (args.empty()) {
         std::cerr << "Error: No input file specified" << std::endl;
         cmdline.print_help();
@@ -128,12 +138,12 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        ANTLRInputStream input(stream);
-        SystemRDLLexer lexer(&input);
+        ANTLRInputStream  input(stream);
+        SystemRDLLexer    lexer(&input);
         CommonTokenStream tokens(&lexer);
-        SystemRDLParser parser(&tokens);
+        SystemRDLParser   parser(&tokens);
 
-        tree::ParseTree* tree = parser.root();
+        tree::ParseTree *tree = parser.root();
 
         if (parser.getNumberOfSyntaxErrors() > 0) {
             std::cerr << "Syntax errors found: " << parser.getNumberOfSyntaxErrors() << std::endl;
@@ -146,14 +156,14 @@ int main(int argc, char* argv[]) {
         std::cout << "\n🚀 Starting elaboration..." << std::endl;
 
         SystemRDLElaborator elaborator;
-        auto root_context = dynamic_cast<SystemRDLParser::RootContext*>(tree);
-        auto elaborated_model = elaborator.elaborate(root_context);
+        auto                root_context     = dynamic_cast<SystemRDLParser::RootContext *>(tree);
+        auto                elaborated_model = elaborator.elaborate(root_context);
 
         if (elaborator.has_errors()) {
             std::cerr << "Elaboration errors:" << std::endl;
-            for (const auto& error : elaborator.get_errors()) {
-                std::cerr << "  Line " << error.line << ":" << error.column
-                         << " - " << error.message << std::endl;
+            for (const auto &error : elaborator.get_errors()) {
+                std::cerr << "  Line " << error.line << ":" << error.column << " - "
+                          << error.message << std::endl;
             }
             return 1;
         }
@@ -176,33 +186,35 @@ int main(int argc, char* argv[]) {
         std::cout << std::string(50, '=') << std::endl;
 
         AddressMapGenerator addr_gen;
-        auto address_map = addr_gen.generate_address_map(*elaborated_model);
+        auto                address_map = addr_gen.generate_address_map(*elaborated_model);
 
-        std::cout << std::left << std::setw(12) << "Address"
-                  << std::setw(8) << "Size"
-                  << std::setw(20) << "Name"
-                  << "Path" << std::endl;
+        std::cout << std::left << std::setw(12) << "Address" << std::setw(8) << "Size"
+                  << std::setw(20) << "Name" << "Path" << std::endl;
         std::cout << std::string(60, '-') << std::endl;
 
-        for (const auto& entry : address_map) {
-            printf("0x%08lx  %-6lu  %-18s  %s\n",
-                   entry.address, entry.size, entry.name.c_str(), entry.path.c_str());
+        for (const auto &entry : address_map) {
+            printf(
+                "0x%08lx  %-6lu  %-18s  %s\n",
+                entry.address,
+                entry.size,
+                entry.name.c_str(),
+                entry.path.c_str());
         }
 
         // 5. Generate JSON output if requested
         if (cmdline.is_set("json")) {
             std::string output_file = cmdline.get_value("json");
-            
+
             // If no filename provided, use default
             if (output_file.empty()) {
                 output_file = get_default_json_filename(inputFile, "_elaborated");
             }
 
             std::cout << "\n🔧 Generating JSON output..." << std::endl;
-            
+
             ElaboratedModelToJsonConverter converter;
             std::string json_content = converter.convert_to_json(*elaborated_model);
-            
+
             if (!write_json_to_file(json_content, output_file)) {
                 return 1;
             }
@@ -210,7 +222,7 @@ int main(int argc, char* argv[]) {
 
         std::cout << "\n🎉 Elaboration completed successfully!" << std::endl;
 
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;
     }

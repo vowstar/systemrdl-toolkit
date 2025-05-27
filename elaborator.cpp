@@ -1,41 +1,47 @@
 #include "elaborator.h"
-#include <sstream>
 #include <algorithm>
-#include <set>
-#include <map>
 #include <climits>
+#include <map>
+#include <set>
+#include <sstream>
 
 namespace systemrdl {
 
 // ElaboratedNode implementation
-std::string ElaboratedNode::get_hierarchical_path() const {
+std::string ElaboratedNode::get_hierarchical_path() const
+{
     if (parent == nullptr) {
         return inst_name;
     }
     return parent->get_hierarchical_path() + "." + inst_name;
 }
 
-void ElaboratedNode::add_child(std::unique_ptr<ElaboratedNode> child) {
+void ElaboratedNode::add_child(std::unique_ptr<ElaboratedNode> child)
+{
     child->parent = this;
     children.push_back(std::move(child));
 }
 
-PropertyValue* ElaboratedNode::get_property(const std::string& name) {
+PropertyValue *ElaboratedNode::get_property(const std::string &name)
+{
     auto it = properties.find(name);
     return (it != properties.end()) ? &it->second : nullptr;
 }
 
-void ElaboratedNode::set_property(const std::string& name, const PropertyValue& value) {
+void ElaboratedNode::set_property(const std::string &name, const PropertyValue &value)
+{
     properties[name] = value;
 }
 
 // ElaboratedAddrmap implementation
-void ElaboratedAddrmap::accept_visitor(ElaboratedNodeVisitor& visitor) {
+void ElaboratedAddrmap::accept_visitor(ElaboratedNodeVisitor &visitor)
+{
     visitor.visit(*this);
 }
 
-ElaboratedNode* ElaboratedAddrmap::find_child_by_name(const std::string& name) const {
-    for (const auto& child : children) {
+ElaboratedNode *ElaboratedAddrmap::find_child_by_name(const std::string &name) const
+{
+    for (const auto &child : children) {
         if (child->inst_name == name) {
             return child.get();
         }
@@ -43,10 +49,10 @@ ElaboratedNode* ElaboratedAddrmap::find_child_by_name(const std::string& name) c
     return nullptr;
 }
 
-ElaboratedNode* ElaboratedAddrmap::find_child_by_address(Address addr) const {
-    for (const auto& child : children) {
-        if (child->absolute_address <= addr &&
-            addr < child->absolute_address + child->size) {
+ElaboratedNode *ElaboratedAddrmap::find_child_by_address(Address addr) const
+{
+    for (const auto &child : children) {
+        if (child->absolute_address <= addr && addr < child->absolute_address + child->size) {
             return child.get();
         }
     }
@@ -54,12 +60,14 @@ ElaboratedNode* ElaboratedAddrmap::find_child_by_address(Address addr) const {
 }
 
 // ElaboratedRegfile implementation
-void ElaboratedRegfile::accept_visitor(ElaboratedNodeVisitor& visitor) {
+void ElaboratedRegfile::accept_visitor(ElaboratedNodeVisitor &visitor)
+{
     visitor.visit(*this);
 }
 
-ElaboratedNode* ElaboratedRegfile::find_child_by_name(const std::string& name) const {
-    for (const auto& child : children) {
+ElaboratedNode *ElaboratedRegfile::find_child_by_name(const std::string &name) const
+{
+    for (const auto &child : children) {
         if (child->inst_name == name) {
             return child.get();
         }
@@ -67,10 +75,10 @@ ElaboratedNode* ElaboratedRegfile::find_child_by_name(const std::string& name) c
     return nullptr;
 }
 
-ElaboratedNode* ElaboratedRegfile::find_child_by_address(Address addr) const {
-    for (const auto& child : children) {
-        if (child->absolute_address <= addr &&
-            addr < child->absolute_address + child->size) {
+ElaboratedNode *ElaboratedRegfile::find_child_by_address(Address addr) const
+{
+    for (const auto &child : children) {
+        if (child->absolute_address <= addr && addr < child->absolute_address + child->size) {
             return child.get();
         }
     }
@@ -78,13 +86,15 @@ ElaboratedNode* ElaboratedRegfile::find_child_by_address(Address addr) const {
 }
 
 // ElaboratedReg implementation
-void ElaboratedReg::accept_visitor(ElaboratedNodeVisitor& visitor) {
+void ElaboratedReg::accept_visitor(ElaboratedNodeVisitor &visitor)
+{
     visitor.visit(*this);
 }
 
-ElaboratedField* ElaboratedReg::find_field_by_name(const std::string& name) const {
-    for (const auto& child : children) {
-        if (auto field = dynamic_cast<ElaboratedField*>(child.get())) {
+ElaboratedField *ElaboratedReg::find_field_by_name(const std::string &name) const
+{
+    for (const auto &child : children) {
+        if (auto field = dynamic_cast<ElaboratedField *>(child.get())) {
             if (field->inst_name == name) {
                 return field;
             }
@@ -93,9 +103,10 @@ ElaboratedField* ElaboratedReg::find_field_by_name(const std::string& name) cons
     return nullptr;
 }
 
-ElaboratedField* ElaboratedReg::find_field_by_bit_range(size_t msb, size_t lsb) const {
-    for (const auto& child : children) {
-        if (auto field = dynamic_cast<ElaboratedField*>(child.get())) {
+ElaboratedField *ElaboratedReg::find_field_by_bit_range(size_t msb, size_t lsb) const
+{
+    for (const auto &child : children) {
+        if (auto field = dynamic_cast<ElaboratedField *>(child.get())) {
             if (field->msb == msb && field->lsb == lsb) {
                 return field;
             }
@@ -105,17 +116,20 @@ ElaboratedField* ElaboratedReg::find_field_by_bit_range(size_t msb, size_t lsb) 
 }
 
 // ElaboratedField implementation
-void ElaboratedField::accept_visitor(ElaboratedNodeVisitor& visitor) {
+void ElaboratedField::accept_visitor(ElaboratedNodeVisitor &visitor)
+{
     visitor.visit(*this);
 }
 
 // ElaboratedMem implementation
-void ElaboratedMem::accept_visitor(ElaboratedNodeVisitor& visitor) {
+void ElaboratedMem::accept_visitor(ElaboratedNodeVisitor &visitor)
+{
     visitor.visit(*this);
 }
 
-ElaboratedNode* ElaboratedMem::find_child_by_name(const std::string& name) const {
-    for (const auto& child : children) {
+ElaboratedNode *ElaboratedMem::find_child_by_name(const std::string &name) const
+{
+    for (const auto &child : children) {
         if (child->inst_name == name) {
             return child.get();
         }
@@ -123,10 +137,10 @@ ElaboratedNode* ElaboratedMem::find_child_by_name(const std::string& name) const
     return nullptr;
 }
 
-ElaboratedNode* ElaboratedMem::find_child_by_address(Address addr) const {
-    for (const auto& child : children) {
-        if (child->absolute_address <= addr &&
-            addr < child->absolute_address + child->size) {
+ElaboratedNode *ElaboratedMem::find_child_by_address(Address addr) const
+{
+    for (const auto &child : children) {
+        if (child->absolute_address <= addr && addr < child->absolute_address + child->size) {
             return child.get();
         }
     }
@@ -134,12 +148,12 @@ ElaboratedNode* ElaboratedMem::find_child_by_address(Address addr) const {
 }
 
 // SystemRDLElaborator implementation
-SystemRDLElaborator::SystemRDLElaborator() = default;
+SystemRDLElaborator::SystemRDLElaborator()  = default;
 SystemRDLElaborator::~SystemRDLElaborator() = default;
 
 std::unique_ptr<ElaboratedAddrmap> SystemRDLElaborator::elaborate(
-    SystemRDLParser::RootContext* ast_root) {
-
+    SystemRDLParser::RootContext *ast_root)
+{
     errors_.clear();
     component_definitions_.clear();
     enum_definitions_.clear();
@@ -163,9 +177,9 @@ std::unique_ptr<ElaboratedAddrmap> SystemRDLElaborator::elaborate(
                 if (auto addrmap_def = named_def->component_type()->component_type_primary()) {
                     if (addrmap_def->getText() == "addrmap") {
                         // Found addrmap definition, start elaboration
-                        auto elaborated = std::make_unique<ElaboratedAddrmap>();
-                        elaborated->inst_name = named_def->ID()->getText();
-                        elaborated->type_name = "addrmap";
+                        auto elaborated              = std::make_unique<ElaboratedAddrmap>();
+                        elaborated->inst_name        = named_def->ID()->getText();
+                        elaborated->type_name        = "addrmap";
                         elaborated->absolute_address = 0;
 
                         // Process addrmap content
@@ -188,9 +202,8 @@ std::unique_ptr<ElaboratedAddrmap> SystemRDLElaborator::elaborate(
 }
 
 void SystemRDLElaborator::elaborate_component_body(
-    SystemRDLParser::Component_bodyContext* body_ctx,
-    ElaboratedNode* parent) {
-
+    SystemRDLParser::Component_bodyContext *body_ctx, ElaboratedNode *parent)
+{
     Address current_address = 0;
 
     for (auto body_elem : body_ctx->component_body_elem()) {
@@ -211,10 +224,10 @@ void SystemRDLElaborator::elaborate_component_body(
 }
 
 void SystemRDLElaborator::elaborate_component_definition(
-    SystemRDLParser::Component_defContext* comp_def,
-    ElaboratedNode* parent,
-    Address& current_address) {
-
+    SystemRDLParser::Component_defContext *comp_def,
+    ElaboratedNode                        *parent,
+    Address                               &current_address)
+{
     if (auto anon_def = comp_def->component_anon_def()) {
         // Anonymous definition + instantiation
         std::string comp_type = get_component_type(anon_def->component_type());
@@ -228,12 +241,12 @@ void SystemRDLElaborator::elaborate_component_definition(
 }
 
 void SystemRDLElaborator::elaborate_component_instance(
-    SystemRDLParser::Component_anon_defContext* def_ctx,
-    SystemRDLParser::Component_instContext* inst_ctx,
-    ElaboratedNode* parent,
-    Address& current_address,
-    const std::string& comp_type) {
-
+    SystemRDLParser::Component_anon_defContext *def_ctx,
+    SystemRDLParser::Component_instContext     *inst_ctx,
+    ElaboratedNode                             *parent,
+    Address                                    &current_address,
+    const std::string                          &comp_type)
+{
     std::string inst_name = inst_ctx->ID()->getText();
 
     // Check if it's an array
@@ -243,11 +256,12 @@ void SystemRDLElaborator::elaborate_component_instance(
     } else {
         // Single instance
         auto node = create_elaborated_node(comp_type);
-        if (!node) return;
+        if (!node)
+            return;
 
-        node->inst_name = inst_name;
-        node->type_name = comp_type;
-        node->source_ctx = inst_ctx;  // Save source context for error reporting
+        node->inst_name  = inst_name;
+        node->type_name  = comp_type;
+        node->source_ctx = inst_ctx; // Save source context for error reporting
 
         // Calculate address
         Address instance_address = current_address;
@@ -259,7 +273,7 @@ void SystemRDLElaborator::elaborate_component_instance(
 
         // Process field bit range
         if (comp_type == "field") {
-            if (auto field_node = dynamic_cast<ElaboratedField*>(node.get())) {
+            if (auto field_node = dynamic_cast<ElaboratedField *>(node.get())) {
                 elaborate_field_bit_range(inst_ctx, field_node);
             }
         }
@@ -281,16 +295,16 @@ void SystemRDLElaborator::elaborate_component_instance(
 }
 
 void SystemRDLElaborator::elaborate_array_instance(
-    SystemRDLParser::Component_anon_defContext* def_ctx,
-    SystemRDLParser::Component_instContext* inst_ctx,
-    ElaboratedNode* parent,
-    Address& current_address,
-    const std::string& comp_type) {
-
+    SystemRDLParser::Component_anon_defContext *def_ctx,
+    SystemRDLParser::Component_instContext     *inst_ctx,
+    ElaboratedNode                             *parent,
+    Address                                    &current_address,
+    const std::string                          &comp_type)
+{
     std::string base_name = inst_ctx->ID()->getText();
 
     // Parse array dimensions
-    auto array_suffixes = inst_ctx->array_suffix();
+    auto                array_suffixes = inst_ctx->array_suffix();
     std::vector<size_t> dimensions;
 
     if (!array_suffixes.empty()) {
@@ -319,18 +333,19 @@ void SystemRDLElaborator::elaborate_array_instance(
     // Generate array instances
     for (size_t i = 0; i < dimensions[0]; ++i) {
         auto node = create_elaborated_node(comp_type);
-        if (!node) continue;
+        if (!node)
+            continue;
 
-        node->inst_name = base_name + "[" + std::to_string(i) + "]";
-        node->type_name = comp_type;
-        node->source_ctx = inst_ctx;  // Save source context for error reporting
+        node->inst_name        = base_name + "[" + std::to_string(i) + "]";
+        node->type_name        = comp_type;
+        node->source_ctx       = inst_ctx; // Save source context for error reporting
         node->absolute_address = parent->absolute_address + base_address + i * stride;
         node->array_dimensions = dimensions;
-        node->array_indices = {i};
+        node->array_indices    = {i};
 
         // Process field bit range for field components
         if (comp_type == "field") {
-            if (auto field_node = dynamic_cast<ElaboratedField*>(node.get())) {
+            if (auto field_node = dynamic_cast<ElaboratedField *>(node.get())) {
                 elaborate_field_bit_range(inst_ctx, field_node);
             }
         }
@@ -347,9 +362,8 @@ void SystemRDLElaborator::elaborate_array_instance(
     current_address = base_address + dimensions[0] * stride;
 }
 
-std::unique_ptr<ElaboratedNode> SystemRDLElaborator::create_elaborated_node(
-    const std::string& type) {
-
+std::unique_ptr<ElaboratedNode> SystemRDLElaborator::create_elaborated_node(const std::string &type)
+{
     if (type == "addrmap") {
         return std::make_unique<ElaboratedAddrmap>();
     } else if (type == "regfile") {
@@ -366,18 +380,16 @@ std::unique_ptr<ElaboratedNode> SystemRDLElaborator::create_elaborated_node(
     return nullptr;
 }
 
-std::string SystemRDLElaborator::get_component_type(
-    SystemRDLParser::Component_typeContext* type_ctx) {
-
+std::string SystemRDLElaborator::get_component_type(SystemRDLParser::Component_typeContext *type_ctx)
+{
     if (auto primary = type_ctx->component_type_primary()) {
         return primary->getText();
     }
     return "unknown";
 }
 
-Address SystemRDLElaborator::evaluate_address_expression(
-    SystemRDLParser::ExprContext* expr_ctx) {
-
+Address SystemRDLElaborator::evaluate_address_expression(SystemRDLParser::ExprContext *expr_ctx)
+{
     // Use enhanced expression evaluator
     auto result = evaluate_expression(expr_ctx);
     if (result.type == PropertyValue::INTEGER) {
@@ -388,13 +400,13 @@ Address SystemRDLElaborator::evaluate_address_expression(
     std::string text = expr_ctx->getText();
     if (!text.empty()) {
         try {
-            Address result = 0;
+            Address addr_result = 0;
             if (text.substr(0, 2) == "0x" || text.substr(0, 2) == "0X") {
-                result = std::stoull(text, nullptr, 16);
+                addr_result = std::stoull(text, nullptr, 16);
             } else {
-                result = std::stoull(text, nullptr, 10);
+                addr_result = std::stoull(text, nullptr, 10);
             }
-            return result;
+            return addr_result;
         } catch (...) {
             // Parsing failed, return 0
         }
@@ -403,16 +415,17 @@ Address SystemRDLElaborator::evaluate_address_expression(
     return 0;
 }
 
-size_t SystemRDLElaborator::evaluate_integer_expression(
-    SystemRDLParser::ExprContext* expr_ctx) {
-
+size_t SystemRDLElaborator::evaluate_integer_expression(SystemRDLParser::ExprContext *expr_ctx)
+{
     return static_cast<size_t>(evaluate_integer_expression_enhanced(expr_ctx));
 }
 
-void SystemRDLElaborator::calculate_node_size(ElaboratedNode* node) {
-    if (!node) return;
+void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node)
+{
+    if (!node)
+        return;
 
-    if (auto reg_node = dynamic_cast<ElaboratedReg*>(node)) {
+    if (auto reg_node = dynamic_cast<ElaboratedReg *>(node)) {
         // Assign automatic positions to fields that need them
         assign_automatic_field_positions(reg_node);
         // Validate register fields first
@@ -420,12 +433,12 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode* node) {
         // Detect and fill register gaps before calculating size
         detect_and_fill_register_gaps(reg_node);
         reg_node->size = (reg_node->register_width + 7) / 8; // Byte count (round up)
-    } else if (auto field_node = dynamic_cast<ElaboratedField*>(node)) {
+    } else if (auto field_node = dynamic_cast<ElaboratedField *>(node)) {
         field_node->size = 0; // Field does not occupy independent address space
-    } else if (auto regfile_node = dynamic_cast<ElaboratedRegfile*>(node)) {
+    } else if (auto regfile_node = dynamic_cast<ElaboratedRegfile *>(node)) {
         // regfile size is the address range of all its children
         Address max_addr = 0;
-        for (const auto& child : regfile_node->children) {
+        for (const auto &child : regfile_node->children) {
             Address child_end = child->absolute_address + child->size;
             if (child_end > max_addr) {
                 max_addr = child_end;
@@ -435,24 +448,24 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode* node) {
         if (regfile_node->size == 0) {
             regfile_node->size = 4; // Minimum size
         }
-    } else if (auto mem_node = dynamic_cast<ElaboratedMem*>(node)) {
+    } else if (auto mem_node = dynamic_cast<ElaboratedMem *>(node)) {
         // Memory size can be obtained from parameter or attribute
         // First, try MEM_SIZE parameter
         auto mem_size_param = resolve_parameter_reference("MEM_SIZE");
         if (mem_size_param.type == PropertyValue::INTEGER && mem_size_param.int_val > 0) {
-            mem_node->size = static_cast<Size>(mem_size_param.int_val);
+            mem_node->size        = static_cast<Size>(mem_size_param.int_val);
             mem_node->memory_size = static_cast<Size>(mem_size_param.int_val);
         } else {
             // Try SIZE parameter
             auto size_param = resolve_parameter_reference("SIZE");
             if (size_param.type == PropertyValue::INTEGER && size_param.int_val > 0) {
-                mem_node->size = static_cast<Size>(size_param.int_val);
+                mem_node->size        = static_cast<Size>(size_param.int_val);
                 mem_node->memory_size = static_cast<Size>(size_param.int_val);
             } else if (mem_node->memory_size > 0) {
                 mem_node->size = mem_node->memory_size;
             } else {
                 // Default memory size: 4KB
-                mem_node->size = 4096;
+                mem_node->size        = 4096;
                 mem_node->memory_size = 4096;
             }
         }
@@ -481,74 +494,82 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode* node) {
     }
 }
 
-void SystemRDLElaborator::report_error(const std::string& message,
-                                      antlr4::ParserRuleContext* ctx) {
+void SystemRDLElaborator::report_error(const std::string &message, antlr4::ParserRuleContext *ctx)
+{
     ElaborationError error;
     error.message = message;
     if (ctx) {
-        error.line = ctx->getStart()->getLine();
+        error.line   = ctx->getStart()->getLine();
         error.column = ctx->getStart()->getCharPositionInLine();
     }
     errors_.push_back(error);
 }
 
 // ElaboratedModelTraverser implementation
-void ElaboratedModelTraverser::traverse(ElaboratedNode& root) {
+void ElaboratedModelTraverser::traverse(ElaboratedNode &root)
+{
     pre_visit(root);
     root.accept_visitor(*this);
     post_visit(root);
 }
 
-void ElaboratedModelTraverser::visit(ElaboratedAddrmap& node) {
-    for (auto& child : node.children) {
+void ElaboratedModelTraverser::visit(ElaboratedAddrmap &node)
+{
+    for (auto &child : node.children) {
         traverse(*child);
     }
 }
 
-void ElaboratedModelTraverser::visit(ElaboratedRegfile& node) {
-    for (auto& child : node.children) {
+void ElaboratedModelTraverser::visit(ElaboratedRegfile &node)
+{
+    for (auto &child : node.children) {
         traverse(*child);
     }
 }
 
-void ElaboratedModelTraverser::visit(ElaboratedReg& node) {
-    for (auto& child : node.children) {
+void ElaboratedModelTraverser::visit(ElaboratedReg &node)
+{
+    for (auto &child : node.children) {
         traverse(*child);
     }
 }
 
-void ElaboratedModelTraverser::visit(ElaboratedField& node) {
+void ElaboratedModelTraverser::visit(ElaboratedField &node)
+{
     // Field usually has no children
 }
 
-void ElaboratedModelTraverser::visit(ElaboratedMem& node) {
-    for (auto& child : node.children) {
+void ElaboratedModelTraverser::visit(ElaboratedMem &node)
+{
+    for (auto &child : node.children) {
         traverse(*child);
     }
 }
 
 // AddressMapGenerator implementation
-std::vector<AddressMapGenerator::AddressEntry>
-AddressMapGenerator::generate_address_map(ElaboratedAddrmap& root) {
+std::vector<AddressMapGenerator::AddressEntry> AddressMapGenerator::generate_address_map(
+    ElaboratedAddrmap &root)
+{
     address_map_.clear();
     traverse(root);
 
     // Sort by address
-    std::sort(address_map_.begin(), address_map_.end(),
-              [](const AddressEntry& a, const AddressEntry& b) {
-                  return a.address < b.address;
-              });
+    std::sort(
+        address_map_.begin(), address_map_.end(), [](const AddressEntry &a, const AddressEntry &b) {
+            return a.address < b.address;
+        });
 
     return address_map_;
 }
 
-void AddressMapGenerator::visit(ElaboratedRegfile& node) {
+void AddressMapGenerator::visit(ElaboratedRegfile &node)
+{
     AddressEntry entry;
     entry.address = node.absolute_address;
-    entry.size = node.size;
-    entry.name = node.inst_name;
-    entry.path = node.get_hierarchical_path();
-    entry.type = node.get_node_type();
+    entry.size    = node.size;
+    entry.name    = node.inst_name;
+    entry.path    = node.get_hierarchical_path();
+    entry.type    = node.get_node_type();
 
     address_map_.push_back(entry);
 
@@ -556,15 +577,14 @@ void AddressMapGenerator::visit(ElaboratedRegfile& node) {
     ElaboratedModelTraverser::visit(node);
 }
 
-void AddressMapGenerator::visit(ElaboratedReg& node) {
+void AddressMapGenerator::visit(ElaboratedReg &node)
+{
     AddressEntry entry;
     entry.address = node.absolute_address;
-    entry.size = node.size;
-    entry.name = node.inst_name;
-    entry.path = node.get_hierarchical_path();
-    entry.type = node.get_node_type();
-
-
+    entry.size    = node.size;
+    entry.name    = node.inst_name;
+    entry.path    = node.get_hierarchical_path();
+    entry.type    = node.get_node_type();
 
     address_map_.push_back(entry);
 
@@ -572,13 +592,14 @@ void AddressMapGenerator::visit(ElaboratedReg& node) {
     ElaboratedModelTraverser::visit(node);
 }
 
-void AddressMapGenerator::visit(ElaboratedMem& node) {
+void AddressMapGenerator::visit(ElaboratedMem &node)
+{
     AddressEntry entry;
     entry.address = node.absolute_address;
-    entry.size = node.size;
-    entry.name = node.inst_name;
-    entry.path = node.get_hierarchical_path();
-    entry.type = node.get_node_type();
+    entry.size    = node.size;
+    entry.name    = node.inst_name;
+    entry.path    = node.get_hierarchical_path();
+    entry.type    = node.get_node_type();
 
     address_map_.push_back(entry);
 
@@ -587,9 +608,8 @@ void AddressMapGenerator::visit(ElaboratedMem& node) {
 }
 
 // New method implementation
-void SystemRDLElaborator::collect_component_definitions(
-    SystemRDLParser::RootContext* ast_root) {
-
+void SystemRDLElaborator::collect_component_definitions(SystemRDLParser::RootContext *ast_root)
+{
     // Collect top-level definitions
     for (auto root_elem : ast_root->root_elem()) {
         if (auto comp_def = root_elem->component_def()) {
@@ -606,8 +626,8 @@ void SystemRDLElaborator::collect_component_definitions(
 }
 
 void SystemRDLElaborator::collect_component_definitions_from_body(
-    SystemRDLParser::Component_bodyContext* body_ctx) {
-
+    SystemRDLParser::Component_bodyContext *body_ctx)
+{
     for (auto body_elem : body_ctx->component_body_elem()) {
         if (auto comp_def = body_elem->component_def()) {
             if (auto named_def = comp_def->component_named_def()) {
@@ -623,14 +643,14 @@ void SystemRDLElaborator::collect_component_definitions_from_body(
 }
 
 void SystemRDLElaborator::register_component_definition(
-    SystemRDLParser::Component_named_defContext* named_def) {
-
+    SystemRDLParser::Component_named_defContext *named_def)
+{
     std::string comp_name = named_def->ID()->getText();
     std::string comp_type = get_component_type(named_def->component_type());
 
     ComponentDefinition def;
-    def.name = comp_name;
-    def.type = comp_type;
+    def.name    = comp_name;
+    def.type    = comp_type;
     def.def_ctx = named_def;
 
     // Parse parameter definitions
@@ -642,10 +662,10 @@ void SystemRDLElaborator::register_component_definition(
 }
 
 void SystemRDLElaborator::elaborate_explicit_component_inst(
-    SystemRDLParser::Explicit_component_instContext* explicit_inst,
-    ElaboratedNode* parent,
-    Address& current_address) {
-
+    SystemRDLParser::Explicit_component_instContext *explicit_inst,
+    ElaboratedNode                                  *parent,
+    Address                                         &current_address)
+{
     std::string type_name = explicit_inst->ID()->getText();
 
     // Find named component definition
@@ -655,7 +675,7 @@ void SystemRDLElaborator::elaborate_explicit_component_inst(
         return;
     }
 
-    const ComponentDefinition& comp_def = it->second;
+    const ComponentDefinition &comp_def = it->second;
 
     // Process parameter instantiation
     std::vector<ParameterAssignment> param_assignments;
@@ -677,11 +697,11 @@ void SystemRDLElaborator::elaborate_explicit_component_inst(
 }
 
 void SystemRDLElaborator::elaborate_named_component_instance(
-    const std::string& type_name,
-    SystemRDLParser::Component_instContext* inst_ctx,
-    ElaboratedNode* parent,
-    Address& current_address) {
-
+    const std::string                      &type_name,
+    SystemRDLParser::Component_instContext *inst_ctx,
+    ElaboratedNode                         *parent,
+    Address                                &current_address)
+{
     // Find component definition
     auto it = component_definitions_.find(type_name);
     if (it == component_definitions_.end()) {
@@ -689,8 +709,8 @@ void SystemRDLElaborator::elaborate_named_component_instance(
         return;
     }
 
-    const ComponentDefinition& comp_def = it->second;
-    std::string inst_name = inst_ctx->ID()->getText();
+    const ComponentDefinition &comp_def  = it->second;
+    std::string                inst_name = inst_ctx->ID()->getText();
 
     // Check if it's an array
     auto array_suffixes = inst_ctx->array_suffix();
@@ -699,11 +719,12 @@ void SystemRDLElaborator::elaborate_named_component_instance(
     } else {
         // Single instance
         auto node = create_elaborated_node(comp_def.type);
-        if (!node) return;
+        if (!node)
+            return;
 
-        node->inst_name = inst_name;
-        node->type_name = comp_def.type;
-        node->source_ctx = inst_ctx;  // Save source context for error reporting
+        node->inst_name  = inst_name;
+        node->type_name  = comp_def.type;
+        node->source_ctx = inst_ctx; // Save source context for error reporting
 
         // Calculate address
         Address instance_address = current_address;
@@ -730,11 +751,11 @@ void SystemRDLElaborator::elaborate_named_component_instance(
 }
 
 void SystemRDLElaborator::elaborate_named_array_instance(
-    const std::string& type_name,
-    SystemRDLParser::Component_instContext* inst_ctx,
-    ElaboratedNode* parent,
-    Address& current_address) {
-
+    const std::string                      &type_name,
+    SystemRDLParser::Component_instContext *inst_ctx,
+    ElaboratedNode                         *parent,
+    Address                                &current_address)
+{
     // Find component definition
     auto it = component_definitions_.find(type_name);
     if (it == component_definitions_.end()) {
@@ -742,11 +763,11 @@ void SystemRDLElaborator::elaborate_named_array_instance(
         return;
     }
 
-    const ComponentDefinition& comp_def = it->second;
-    std::string base_name = inst_ctx->ID()->getText();
+    const ComponentDefinition &comp_def  = it->second;
+    std::string                base_name = inst_ctx->ID()->getText();
 
     // Parse array dimensions
-    auto array_suffixes = inst_ctx->array_suffix();
+    auto                array_suffixes = inst_ctx->array_suffix();
     std::vector<size_t> dimensions;
 
     if (!array_suffixes.empty()) {
@@ -775,14 +796,15 @@ void SystemRDLElaborator::elaborate_named_array_instance(
     // Generate array instances
     for (size_t i = 0; i < dimensions[0]; ++i) {
         auto node = create_elaborated_node(comp_def.type);
-        if (!node) continue;
+        if (!node)
+            continue;
 
-        node->inst_name = base_name + "[" + std::to_string(i) + "]";
-        node->type_name = comp_def.type;
-        node->source_ctx = inst_ctx;  // Save source context for error reporting
+        node->inst_name        = base_name + "[" + std::to_string(i) + "]";
+        node->type_name        = comp_def.type;
+        node->source_ctx       = inst_ctx; // Save source context for error reporting
         node->absolute_address = parent->absolute_address + base_address + i * stride;
         node->array_dimensions = dimensions;
-        node->array_indices = {i};
+        node->array_indices    = {i};
 
         // Process component body (from named definition)
         if (auto body = comp_def.def_ctx->component_body()) {
@@ -798,9 +820,8 @@ void SystemRDLElaborator::elaborate_named_array_instance(
 
 // Property processing method implementation
 void SystemRDLElaborator::elaborate_local_property_assignment(
-    SystemRDLParser::Local_property_assignmentContext* local_prop,
-    ElaboratedNode* parent) {
-
+    SystemRDLParser::Local_property_assignmentContext *local_prop, ElaboratedNode *parent)
+{
     if (auto normal_prop = local_prop->normal_prop_assign()) {
         std::string prop_name;
 
@@ -818,7 +839,7 @@ void SystemRDLElaborator::elaborate_local_property_assignment(
 
             // Special handling for regwidth property
             if (prop_name == "regwidth" && value.type == PropertyValue::INTEGER) {
-                if (auto reg_node = dynamic_cast<ElaboratedReg*>(parent)) {
+                if (auto reg_node = dynamic_cast<ElaboratedReg *>(parent)) {
                     reg_node->register_width = static_cast<uint32_t>(value.int_val);
                 }
             }
@@ -828,13 +849,14 @@ void SystemRDLElaborator::elaborate_local_property_assignment(
                 auto enum_def = find_enum_definition(value.string_val);
                 if (enum_def) {
                     // Store enum information
-                    parent->set_property("encode_type", PropertyValue("enum"));
+                    parent->set_property("encode_type", PropertyValue(std::string("enum")));
                     parent->set_property("encode_name", value);
 
                     // Store enum value mapping
                     std::string enum_values = "";
-                    for (const auto& entry : enum_def->entries) {
-                        if (!enum_values.empty()) enum_values += ",";
+                    for (const auto &entry : enum_def->entries) {
+                        if (!enum_values.empty())
+                            enum_values += ",";
                         enum_values += entry.name + "=" + std::to_string(entry.value);
                     }
                     parent->set_property("encode_values", PropertyValue(enum_values));
@@ -859,13 +881,14 @@ void SystemRDLElaborator::elaborate_local_property_assignment(
         auto enum_def = find_enum_definition(enum_name);
         if (enum_def) {
             // Store enum information
-            parent->set_property("encode_type", PropertyValue("enum"));
+            parent->set_property("encode_type", PropertyValue(std::string("enum")));
             parent->set_property("encode_name", PropertyValue(enum_name));
 
             // Store enum value mapping
             std::string enum_values = "";
-            for (const auto& entry : enum_def->entries) {
-                if (!enum_values.empty()) enum_values += ",";
+            for (const auto &entry : enum_def->entries) {
+                if (!enum_values.empty())
+                    enum_values += ",";
                 enum_values += entry.name + "=" + std::to_string(entry.value);
             }
             parent->set_property("encode_values", PropertyValue(enum_values));
@@ -875,61 +898,62 @@ void SystemRDLElaborator::elaborate_local_property_assignment(
 }
 
 void SystemRDLElaborator::elaborate_dynamic_property_assignment(
-    SystemRDLParser::Dynamic_property_assignmentContext* dynamic_prop,
-    ElaboratedNode* parent) {
-
+    SystemRDLParser::Dynamic_property_assignmentContext *dynamic_prop, ElaboratedNode *parent)
+{
     // Dynamic property assignment: instance_ref -> property = value
     // This requires finding the target instance, temporarily skipping complex implementation
     // TODO: Implement dynamic property assignment
 }
 
 PropertyValue SystemRDLElaborator::evaluate_property_value(
-    SystemRDLParser::Prop_assignment_rhsContext* rhs_ctx) {
-
+    SystemRDLParser::Prop_assignment_rhsContext *rhs_ctx)
+{
     if (auto precedence = rhs_ctx->precedencetype_literal()) {
         return PropertyValue(precedence->getText());
     } else if (auto expr = rhs_ctx->expr()) {
         return evaluate_property_value(expr);
     }
 
-    return PropertyValue("");
+    return PropertyValue(std::string(""));
 }
 
-PropertyValue SystemRDLElaborator::evaluate_property_value(
-    SystemRDLParser::ExprContext* expr_ctx) {
-
+PropertyValue SystemRDLElaborator::evaluate_property_value(SystemRDLParser::ExprContext *expr_ctx)
+{
     // Use enhanced expression evaluator
     return evaluate_expression(expr_ctx);
 }
 
 // Enhanced expression evaluator implementation
-PropertyValue SystemRDLElaborator::evaluate_expression(
-    SystemRDLParser::ExprContext* expr_ctx) {
-
+PropertyValue SystemRDLElaborator::evaluate_expression(SystemRDLParser::ExprContext *expr_ctx)
+{
     if (!expr_ctx) {
-        return PropertyValue("");
+        return PropertyValue(std::string(""));
     }
 
     // Process unary expression
-    if (auto unary_ctx = dynamic_cast<SystemRDLParser::UnaryExprContext*>(expr_ctx)) {
-        auto operand = evaluate_expression_primary(unary_ctx->expr_primary());
-        std::string op = unary_ctx->op->getText();
+    if (auto unary_ctx = dynamic_cast<SystemRDLParser::UnaryExprContext *>(expr_ctx)) {
+        auto        operand = evaluate_expression_primary(unary_ctx->expr_primary());
+        std::string op      = unary_ctx->op->getText();
 
         if (operand.type == PropertyValue::INTEGER) {
             int64_t val = operand.int_val;
-            if (op == "+") return PropertyValue(val);
-            else if (op == "-") return PropertyValue(-val);
-            else if (op == "~") return PropertyValue(~val);
-            else if (op == "!") return PropertyValue(static_cast<int64_t>(val == 0 ? 1 : 0));
+            if (op == "+")
+                return PropertyValue(val);
+            else if (op == "-")
+                return PropertyValue(-val);
+            else if (op == "~")
+                return PropertyValue(~val);
+            else if (op == "!")
+                return PropertyValue(static_cast<int64_t>(val == 0 ? 1 : 0));
         }
         return PropertyValue(expr_ctx->getText());
     }
 
     // Process binary expression
-    if (auto binary_ctx = dynamic_cast<SystemRDLParser::BinaryExprContext*>(expr_ctx)) {
-        auto left = evaluate_expression(binary_ctx->expr(0));
-        auto right = evaluate_expression(binary_ctx->expr(1));
-        std::string op = binary_ctx->op->getText();
+    if (auto binary_ctx = dynamic_cast<SystemRDLParser::BinaryExprContext *>(expr_ctx)) {
+        auto        left  = evaluate_expression(binary_ctx->expr(0));
+        auto        right = evaluate_expression(binary_ctx->expr(1));
+        std::string op    = binary_ctx->op->getText();
 
         // If both operands are integers, perform numerical calculation
         if (left.type == PropertyValue::INTEGER && right.type == PropertyValue::INTEGER) {
@@ -937,11 +961,16 @@ PropertyValue SystemRDLElaborator::evaluate_expression(
             int64_t r = right.int_val;
 
             // Arithmetic operations
-            if (op == "+") return PropertyValue(l + r);
-            else if (op == "-") return PropertyValue(l - r);
-            else if (op == "*") return PropertyValue(l * r);
-            else if (op == "/") return PropertyValue(r != 0 ? l / r : 0);
-            else if (op == "%") return PropertyValue(r != 0 ? l % r : 0);
+            if (op == "+")
+                return PropertyValue(l + r);
+            else if (op == "-")
+                return PropertyValue(l - r);
+            else if (op == "*")
+                return PropertyValue(l * r);
+            else if (op == "/")
+                return PropertyValue(r != 0 ? l / r : 0);
+            else if (op == "%")
+                return PropertyValue(r != 0 ? l % r : 0);
             else if (op == "**") {
                 // Simple power operation implementation
                 int64_t result = 1;
@@ -951,27 +980,44 @@ PropertyValue SystemRDLElaborator::evaluate_expression(
                 return PropertyValue(result);
             }
             // Bitwise operations
-            else if (op == "&") return PropertyValue(l & r);
-            else if (op == "|") return PropertyValue(l | r);
-            else if (op == "^") return PropertyValue(l ^ r);
-            else if (op == "<<") return PropertyValue(l << (r & 63)); // Limit shift bit count
-            else if (op == ">>") return PropertyValue(l >> (r & 63));
+            else if (op == "&")
+                return PropertyValue(l & r);
+            else if (op == "|")
+                return PropertyValue(l | r);
+            else if (op == "^")
+                return PropertyValue(l ^ r);
+            else if (op == "<<")
+                return PropertyValue(l << (r & 63)); // Limit shift bit count
+            else if (op == ">>")
+                return PropertyValue(l >> (r & 63));
             // Comparison operations
-            else if (op == "<") return PropertyValue(static_cast<int64_t>(l < r ? 1 : 0));
-            else if (op == "<=") return PropertyValue(static_cast<int64_t>(l <= r ? 1 : 0));
-            else if (op == ">") return PropertyValue(static_cast<int64_t>(l > r ? 1 : 0));
-            else if (op == ">=") return PropertyValue(static_cast<int64_t>(l >= r ? 1 : 0));
-            else if (op == "==") return PropertyValue(static_cast<int64_t>(l == r ? 1 : 0));
-            else if (op == "!=") return PropertyValue(static_cast<int64_t>(l != r ? 1 : 0));
+            else if (op == "<")
+                return PropertyValue(static_cast<int64_t>(l < r ? 1 : 0));
+            else if (op == "<=")
+                return PropertyValue(static_cast<int64_t>(l <= r ? 1 : 0));
+            else if (op == ">")
+                return PropertyValue(static_cast<int64_t>(l > r ? 1 : 0));
+            else if (op == ">=")
+                return PropertyValue(static_cast<int64_t>(l >= r ? 1 : 0));
+            else if (op == "==")
+                return PropertyValue(static_cast<int64_t>(l == r ? 1 : 0));
+            else if (op == "!=")
+                return PropertyValue(static_cast<int64_t>(l != r ? 1 : 0));
             // Logical operations
-            else if (op == "&&") return PropertyValue(static_cast<int64_t>((l != 0 && r != 0) ? 1 : 0));
-            else if (op == "||") return PropertyValue(static_cast<int64_t>((l != 0 || r != 0) ? 1 : 0));
+            else if (op == "&&")
+                return PropertyValue(static_cast<int64_t>((l != 0 && r != 0) ? 1 : 0));
+            else if (op == "||")
+                return PropertyValue(static_cast<int64_t>((l != 0 || r != 0) ? 1 : 0));
         }
 
         // String concatenation
-        if (op == "+" && (left.type == PropertyValue::STRING || right.type == PropertyValue::STRING)) {
-            std::string l_str = (left.type == PropertyValue::STRING) ? left.string_val : std::to_string(left.int_val);
-            std::string r_str = (right.type == PropertyValue::STRING) ? right.string_val : std::to_string(right.int_val);
+        if (op == "+"
+            && (left.type == PropertyValue::STRING || right.type == PropertyValue::STRING)) {
+            std::string l_str = (left.type == PropertyValue::STRING) ? left.string_val
+                                                                     : std::to_string(left.int_val);
+            std::string r_str = (right.type == PropertyValue::STRING)
+                                    ? right.string_val
+                                    : std::to_string(right.int_val);
             return PropertyValue(l_str + r_str);
         }
 
@@ -979,7 +1025,7 @@ PropertyValue SystemRDLElaborator::evaluate_expression(
     }
 
     // Process ternary expression (condition ? true_val : false_val)
-    if (auto ternary_ctx = dynamic_cast<SystemRDLParser::TernaryExprContext*>(expr_ctx)) {
+    if (auto ternary_ctx = dynamic_cast<SystemRDLParser::TernaryExprContext *>(expr_ctx)) {
         auto condition = evaluate_expression(ternary_ctx->expr(0));
         bool cond_true = false;
 
@@ -997,7 +1043,7 @@ PropertyValue SystemRDLElaborator::evaluate_expression(
     }
 
     // Process simple expression (NOPContext)
-    if (auto nop_ctx = dynamic_cast<SystemRDLParser::NOPContext*>(expr_ctx)) {
+    if (auto nop_ctx = dynamic_cast<SystemRDLParser::NOPContext *>(expr_ctx)) {
         return evaluate_expression_primary(nop_ctx->expr_primary());
     }
 
@@ -1007,8 +1053,8 @@ PropertyValue SystemRDLElaborator::evaluate_expression(
 
 // Enhanced integer expression evaluation
 int64_t SystemRDLElaborator::evaluate_integer_expression_enhanced(
-    SystemRDLParser::ExprContext* expr_ctx) {
-
+    SystemRDLParser::ExprContext *expr_ctx)
+{
     auto result = evaluate_expression(expr_ctx);
     if (result.type == PropertyValue::INTEGER) {
         return result.int_val;
@@ -1033,17 +1079,17 @@ int64_t SystemRDLElaborator::evaluate_integer_expression_enhanced(
 
 // Expression primary part evaluation implementation
 PropertyValue SystemRDLElaborator::evaluate_expression_primary(
-    SystemRDLParser::Expr_primaryContext* primary_ctx) {
-
+    SystemRDLParser::Expr_primaryContext *primary_ctx)
+{
     if (!primary_ctx) {
-        return PropertyValue("");
+        return PropertyValue(std::string(""));
     }
 
     if (auto literal = primary_ctx->literal()) {
         // Process number literal
         if (auto number = literal->number()) {
             std::string num_str = number->getText();
-            int64_t result = 0;
+            int64_t     result  = 0;
             if (num_str.substr(0, 2) == "0x" || num_str.substr(0, 2) == "0X") {
                 result = std::stoll(num_str, nullptr, 16);
             } else {
@@ -1079,12 +1125,15 @@ PropertyValue SystemRDLElaborator::evaluate_expression_primary(
         return evaluate_expression(paren->expr());
     }
     // Process identifier (possibly parameter reference)
-    else if (primary_ctx->getText().find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") == std::string::npos) {
+    else if (
+        primary_ctx->getText().find_first_not_of(
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
+        == std::string::npos) {
         // This is an identifier, check if it's a parameter reference
-        std::string identifier = primary_ctx->getText();
-        auto param_value = resolve_parameter_reference(identifier);
+        std::string identifier  = primary_ctx->getText();
+        auto        param_value = resolve_parameter_reference(identifier);
         if (param_value.type != PropertyValue::STRING || param_value.string_val != identifier) {
-            return param_value;  // Found parameter value
+            return param_value; // Found parameter value
         }
     }
 
@@ -1094,10 +1143,10 @@ PropertyValue SystemRDLElaborator::evaluate_expression_primary(
 
 // Field bit range processing method implementation
 void SystemRDLElaborator::elaborate_field_bit_range(
-    SystemRDLParser::Component_instContext* inst_ctx,
-    ElaboratedField* field_node) {
-
-    if (!field_node) return;
+    SystemRDLParser::Component_instContext *inst_ctx, ElaboratedField *field_node)
+{
+    if (!field_node)
+        return;
 
     // Check if there's bit range definition
     if (auto range_suffix = inst_ctx->range_suffix()) {
@@ -1107,14 +1156,16 @@ void SystemRDLElaborator::elaborate_field_bit_range(
             size_t msb = evaluate_integer_expression_enhanced(exprs[0]);
             size_t lsb = evaluate_integer_expression_enhanced(exprs[1]);
 
-            field_node->msb = msb;
-            field_node->lsb = lsb;
+            field_node->msb   = msb;
+            field_node->lsb   = lsb;
             field_node->width = (msb >= lsb) ? (msb - lsb + 1) : 0;
 
             // Verify the reasonability of the bit range
             if (msb < lsb) {
-                report_error("Invalid bit range: MSB (" + std::to_string(msb) +
-                           ") is less than LSB (" + std::to_string(lsb) + ")", inst_ctx);
+                report_error(
+                    "Invalid bit range: MSB (" + std::to_string(msb) + ") is less than LSB ("
+                        + std::to_string(lsb) + ")",
+                    inst_ctx);
             }
 
             // Set bit range attribute
@@ -1133,8 +1184,8 @@ void SystemRDLElaborator::elaborate_field_bit_range(
         }
 
         // Mark this field as needing automatic positioning
-        field_node->msb = SIZE_MAX; // Use SIZE_MAX as marker for auto-positioning
-        field_node->lsb = SIZE_MAX;
+        field_node->msb   = SIZE_MAX; // Use SIZE_MAX as marker for auto-positioning
+        field_node->lsb   = SIZE_MAX;
         field_node->width = field_width;
 
         field_node->set_property("msb", PropertyValue(static_cast<int64_t>(SIZE_MAX)));
@@ -1146,8 +1197,8 @@ void SystemRDLElaborator::elaborate_field_bit_range(
 
 // Parameter processing method implementation
 std::vector<ParameterDefinition> SystemRDLElaborator::parse_parameter_definitions(
-    SystemRDLParser::Param_defContext* param_def_ctx) {
-
+    SystemRDLParser::Param_defContext *param_def_ctx)
+{
     std::vector<ParameterDefinition> parameters;
 
     for (auto param_elem : param_def_ctx->param_def_elem()) {
@@ -1188,8 +1239,8 @@ std::vector<ParameterDefinition> SystemRDLElaborator::parse_parameter_definition
 }
 
 std::vector<ParameterAssignment> SystemRDLElaborator::parse_parameter_assignments(
-    SystemRDLParser::Param_instContext* param_inst_ctx) {
-
+    SystemRDLParser::Param_instContext *param_inst_ctx)
+{
     std::vector<ParameterAssignment> assignments;
 
     for (auto param_assign : param_inst_ctx->param_assignment()) {
@@ -1208,20 +1259,20 @@ std::vector<ParameterAssignment> SystemRDLElaborator::parse_parameter_assignment
 }
 
 void SystemRDLElaborator::apply_parameter_assignments(
-    const std::vector<ParameterDefinition>& param_defs,
-    const std::vector<ParameterAssignment>& param_assignments) {
-
+    const std::vector<ParameterDefinition> &param_defs,
+    const std::vector<ParameterAssignment> &param_assignments)
+{
     // Clear current parameter context
     current_parameter_values_.clear();
 
     // First apply default values (multi-round evaluation to handle parameter dependencies)
     std::set<std::string> resolved_params;
-    bool progress = true;
+    bool                  progress = true;
 
     while (progress && resolved_params.size() < param_defs.size()) {
         progress = false;
 
-        for (const auto& param_def : param_defs) {
+        for (const auto &param_def : param_defs) {
             if (!param_def.has_default || resolved_params.count(param_def.name)) {
                 continue; // Skip already resolved parameters
             }
@@ -1234,7 +1285,8 @@ void SystemRDLElaborator::apply_parameter_assignments(
             } else {
                 // Try re-evaluating expression
                 auto value = evaluate_expression_from_string(param_def.default_value.string_val);
-                if (value.type != PropertyValue::STRING || value.string_val != param_def.default_value.string_val) {
+                if (value.type != PropertyValue::STRING
+                    || value.string_val != param_def.default_value.string_val) {
                     // Evaluation succeeded
                     current_parameter_values_[param_def.name] = value;
                     resolved_params.insert(param_def.name);
@@ -1245,17 +1297,17 @@ void SystemRDLElaborator::apply_parameter_assignments(
     }
 
     // Process remaining unparsed parameters (may exist circular dependencies)
-    for (const auto& param_def : param_defs) {
+    for (const auto &param_def : param_defs) {
         if (param_def.has_default && !resolved_params.count(param_def.name)) {
             current_parameter_values_[param_def.name] = param_def.default_value;
         }
     }
 
     // Then apply instantiation-time assignments
-    for (const auto& assignment : param_assignments) {
+    for (const auto &assignment : param_assignments) {
         // Check if parameter exists
         bool param_exists = false;
-        for (const auto& param_def : param_defs) {
+        for (const auto &param_def : param_defs) {
             if (param_def.name == assignment.name) {
                 param_exists = true;
                 break;
@@ -1270,19 +1322,21 @@ void SystemRDLElaborator::apply_parameter_assignments(
     }
 
     // Check if all required parameters have values
-    for (const auto& param_def : param_defs) {
-        if (!param_def.has_default &&
-            current_parameter_values_.find(param_def.name) == current_parameter_values_.end()) {
+    for (const auto &param_def : param_defs) {
+        if (!param_def.has_default
+            && current_parameter_values_.find(param_def.name) == current_parameter_values_.end()) {
             report_error("Missing required parameter: " + param_def.name);
         }
     }
 }
 
-void SystemRDLElaborator::clear_parameter_context() {
+void SystemRDLElaborator::clear_parameter_context()
+{
     current_parameter_values_.clear();
 }
 
-PropertyValue SystemRDLElaborator::resolve_parameter_reference(const std::string& param_name) {
+PropertyValue SystemRDLElaborator::resolve_parameter_reference(const std::string &param_name)
+{
     auto it = current_parameter_values_.find(param_name);
     if (it != current_parameter_values_.end()) {
         return it->second;
@@ -1292,21 +1346,24 @@ PropertyValue SystemRDLElaborator::resolve_parameter_reference(const std::string
     return PropertyValue(param_name);
 }
 
-PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::string& expr_text) {
+PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::string &expr_text)
+{
     // Enhanced expression evaluator: support more complex expression patterns
 
     // Check if it's a simple parameter reference
-    if (expr_text.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") == std::string::npos) {
+    if (expr_text.find_first_not_of(
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
+        == std::string::npos) {
         return resolve_parameter_reference(expr_text);
     }
 
     // Process "(1<<BASE_WIDTH)-1" pattern
     if (expr_text.find("(1<<") != std::string::npos && expr_text.find(")-1") != std::string::npos) {
         size_t start = expr_text.find("(1<<") + 4;
-        size_t end = expr_text.find(")-1");
+        size_t end   = expr_text.find(")-1");
         if (start < end) {
             std::string param_name = expr_text.substr(start, end - start);
-            auto param_val = resolve_parameter_reference(param_name);
+            auto        param_val  = resolve_parameter_reference(param_name);
             if (param_val.type == PropertyValue::INTEGER) {
                 return PropertyValue(static_cast<int64_t>((1LL << param_val.int_val) - 1));
             }
@@ -1315,15 +1372,15 @@ PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::st
 
     // Process "param*number" or "number*param" pattern
     if (expr_text.find('*') != std::string::npos) {
-        size_t pos = expr_text.find('*');
-        std::string left = expr_text.substr(0, pos);
+        size_t      pos   = expr_text.find('*');
+        std::string left  = expr_text.substr(0, pos);
         std::string right = expr_text.substr(pos + 1);
 
         // Remove spaces
         left.erase(std::remove(left.begin(), left.end(), ' '), left.end());
         right.erase(std::remove(right.begin(), right.end(), ' '), right.end());
 
-        auto left_val = resolve_parameter_reference(left);
+        auto left_val  = resolve_parameter_reference(left);
         auto right_val = resolve_parameter_reference(right);
 
         // If both are integers, directly multiply
@@ -1336,7 +1393,8 @@ PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::st
             try {
                 int64_t right_num = std::stoll(right);
                 return PropertyValue(left_val.int_val * right_num);
-            } catch (...) {}
+            } catch (...) {
+            }
         }
 
         // If right is parameter, left is number
@@ -1344,21 +1402,22 @@ PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::st
             try {
                 int64_t left_num = std::stoll(left);
                 return PropertyValue(left_num * right_val.int_val);
-            } catch (...) {}
+            } catch (...) {
+            }
         }
     }
 
     // Process "param+number" or "number+param" pattern
     if (expr_text.find('+') != std::string::npos) {
-        size_t pos = expr_text.find('+');
-        std::string left = expr_text.substr(0, pos);
+        size_t      pos   = expr_text.find('+');
+        std::string left  = expr_text.substr(0, pos);
         std::string right = expr_text.substr(pos + 1);
 
         // Remove spaces
         left.erase(std::remove(left.begin(), left.end(), ' '), left.end());
         right.erase(std::remove(right.begin(), right.end(), ' '), right.end());
 
-        auto left_val = resolve_parameter_reference(left);
+        auto left_val  = resolve_parameter_reference(left);
         auto right_val = resolve_parameter_reference(right);
 
         // If both are integers, directly add
@@ -1371,7 +1430,8 @@ PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::st
             try {
                 int64_t right_num = std::stoll(right);
                 return PropertyValue(left_val.int_val + right_num);
-            } catch (...) {}
+            } catch (...) {
+            }
         }
 
         // If right is parameter, left is number
@@ -1379,21 +1439,22 @@ PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::st
             try {
                 int64_t left_num = std::stoll(left);
                 return PropertyValue(left_num + right_val.int_val);
-            } catch (...) {}
+            } catch (...) {
+            }
         }
     }
 
     // Process "param-number" pattern
     if (expr_text.find('-') != std::string::npos) {
-        size_t pos = expr_text.find('-');
-        std::string left = expr_text.substr(0, pos);
+        size_t      pos   = expr_text.find('-');
+        std::string left  = expr_text.substr(0, pos);
         std::string right = expr_text.substr(pos + 1);
 
         // Remove spaces
         left.erase(std::remove(left.begin(), left.end(), ' '), left.end());
         right.erase(std::remove(right.begin(), right.end(), ' '), right.end());
 
-        auto left_val = resolve_parameter_reference(left);
+        auto left_val  = resolve_parameter_reference(left);
         auto right_val = resolve_parameter_reference(right);
 
         // If both are integers, directly subtract
@@ -1406,13 +1467,14 @@ PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::st
             try {
                 int64_t right_num = std::stoll(right);
                 return PropertyValue(left_val.int_val - right_num);
-            } catch (...) {}
+            } catch (...) {
+            }
         }
     }
 
     // Process "TOTAL_WIDTH-1" type expression (for bit range)
     if (expr_text.find("-1") != std::string::npos) {
-        size_t pos = expr_text.find("-1");
+        size_t      pos        = expr_text.find("-1");
         std::string param_part = expr_text.substr(0, pos);
         param_part.erase(std::remove(param_part.begin(), param_part.end(), ' '), param_part.end());
 
@@ -1444,27 +1506,39 @@ PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::st
 
             // Try parsing as a number
             int64_t a_num = 0, b_num = 0, c_num = 0;
-            bool a_ok = false, b_ok = false, c_ok = false;
+            bool    a_ok = false, b_ok = false, c_ok = false;
 
             if (a_val.type == PropertyValue::INTEGER) {
                 a_num = a_val.int_val;
-                a_ok = true;
+                a_ok  = true;
             } else {
-                try { a_num = std::stoll(a_str); a_ok = true; } catch (...) {}
+                try {
+                    a_num = std::stoll(a_str);
+                    a_ok  = true;
+                } catch (...) {
+                }
             }
 
             if (b_val.type == PropertyValue::INTEGER) {
                 b_num = b_val.int_val;
-                b_ok = true;
+                b_ok  = true;
             } else {
-                try { b_num = std::stoll(b_str); b_ok = true; } catch (...) {}
+                try {
+                    b_num = std::stoll(b_str);
+                    b_ok  = true;
+                } catch (...) {
+                }
             }
 
             if (c_val.type == PropertyValue::INTEGER) {
                 c_num = c_val.int_val;
-                c_ok = true;
+                c_ok  = true;
             } else {
-                try { c_num = std::stoll(c_str); c_ok = true; } catch (...) {}
+                try {
+                    c_num = std::stoll(c_str);
+                    c_ok  = true;
+                } catch (...) {
+                }
             }
 
             if (a_ok && b_ok && c_ok) {
@@ -1475,23 +1549,24 @@ PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::st
 
     // Process parentheses expression: like "(2 * 1024) * 2"
     if (expr_text.find("(") != std::string::npos && expr_text.find(")") != std::string::npos) {
-        size_t open_paren = expr_text.find("(");
+        size_t open_paren  = expr_text.find("(");
         size_t close_paren = expr_text.find(")");
 
         if (open_paren < close_paren) {
             std::string inner_expr = expr_text.substr(open_paren + 1, close_paren - open_paren - 1);
-            std::string remaining = expr_text.substr(close_paren + 1);
+            std::string remaining  = expr_text.substr(close_paren + 1);
 
             // Recursively evaluate expression inside parentheses
             auto inner_val = evaluate_expression_from_string(inner_expr);
 
             if (inner_val.type == PropertyValue::INTEGER && !remaining.empty()) {
                 // Process operator after parentheses
-                remaining.erase(std::remove(remaining.begin(), remaining.end(), ' '), remaining.end());
+                remaining
+                    .erase(std::remove(remaining.begin(), remaining.end(), ' '), remaining.end());
 
                 if (remaining.substr(0, 1) == "*") {
                     std::string right_part = remaining.substr(1);
-                    auto right_val = resolve_parameter_reference(right_part);
+                    auto        right_val  = resolve_parameter_reference(right_part);
 
                     if (right_val.type == PropertyValue::INTEGER) {
                         return PropertyValue(inner_val.int_val * right_val.int_val);
@@ -1499,7 +1574,8 @@ PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::st
                         try {
                             int64_t right_num = std::stoll(right_part);
                             return PropertyValue(inner_val.int_val * right_num);
-                        } catch (...) {}
+                        } catch (...) {
+                        }
                     }
                 }
             }
@@ -1511,9 +1587,8 @@ PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::st
 }
 
 // Enum and struct processing method implementation
-void SystemRDLElaborator::collect_enum_and_struct_definitions(
-    SystemRDLParser::RootContext* ast_root) {
-
+void SystemRDLElaborator::collect_enum_and_struct_definitions(SystemRDLParser::RootContext *ast_root)
+{
     // Collect top-level definitions
     for (auto root_elem : ast_root->root_elem()) {
         if (auto enum_def = root_elem->enum_def()) {
@@ -1532,8 +1607,8 @@ void SystemRDLElaborator::collect_enum_and_struct_definitions(
 }
 
 void SystemRDLElaborator::collect_enum_and_struct_definitions_from_body(
-    SystemRDLParser::Component_bodyContext* body_ctx) {
-
+    SystemRDLParser::Component_bodyContext *body_ctx)
+{
     for (auto body_elem : body_ctx->component_body_elem()) {
         if (auto enum_def = body_elem->enum_def()) {
             register_enum_definition(enum_def);
@@ -1550,9 +1625,8 @@ void SystemRDLElaborator::collect_enum_and_struct_definitions_from_body(
     }
 }
 
-void SystemRDLElaborator::register_enum_definition(
-    SystemRDLParser::Enum_defContext* enum_def) {
-
+void SystemRDLElaborator::register_enum_definition(SystemRDLParser::Enum_defContext *enum_def)
+{
     std::string enum_name = enum_def->ID()->getText();
 
     EnumDefinition def;
@@ -1568,7 +1642,7 @@ void SystemRDLElaborator::register_enum_definition(
         // Check if there's an explicit value
         if (auto expr = entry->expr()) {
             enum_entry.value = evaluate_integer_expression_enhanced(expr);
-            current_value = enum_entry.value + 1;
+            current_value    = enum_entry.value + 1;
         } else {
             enum_entry.value = current_value++;
         }
@@ -1579,12 +1653,12 @@ void SystemRDLElaborator::register_enum_definition(
     enum_definitions_[enum_name] = def;
 }
 
-void SystemRDLElaborator::register_struct_definition(
-    SystemRDLParser::Struct_defContext* struct_def) {
-
+void SystemRDLElaborator::register_struct_definition(SystemRDLParser::Struct_defContext *struct_def)
+{
     // Get struct name (first ID)
     auto ids = struct_def->ID();
-    if (ids.empty()) return;
+    if (ids.empty())
+        return;
 
     std::string struct_name = ids[0]->getText();
 
@@ -1617,19 +1691,23 @@ void SystemRDLElaborator::register_struct_definition(
     struct_definitions_[struct_name] = def;
 }
 
-EnumDefinition* SystemRDLElaborator::find_enum_definition(const std::string& name) {
+EnumDefinition *SystemRDLElaborator::find_enum_definition(const std::string &name)
+{
     auto it = enum_definitions_.find(name);
     return (it != enum_definitions_.end()) ? &it->second : nullptr;
 }
 
-StructDefinition* SystemRDLElaborator::find_struct_definition(const std::string& name) {
+StructDefinition *SystemRDLElaborator::find_struct_definition(const std::string &name)
+{
     auto it = struct_definitions_.find(name);
     return (it != struct_definitions_.end()) ? &it->second : nullptr;
 }
 
 // Field validation implementation
-void SystemRDLElaborator::validate_register_fields(ElaboratedReg* reg_node) {
-    if (!reg_node) return;
+void SystemRDLElaborator::validate_register_fields(ElaboratedReg *reg_node)
+{
+    if (!reg_node)
+        return;
 
     // Check field boundaries
     check_field_boundaries(reg_node);
@@ -1638,42 +1716,48 @@ void SystemRDLElaborator::validate_register_fields(ElaboratedReg* reg_node) {
     check_field_overlaps(reg_node);
 }
 
-void SystemRDLElaborator::check_field_boundaries(ElaboratedReg* reg_node) {
-    if (!reg_node) return;
+void SystemRDLElaborator::check_field_boundaries(ElaboratedReg *reg_node)
+{
+    if (!reg_node)
+        return;
 
-    for (const auto& child : reg_node->children) {
-                if (auto field = dynamic_cast<ElaboratedField*>(child.get())) {
+    for (const auto &child : reg_node->children) {
+        if (auto field = dynamic_cast<ElaboratedField *>(child.get())) {
             // Skip reserved fields (auto-generated)
             auto reserved_prop = field->get_property("reserved");
-            if (reserved_prop && reserved_prop->type == PropertyValue::BOOLEAN &&
-                reserved_prop->bool_val) {
+            if (reserved_prop && reserved_prop->type == PropertyValue::BOOLEAN
+                && reserved_prop->bool_val) {
                 continue;
             }
 
-                        // Check if field exceeds register width
+            // Check if field exceeds register width
             if (field->msb >= reg_node->register_width) {
-                report_field_boundary_error(field->inst_name, field->msb, reg_node->register_width, field->source_ctx);
+                report_field_boundary_error(
+                    field->inst_name, field->msb, reg_node->register_width, field->source_ctx);
             }
 
             // Check if field LSB exceeds register width
             if (field->lsb >= reg_node->register_width) {
-                report_field_boundary_error(field->inst_name, field->lsb, reg_node->register_width, field->source_ctx);
+                report_field_boundary_error(
+                    field->inst_name, field->lsb, reg_node->register_width, field->source_ctx);
             }
         }
     }
 }
 
-void SystemRDLElaborator::check_field_overlaps(ElaboratedReg* reg_node) {
-    if (!reg_node) return;
+void SystemRDLElaborator::check_field_overlaps(ElaboratedReg *reg_node)
+{
+    if (!reg_node)
+        return;
 
     // Get all non-reserved fields
-    std::vector<ElaboratedField*> fields;
-    for (const auto& child : reg_node->children) {
-                if (auto field = dynamic_cast<ElaboratedField*>(child.get())) {
+    std::vector<ElaboratedField *> fields;
+    for (const auto &child : reg_node->children) {
+        if (auto field = dynamic_cast<ElaboratedField *>(child.get())) {
             // Skip reserved fields (auto-generated)
             auto reserved_prop = field->get_property("reserved");
-            if (reserved_prop && reserved_prop->type == PropertyValue::BOOLEAN &&
-                reserved_prop->bool_val) {
+            if (reserved_prop && reserved_prop->type == PropertyValue::BOOLEAN
+                && reserved_prop->bool_val) {
                 continue;
             }
             fields.push_back(field);
@@ -1686,17 +1770,23 @@ void SystemRDLElaborator::check_field_overlaps(ElaboratedReg* reg_node) {
             if (fields_overlap(fields[i], fields[j])) {
                 // Calculate overlap range
                 size_t overlap_start = std::max(fields[i]->lsb, fields[j]->lsb);
-                size_t overlap_end = std::min(fields[i]->msb, fields[j]->msb);
+                size_t overlap_end   = std::min(fields[i]->msb, fields[j]->msb);
 
-                report_field_overlap_error(fields[i]->inst_name, fields[j]->inst_name,
-                                         overlap_start, overlap_end, fields[i]->source_ctx);
+                report_field_overlap_error(
+                    fields[i]->inst_name,
+                    fields[j]->inst_name,
+                    overlap_start,
+                    overlap_end,
+                    fields[i]->source_ctx);
             }
         }
     }
 }
 
-bool SystemRDLElaborator::fields_overlap(const ElaboratedField* field1, const ElaboratedField* field2) {
-    if (!field1 || !field2) return false;
+bool SystemRDLElaborator::fields_overlap(const ElaboratedField *field1, const ElaboratedField *field2)
+{
+    if (!field1 || !field2)
+        return false;
 
     // Two fields overlap if their bit ranges intersect
     // Field 1: [field1->lsb, field1->msb]
@@ -1709,35 +1799,43 @@ bool SystemRDLElaborator::fields_overlap(const ElaboratedField* field1, const El
     return max_lsb <= min_msb;
 }
 
-void SystemRDLElaborator::report_field_overlap_error(const std::string& field1_name,
-                                                    const std::string& field2_name,
-                                                    size_t overlap_start, size_t overlap_end,
-                                                    antlr4::ParserRuleContext* ctx) {
+void SystemRDLElaborator::report_field_overlap_error(
+    const std::string         &field1_name,
+    const std::string         &field2_name,
+    size_t                     overlap_start,
+    size_t                     overlap_end,
+    antlr4::ParserRuleContext *ctx)
+{
     std::ostringstream oss;
     oss << "Field overlap detected: '" << field1_name << "' and '" << field2_name
         << "' both use bits [" << overlap_end << ":" << overlap_start << "]";
     report_error(oss.str(), ctx);
 }
 
-void SystemRDLElaborator::report_field_boundary_error(const std::string& field_name,
-                                                     size_t field_msb, size_t reg_width,
-                                                     antlr4::ParserRuleContext* ctx) {
+void SystemRDLElaborator::report_field_boundary_error(
+    const std::string         &field_name,
+    size_t                     field_msb,
+    size_t                     reg_width,
+    antlr4::ParserRuleContext *ctx)
+{
     std::ostringstream oss;
     oss << "Field '" << field_name << "' bit position " << field_msb
-        << " exceeds register width of " << reg_width << " bits (valid range: 0-"
-        << (reg_width - 1) << ")";
+        << " exceeds register width of " << reg_width << " bits (valid range: 0-" << (reg_width - 1)
+        << ")";
     report_error(oss.str(), ctx);
 }
 
 // Gap detection and reserved field generation implementation
-void SystemRDLElaborator::detect_and_fill_register_gaps(ElaboratedReg* reg_node) {
-    if (!reg_node) return;
+void SystemRDLElaborator::detect_and_fill_register_gaps(ElaboratedReg *reg_node)
+{
+    if (!reg_node)
+        return;
 
     // Find gaps in the register
     auto gaps = find_register_gaps(reg_node);
 
     // Generate reserved fields for each gap
-    for (const auto& gap : gaps) {
+    for (const auto &gap : gaps) {
         size_t gap_msb = gap.first;
         size_t gap_lsb = gap.second;
 
@@ -1749,7 +1847,7 @@ void SystemRDLElaborator::detect_and_fill_register_gaps(ElaboratedReg* reg_node)
 
         if (reserved_field) {
             // Set parent relationship
-            reserved_field->parent = reg_node;
+            reserved_field->parent           = reg_node;
             reserved_field->absolute_address = reg_node->absolute_address;
 
             // Add to register's children
@@ -1758,19 +1856,23 @@ void SystemRDLElaborator::detect_and_fill_register_gaps(ElaboratedReg* reg_node)
     }
 }
 
-std::vector<std::pair<size_t, size_t>> SystemRDLElaborator::find_register_gaps(ElaboratedReg* reg_node) {
+std::vector<std::pair<size_t, size_t>> SystemRDLElaborator::find_register_gaps(
+    ElaboratedReg *reg_node)
+{
     std::vector<std::pair<size_t, size_t>> gaps;
 
-    if (!reg_node) return gaps;
+    if (!reg_node)
+        return gaps;
 
     // Create a bit coverage vector for the register
     std::vector<bool> bit_coverage(reg_node->register_width, false);
 
     // Mark bits covered by existing fields
-    for (const auto& child : reg_node->children) {
-        if (auto field = dynamic_cast<ElaboratedField*>(child.get())) {
+    for (const auto &child : reg_node->children) {
+        if (auto field = dynamic_cast<ElaboratedField *>(child.get())) {
             // Mark bits from lsb to msb as covered
-            for (size_t bit = field->lsb; bit <= field->msb && bit < reg_node->register_width; ++bit) {
+            for (size_t bit = field->lsb; bit <= field->msb && bit < reg_node->register_width;
+                 ++bit) {
                 bit_coverage[bit] = true;
             }
         }
@@ -1778,14 +1880,14 @@ std::vector<std::pair<size_t, size_t>> SystemRDLElaborator::find_register_gaps(E
 
     // Find continuous gaps (uncovered bits)
     size_t gap_start = 0;
-    bool in_gap = false;
+    bool   in_gap    = false;
 
     for (size_t bit = 0; bit < reg_node->register_width; ++bit) {
         if (!bit_coverage[bit]) {
             // Uncovered bit - start or continue gap
             if (!in_gap) {
                 gap_start = bit;
-                in_gap = true;
+                in_gap    = true;
             }
         } else {
             // Covered bit - end gap if we were in one
@@ -1805,16 +1907,16 @@ std::vector<std::pair<size_t, size_t>> SystemRDLElaborator::find_register_gaps(E
 }
 
 std::unique_ptr<ElaboratedField> SystemRDLElaborator::create_reserved_field(
-    size_t msb, size_t lsb, const std::string& name) {
-
+    size_t msb, size_t lsb, const std::string &name)
+{
     auto field = std::make_unique<ElaboratedField>();
 
     // Set basic properties
-    field->inst_name = name;
-    field->type_name = "field";
-    field->msb = msb;
-    field->lsb = lsb;
-    field->width = (msb >= lsb) ? (msb - lsb + 1) : 0;
+    field->inst_name   = name;
+    field->type_name   = "field";
+    field->msb         = msb;
+    field->lsb         = lsb;
+    field->width       = (msb >= lsb) ? (msb - lsb + 1) : 0;
     field->reset_value = 0;
 
     // Set access properties for reserved fields
@@ -1825,16 +1927,17 @@ std::unique_ptr<ElaboratedField> SystemRDLElaborator::create_reserved_field(
     field->set_property("msb", PropertyValue(static_cast<int64_t>(msb)));
     field->set_property("lsb", PropertyValue(static_cast<int64_t>(lsb)));
     field->set_property("width", PropertyValue(static_cast<int64_t>(field->width)));
-    field->set_property("sw", PropertyValue("r"));
-    field->set_property("hw", PropertyValue("na"));
+    field->set_property("sw", PropertyValue(std::string("r")));
+    field->set_property("hw", PropertyValue(std::string("na")));
     field->set_property("reset", PropertyValue(static_cast<int64_t>(0)));
-    field->set_property("desc", PropertyValue("Reserved field - auto-generated"));
+    field->set_property("desc", PropertyValue(std::string("Reserved field - auto-generated")));
     field->set_property("reserved", PropertyValue(true));
 
     return field;
 }
 
-std::string SystemRDLElaborator::generate_reserved_field_name(size_t msb, size_t lsb) {
+std::string SystemRDLElaborator::generate_reserved_field_name(size_t msb, size_t lsb)
+{
     if (msb == lsb) {
         // Single bit: RESERVED_X
         return "RESERVED_" + std::to_string(lsb);
@@ -1845,23 +1948,26 @@ std::string SystemRDLElaborator::generate_reserved_field_name(size_t msb, size_t
 }
 
 // Automatic field positioning implementation
-void SystemRDLElaborator::assign_automatic_field_positions(ElaboratedReg* reg_node) {
-    if (!reg_node) return;
+void SystemRDLElaborator::assign_automatic_field_positions(ElaboratedReg *reg_node)
+{
+    if (!reg_node)
+        return;
 
     // Collect fields that need automatic positioning (in order of appearance)
-    std::vector<ElaboratedField*> auto_position_fields;
+    std::vector<ElaboratedField *> auto_position_fields;
 
-    for (const auto& child : reg_node->children) {
-        if (auto field = dynamic_cast<ElaboratedField*>(child.get())) {
+    for (const auto &child : reg_node->children) {
+        if (auto field = dynamic_cast<ElaboratedField *>(child.get())) {
             auto auto_pos_prop = field->get_property("auto_position");
-            if (auto_pos_prop && auto_pos_prop->type == PropertyValue::BOOLEAN && auto_pos_prop->bool_val) {
+            if (auto_pos_prop && auto_pos_prop->type == PropertyValue::BOOLEAN
+                && auto_pos_prop->bool_val) {
                 auto_position_fields.push_back(field);
             }
         }
     }
 
     // Group fields by base name to handle arrays correctly
-    std::map<std::string, std::vector<ElaboratedField*>> field_groups;
+    std::map<std::string, std::vector<ElaboratedField *>> field_groups;
 
     for (auto field : auto_position_fields) {
         std::string base_name = field->inst_name;
@@ -1869,7 +1975,7 @@ void SystemRDLElaborator::assign_automatic_field_positions(ElaboratedReg* reg_no
         // Extract base name from array field name (e.g., "enable[3]" -> "enable")
         size_t bracket_pos = base_name.find('[');
         if (bracket_pos != std::string::npos) {
-            base_name = base_name.substr(0, bracket_pos);
+            base_name.resize(bracket_pos);
         }
 
         field_groups[base_name].push_back(field);
@@ -1879,21 +1985,23 @@ void SystemRDLElaborator::assign_automatic_field_positions(ElaboratedReg* reg_no
     size_t current_bit = calculate_next_available_bit(reg_node);
 
     // Process each field group
-    for (auto& group : field_groups) {
-        auto& fields = group.second;
+    for (auto &group : field_groups) {
+        auto &fields = group.second;
 
         // Sort array fields by their index to ensure proper ordering
-        std::sort(fields.begin(), fields.end(), [](ElaboratedField* a, ElaboratedField* b) {
+        std::sort(fields.begin(), fields.end(), [](ElaboratedField *a, ElaboratedField *b) {
             // Extract array index from field name (e.g., "enable[3]" -> 3)
-            auto extract_index = [](const std::string& name) -> int {
+            auto extract_index = [](const std::string &name) -> int {
                 size_t bracket_pos = name.find('[');
                 if (bracket_pos != std::string::npos) {
                     size_t end_pos = name.find(']', bracket_pos);
                     if (end_pos != std::string::npos) {
-                        std::string index_str = name.substr(bracket_pos + 1, end_pos - bracket_pos - 1);
+                        std::string index_str
+                            = name.substr(bracket_pos + 1, end_pos - bracket_pos - 1);
                         try {
                             return std::stoi(index_str);
-                        } catch (...) {}
+                        } catch (...) {
+                        }
                     }
                 }
                 return 0;
@@ -1918,18 +2026,18 @@ void SystemRDLElaborator::assign_automatic_field_positions(ElaboratedReg* reg_no
 
             // Check if field would exceed register width
             if (field_msb >= reg_node->register_width) {
-                report_error("Auto-positioned field '" + field->inst_name +
-                            "' would exceed register width. Field needs " +
-                            std::to_string(field_width) + " bits but only " +
-                            std::to_string(reg_node->register_width - current_bit) +
-                            " bits available from position " + std::to_string(current_bit),
-                            field->source_ctx);
+                report_error(
+                    "Auto-positioned field '" + field->inst_name
+                        + "' would exceed register width. Field needs " + std::to_string(field_width)
+                        + " bits but only " + std::to_string(reg_node->register_width - current_bit)
+                        + " bits available from position " + std::to_string(current_bit),
+                    field->source_ctx);
                 continue;
             }
 
             // Assign the calculated position
-            field->lsb = field_lsb;
-            field->msb = field_msb;
+            field->lsb   = field_lsb;
+            field->msb   = field_msb;
             field->width = field_width;
 
             // Update properties
@@ -1944,17 +2052,20 @@ void SystemRDLElaborator::assign_automatic_field_positions(ElaboratedReg* reg_no
     }
 }
 
-size_t SystemRDLElaborator::calculate_next_available_bit(ElaboratedReg* reg_node) {
-    if (!reg_node) return 0;
+size_t SystemRDLElaborator::calculate_next_available_bit(ElaboratedReg *reg_node)
+{
+    if (!reg_node)
+        return 0;
 
     size_t next_bit = 0;
 
     // Find the highest used bit among explicitly positioned fields
-    for (const auto& child : reg_node->children) {
-        if (auto field = dynamic_cast<ElaboratedField*>(child.get())) {
+    for (const auto &child : reg_node->children) {
+        if (auto field = dynamic_cast<ElaboratedField *>(child.get())) {
             auto auto_pos_prop = field->get_property("auto_position");
             // Skip fields that need auto-positioning
-            if (auto_pos_prop && auto_pos_prop->type == PropertyValue::BOOLEAN && auto_pos_prop->bool_val) {
+            if (auto_pos_prop && auto_pos_prop->type == PropertyValue::BOOLEAN
+                && auto_pos_prop->bool_val) {
                 continue;
             }
 
@@ -1972,33 +2083,37 @@ size_t SystemRDLElaborator::calculate_next_available_bit(ElaboratedReg* reg_node
 }
 
 // Instance address validation implementation
-void SystemRDLElaborator::validate_instance_addresses(ElaboratedNode* parent) {
-    if (!parent) return;
+void SystemRDLElaborator::validate_instance_addresses(ElaboratedNode *parent)
+{
+    if (!parent)
+        return;
 
     // Check address overlaps among child instances
     check_instance_address_overlaps(parent);
 
     // Recursively validate address spaces in child containers
-    for (const auto& child : parent->children) {
-        if (dynamic_cast<ElaboratedAddrmap*>(child.get()) ||
-            dynamic_cast<ElaboratedRegfile*>(child.get())) {
+    for (const auto &child : parent->children) {
+        if (dynamic_cast<ElaboratedAddrmap *>(child.get())
+            || dynamic_cast<ElaboratedRegfile *>(child.get())) {
             validate_instance_addresses(child.get());
         }
     }
 }
 
-void SystemRDLElaborator::check_instance_address_overlaps(ElaboratedNode* parent) {
-    if (!parent) return;
+void SystemRDLElaborator::check_instance_address_overlaps(ElaboratedNode *parent)
+{
+    if (!parent)
+        return;
 
     // Collect addressable child instances
-    std::vector<ElaboratedNode*> addressable_children;
+    std::vector<ElaboratedNode *> addressable_children;
 
-    for (const auto& child : parent->children) {
+    for (const auto &child : parent->children) {
         // Only check addressable components (regs, regfiles, memories)
         // Fields are handled separately by field validation
-        if (dynamic_cast<ElaboratedReg*>(child.get()) ||
-            dynamic_cast<ElaboratedRegfile*>(child.get()) ||
-            dynamic_cast<ElaboratedMem*>(child.get())) {
+        if (dynamic_cast<ElaboratedReg *>(child.get())
+            || dynamic_cast<ElaboratedRegfile *>(child.get())
+            || dynamic_cast<ElaboratedMem *>(child.get())) {
             addressable_children.push_back(child.get());
         }
     }
@@ -2009,52 +2124,59 @@ void SystemRDLElaborator::check_instance_address_overlaps(ElaboratedNode* parent
             if (instances_overlap(addressable_children[i], addressable_children[j])) {
                 // Calculate address ranges for error reporting
                 Address addr1_start = addressable_children[i]->absolute_address;
-                Address addr1_end = addr1_start + addressable_children[i]->size - 1;
+                Address addr1_end   = addr1_start + addressable_children[i]->size - 1;
                 Address addr2_start = addressable_children[j]->absolute_address;
-                Address addr2_end = addr2_start + addressable_children[j]->size - 1;
+                Address addr2_end   = addr2_start + addressable_children[j]->size - 1;
 
                 report_instance_overlap_error(
                     addressable_children[i]->inst_name,
                     addressable_children[j]->inst_name,
-                    addr1_start, addr1_end,
-                    addr2_start, addr2_end,
-                    addressable_children[i]->source_ctx
-                );
+                    addr1_start,
+                    addr1_end,
+                    addr2_start,
+                    addr2_end,
+                    addressable_children[i]->source_ctx);
             }
         }
     }
 }
 
-bool SystemRDLElaborator::instances_overlap(const ElaboratedNode* instance1, const ElaboratedNode* instance2) {
-    if (!instance1 || !instance2) return false;
+bool SystemRDLElaborator::instances_overlap(
+    const ElaboratedNode *instance1, const ElaboratedNode *instance2)
+{
+    if (!instance1 || !instance2)
+        return false;
 
     // Skip instances with invalid addresses or sizes
-    if (instance1->size == 0 || instance2->size == 0) return false;
+    if (instance1->size == 0 || instance2->size == 0)
+        return false;
 
     // Calculate address ranges
     Address addr1_start = instance1->absolute_address;
-    Address addr1_end = addr1_start + instance1->size - 1;
+    Address addr1_end   = addr1_start + instance1->size - 1;
     Address addr2_start = instance2->absolute_address;
-    Address addr2_end = addr2_start + instance2->size - 1;
+    Address addr2_end   = addr2_start + instance2->size - 1;
 
     // Two ranges overlap if: max(start1, start2) <= min(end1, end2)
     Address max_start = std::max(addr1_start, addr2_start);
-    Address min_end = std::min(addr1_end, addr2_end);
+    Address min_end   = std::min(addr1_end, addr2_end);
 
     return max_start <= min_end;
 }
 
 void SystemRDLElaborator::report_instance_overlap_error(
-    const std::string& instance1_name, const std::string& instance2_name,
-    Address addr1_start, Address addr1_end,
-    Address addr2_start, Address addr2_end,
-    antlr4::ParserRuleContext* ctx) {
-
+    const std::string         &instance1_name,
+    const std::string         &instance2_name,
+    Address                    addr1_start,
+    Address                    addr1_end,
+    Address                    addr2_start,
+    Address                    addr2_end,
+    antlr4::ParserRuleContext *ctx)
+{
     std::ostringstream oss;
-    oss << "Instance address overlap detected: '" << instance1_name
-        << "' at address range 0x" << std::hex << std::uppercase << addr1_start
-        << "-0x" << addr1_end << " overlaps with '" << instance2_name
-        << "' at address range 0x" << addr2_start << "-0x" << addr2_end;
+    oss << "Instance address overlap detected: '" << instance1_name << "' at address range 0x"
+        << std::hex << std::uppercase << addr1_start << "-0x" << addr1_end << " overlaps with '"
+        << instance2_name << "' at address range 0x" << addr2_start << "-0x" << addr2_end;
 
     report_error(oss.str(), ctx);
 }
