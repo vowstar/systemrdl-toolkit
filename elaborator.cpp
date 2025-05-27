@@ -2,6 +2,8 @@
 #include <sstream>
 #include <algorithm>
 #include <set>
+#include <map>
+#include <climits>
 
 namespace systemrdl {
 
@@ -323,6 +325,13 @@ void SystemRDLElaborator::elaborate_array_instance(
         node->array_dimensions = dimensions;
         node->array_indices = {i};
 
+        // Process field bit range for field components
+        if (comp_type == "field") {
+            if (auto field_node = dynamic_cast<ElaboratedField*>(node.get())) {
+                elaborate_field_bit_range(inst_ctx, field_node);
+            }
+        }
+
         // Process component body
         if (auto body = def_ctx->component_body()) {
             elaborate_component_body(body, node.get());
@@ -401,6 +410,8 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode* node) {
     if (!node) return;
 
     if (auto reg_node = dynamic_cast<ElaboratedReg*>(node)) {
+        // Assign automatic positions to fields that need them
+        assign_automatic_field_positions(reg_node);
         // Validate register fields first
         validate_register_fields(reg_node);
         // Detect and fill register gaps before calculating size
@@ -1109,14 +1120,24 @@ void SystemRDLElaborator::elaborate_field_bit_range(
             field_node->set_property("width", PropertyValue(static_cast<int64_t>(field_node->width)));
         }
     } else {
-        // No bit range definition, set default value
-        field_node->msb = 0;
-        field_node->lsb = 0;
-        field_node->width = 1;
+        // No bit range definition - field needs automatic positioning
+        size_t field_width = 1; // Default width
 
-        field_node->set_property("msb", PropertyValue(static_cast<int64_t>(0)));
-        field_node->set_property("lsb", PropertyValue(static_cast<int64_t>(0)));
-        field_node->set_property("width", PropertyValue(static_cast<int64_t>(1)));
+        // Check if fieldwidth property is defined
+        auto fieldwidth_prop = field_node->get_property("fieldwidth");
+        if (fieldwidth_prop && fieldwidth_prop->type == PropertyValue::INTEGER) {
+            field_width = static_cast<size_t>(fieldwidth_prop->int_val);
+        }
+
+        // Mark this field as needing automatic positioning
+        field_node->msb = SIZE_MAX; // Use SIZE_MAX as marker for auto-positioning
+        field_node->lsb = SIZE_MAX;
+        field_node->width = field_width;
+
+        field_node->set_property("msb", PropertyValue(static_cast<int64_t>(SIZE_MAX)));
+        field_node->set_property("lsb", PropertyValue(static_cast<int64_t>(SIZE_MAX)));
+        field_node->set_property("width", PropertyValue(static_cast<int64_t>(field_width)));
+        field_node->set_property("auto_position", PropertyValue(true));
     }
 }
 
@@ -1818,6 +1839,133 @@ std::string SystemRDLElaborator::generate_reserved_field_name(size_t msb, size_t
         // Multiple bits: RESERVED_MSB_LSB
         return "RESERVED_" + std::to_string(msb) + "_" + std::to_string(lsb);
     }
+}
+
+// Automatic field positioning implementation
+void SystemRDLElaborator::assign_automatic_field_positions(ElaboratedReg* reg_node) {
+    if (!reg_node) return;
+
+    // Collect fields that need automatic positioning (in order of appearance)
+    std::vector<ElaboratedField*> auto_position_fields;
+
+    for (const auto& child : reg_node->children) {
+        if (auto field = dynamic_cast<ElaboratedField*>(child.get())) {
+            auto auto_pos_prop = field->get_property("auto_position");
+            if (auto_pos_prop && auto_pos_prop->type == PropertyValue::BOOLEAN && auto_pos_prop->bool_val) {
+                auto_position_fields.push_back(field);
+            }
+        }
+    }
+
+    // Group fields by base name to handle arrays correctly
+    std::map<std::string, std::vector<ElaboratedField*>> field_groups;
+
+    for (auto field : auto_position_fields) {
+        std::string base_name = field->inst_name;
+
+        // Extract base name from array field name (e.g., "enable[3]" -> "enable")
+        size_t bracket_pos = base_name.find('[');
+        if (bracket_pos != std::string::npos) {
+            base_name = base_name.substr(0, bracket_pos);
+        }
+
+        field_groups[base_name].push_back(field);
+    }
+
+    // Assign positions starting from the next available bit
+    size_t current_bit = calculate_next_available_bit(reg_node);
+
+    // Process each field group
+    for (auto& group : field_groups) {
+        auto& fields = group.second;
+
+        // Sort array fields by their index to ensure proper ordering
+        std::sort(fields.begin(), fields.end(), [](ElaboratedField* a, ElaboratedField* b) {
+            // Extract array index from field name (e.g., "enable[3]" -> 3)
+            auto extract_index = [](const std::string& name) -> int {
+                size_t bracket_pos = name.find('[');
+                if (bracket_pos != std::string::npos) {
+                    size_t end_pos = name.find(']', bracket_pos);
+                    if (end_pos != std::string::npos) {
+                        std::string index_str = name.substr(bracket_pos + 1, end_pos - bracket_pos - 1);
+                        try {
+                            return std::stoi(index_str);
+                        } catch (...) {}
+                    }
+                }
+                return 0;
+            };
+
+            return extract_index(a->inst_name) < extract_index(b->inst_name);
+        });
+
+        // Assign consecutive bit positions to array elements
+        for (auto field : fields) {
+            // Calculate position for this field (each field is 1 bit by default)
+            size_t field_width = 1; // Default width for array elements
+
+            // Check if fieldwidth property is defined and override
+            auto fieldwidth_prop = field->get_property("fieldwidth");
+            if (fieldwidth_prop && fieldwidth_prop->type == PropertyValue::INTEGER) {
+                field_width = static_cast<size_t>(fieldwidth_prop->int_val);
+            }
+
+            size_t field_lsb = current_bit;
+            size_t field_msb = current_bit + field_width - 1;
+
+            // Check if field would exceed register width
+            if (field_msb >= reg_node->register_width) {
+                report_error("Auto-positioned field '" + field->inst_name +
+                            "' would exceed register width. Field needs " +
+                            std::to_string(field_width) + " bits but only " +
+                            std::to_string(reg_node->register_width - current_bit) +
+                            " bits available from position " + std::to_string(current_bit),
+                            field->source_ctx);
+                continue;
+            }
+
+            // Assign the calculated position
+            field->lsb = field_lsb;
+            field->msb = field_msb;
+            field->width = field_width;
+
+            // Update properties
+            field->set_property("lsb", PropertyValue(static_cast<int64_t>(field_lsb)));
+            field->set_property("msb", PropertyValue(static_cast<int64_t>(field_msb)));
+            field->set_property("width", PropertyValue(static_cast<int64_t>(field_width)));
+            field->set_property("auto_position", PropertyValue(false)); // Clear auto-position flag
+
+            // Move to next available position
+            current_bit = field_msb + 1;
+        }
+    }
+}
+
+size_t SystemRDLElaborator::calculate_next_available_bit(ElaboratedReg* reg_node) {
+    if (!reg_node) return 0;
+
+    size_t next_bit = 0;
+
+    // Find the highest used bit among explicitly positioned fields
+    for (const auto& child : reg_node->children) {
+        if (auto field = dynamic_cast<ElaboratedField*>(child.get())) {
+            auto auto_pos_prop = field->get_property("auto_position");
+            // Skip fields that need auto-positioning
+            if (auto_pos_prop && auto_pos_prop->type == PropertyValue::BOOLEAN && auto_pos_prop->bool_val) {
+                continue;
+            }
+
+            // Only consider fields with valid bit positions
+            if (field->msb != SIZE_MAX && field->lsb != SIZE_MAX) {
+                size_t field_end = field->msb + 1;
+                if (field_end > next_bit) {
+                    next_bit = field_end;
+                }
+            }
+        }
+    }
+
+    return next_bit;
 }
 
 } // namespace systemrdl

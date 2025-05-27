@@ -333,6 +333,10 @@ private:
         ElaboratedField* field_node
     );
 
+    // Automatic field positioning
+    void assign_automatic_field_positions(ElaboratedReg* reg_node);
+    size_t calculate_next_available_bit(ElaboratedReg* reg_node);
+
     // Gap detection and reserved field generation methods
     void detect_and_fill_register_gaps(ElaboratedReg* reg_node);
     std::vector<std::pair<size_t, size_t>> find_register_gaps(ElaboratedReg* reg_node);
