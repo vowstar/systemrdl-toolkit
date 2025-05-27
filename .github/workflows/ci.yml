@@ -12,20 +12,24 @@ jobs:
     name: Build and Test
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
         include:
           - os: ubuntu-latest
+            cc: gcc
+            cxx: g++
             antlr4_setup: |
               sudo apt-get update
-              sudo apt-get install -y openjdk-11-jdk curl uuid-dev
+              sudo apt-get install -y curl uuid-dev
           - os: macos-latest
+            cc: clang
+            cxx: clang++
             antlr4_setup: |
-              brew install openjdk@11
               brew install curl ossp-uuid
-              echo 'export PATH="/opt/homebrew/opt/openjdk@11/bin:$PATH"' >> $GITHUB_ENV
           - os: windows-latest
+            cc: gcc
+            cxx: g++
+            msys: mingw64
             antlr4_setup: |
-              choco install openjdk11 curl
+              # MSYS2 packages will be installed via msys2/setup-msys2 action
 
     runs-on: ${{ matrix.os }}
 
@@ -33,34 +37,79 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Java (required for ANTLR4)
-      uses: actions/setup-java@v4
+    - name: Setup MSYS2 (Windows only)
+      if: matrix.os == 'windows-latest'
+      uses: msys2/setup-msys2@v2
       with:
-        distribution: 'temurin'
-        java-version: '11'
+        msystem: ${{ matrix.msys }}
+        update: true
+        install: >-
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-cmake
+          mingw-w64-x86_64-ninja
+          mingw-w64-x86_64-curl
+          mingw-w64-x86_64-python
+          mingw-w64-x86_64-python-pip
 
-    - name: Setup Python
+    - name: Setup Python - Non-Windows
+      if: matrix.os != 'windows-latest'
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
 
-    - name: Install Python dependencies
+    - name: Install Python dependencies - Non-Windows
+      if: matrix.os != 'windows-latest'
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Install system dependencies
+    - name: Install Python dependencies - Windows MSYS2
+      if: matrix.os == 'windows-latest'
+      shell: msys2 {0}
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Install system dependencies - Non-Windows
+      if: matrix.os != 'windows-latest'
       run: ${{ matrix.antlr4_setup }}
 
-    - name: Configure CMake
+    - name: Configure CMake - Non-Windows
+      if: matrix.os != 'windows-latest'
       run: |
         cmake -B build -DCMAKE_BUILD_TYPE=Release -DUSE_SYSTEM_ANTLR4=OFF
 
-    - name: Build
+    - name: Configure CMake - Windows MSYS2
+      if: matrix.os == 'windows-latest'
+      shell: msys2 {0}
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DUSE_SYSTEM_ANTLR4=OFF -G "Ninja"
+
+    - name: Build - Non-Windows
+      if: matrix.os != 'windows-latest'
       run: |
         cmake --build build --config Release --parallel 4
 
-    - name: Basic functionality test
+    - name: Build - Windows MSYS2
+      if: matrix.os == 'windows-latest'
+      shell: msys2 {0}
+      run: |
+        cmake --build build --config Release --parallel 4
+
+    - name: Basic functionality test - Non-Windows
+      if: matrix.os != 'windows-latest'
+      run: |
+        # Test parser
+        ./build/systemrdl_parser --help
+        # Test elaborator
+        ./build/systemrdl_elaborator --help
+        # Test with a simple SystemRDL file (use existing known-good test)
+        ./build/systemrdl_elaborator test/test_minimal.rdl --json test_output.json
+        cat test_output.json
+
+    - name: Basic functionality test - Windows MSYS2
+      if: matrix.os == 'windows-latest'
+      shell: msys2 {0}
       run: |
         # Test parser
         ./build/systemrdl_parser --help
@@ -220,12 +269,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Java and Python
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '11'
-
     - name: Setup Python
       uses: actions/setup-python@v4
       with:
@@ -236,7 +279,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         sudo apt-get update
-        sudo apt-get install -y openjdk-11-jdk curl uuid-dev
+        sudo apt-get install -y curl uuid-dev
 
     - name: Build project
       run: |
