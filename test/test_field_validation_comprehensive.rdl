@@ -1,0 +1,71 @@
+// Comprehensive test suite for field validation features
+addrmap test_field_validation_comprehensive {
+
+    // Test 1: Valid register (no validation errors expected)
+    reg valid_register {
+        regwidth = 32;
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Low byte";
+        } low_byte[7:0];
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "High byte";
+        } high_byte[15:8];
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Control bits";
+        } ctrl[31:16];
+    };
+
+    // Test 2: Field overlap errors
+    reg overlap_errors {
+        regwidth = 32;
+
+        field {
+            sw = rw;
+            hw = r;
+        } field_a[7:0];     // bits 0-7
+
+        field {
+            sw = rw;
+            hw = r;
+        } field_b[3:0];     // overlaps with field_a at bits 0-3
+
+        field {
+            sw = rw;
+            hw = r;
+        } field_c[15:10];   // bits 10-15
+
+        field {
+            sw = rw;
+            hw = r;
+        } field_d[12:8];    // overlaps with field_c at bits 10-12
+    };
+
+    // Test 3: Boundary violation errors
+    reg boundary_errors {
+        regwidth = 16;      // Only 16 bits available (0-15)
+
+        field {
+            sw = rw;
+            hw = r;
+        } too_wide[31:0];   // Exceeds register width
+
+        field {
+            sw = rw;
+            hw = r;
+        } too_high[20:16];  // Starts beyond register width
+    };
+
+    // Instantiate registers
+    valid_register good_reg @ 0x0000;
+    overlap_errors overlap_reg @ 0x0004;
+    boundary_errors boundary_reg @ 0x0008;
+};

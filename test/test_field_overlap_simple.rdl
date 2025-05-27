@@ -1,0 +1,18 @@
+// Test field overlap within register
+addrmap test_field_overlap_simple {
+    reg overlap_test {
+        regwidth = 32;
+
+        field {
+            sw = rw;
+            hw = r;
+        } field1[7:0];     // bits 0-7
+
+        field {
+            sw = rw;
+            hw = r;
+        } field2[3:0];     // bits 0-3, should overlap with field1
+    };
+
+    overlap_test test @ 0x0000;
+};

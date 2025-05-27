@@ -85,6 +85,9 @@ public:
     Address absolute_address = 0;
     Size size = 0;
 
+    // Source location information for better error reporting
+    antlr4::ParserRuleContext* source_ctx = nullptr;
+
     // Array information
     ArrayDimensions array_dimensions;
     std::vector<Address> array_strides;
@@ -335,6 +338,20 @@ private:
     std::vector<std::pair<size_t, size_t>> find_register_gaps(ElaboratedReg* reg_node);
     std::unique_ptr<ElaboratedField> create_reserved_field(size_t msb, size_t lsb, const std::string& name);
     std::string generate_reserved_field_name(size_t msb, size_t lsb);
+
+    // Field validation methods
+    void validate_register_fields(ElaboratedReg* reg_node);
+    void check_field_overlaps(ElaboratedReg* reg_node);
+    void check_field_boundaries(ElaboratedReg* reg_node);
+    bool fields_overlap(const ElaboratedField* field1, const ElaboratedField* field2);
+
+    // Field validation error reporting
+    void report_field_overlap_error(const std::string& field1_name, const std::string& field2_name,
+                                   size_t overlap_start, size_t overlap_end,
+                                   antlr4::ParserRuleContext* ctx = nullptr);
+    void report_field_boundary_error(const std::string& field_name,
+                                    size_t field_msb, size_t reg_width,
+                                    antlr4::ParserRuleContext* ctx = nullptr);
 
     // Parameter handling methods
     std::vector<ParameterDefinition> parse_parameter_definitions(

@@ -1,0 +1,41 @@
+// Test field boundary validation
+addrmap test_field_boundary {
+    // Test 1: Field exceeding register width
+    reg boundary_test1 {
+        regwidth = 8;  // Only 8 bits available (0-7)
+
+        field {
+            sw = rw;
+            hw = r;
+        } field1[15:0];  // 16 bits, exceeds 8-bit register
+    };
+
+    // Test 2: Field starting beyond register width
+    reg boundary_test2 {
+        regwidth = 16;  // Only 16 bits available (0-15)
+
+        field {
+            sw = rw;
+            hw = r;
+        } field1[31:20];  // Starts at bit 20, exceeds 16-bit register
+    };
+
+    // Test 3: Valid case for comparison
+    reg valid_reg {
+        regwidth = 32;
+
+        field {
+            sw = rw;
+            hw = r;
+        } field1[15:0];   // Valid: within 32-bit register
+
+        field {
+            sw = rw;
+            hw = r;
+        } field2[31:16];  // Valid: within 32-bit register
+    };
+
+    boundary_test1 test1 @ 0x0000;
+    boundary_test2 test2 @ 0x0004;
+    valid_reg test3 @ 0x0008;
+};

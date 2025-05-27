@@ -655,6 +655,10 @@ The project includes 16 comprehensive test files covering various SystemRDL feat
 - `test_simple_param_ref.rdl` - Parameter references
 - `test_auto_reserved_fields.rdl` - Automatic reserved field generation for register gaps
 - `test_comprehensive_gaps.rdl` - Comprehensive gap detection scenarios and edge cases
+- `test_field_validation_comprehensive.rdl` - Comprehensive field validation test suite (overlaps, boundaries, mixed scenarios)
+- `test_field_overlap.rdl` - Field overlap detection test cases
+- `test_field_boundary.rdl` - Field boundary validation test cases
+- `test_address_overlap.rdl` - Register address overlap detection tests
 
 ## File Description
 
@@ -749,6 +753,11 @@ The project includes 16 comprehensive test files covering various SystemRDL feat
   - **Register Width Support**: Works with registers of any width (8-bit, 16-bit, 32-bit, 64-bit, custom widths)
   - **Smart Coverage Validation**: Validates field coverage and fills missing bit ranges
   - **Zero-overhead**: Only activates when gaps are detected, preserving performance
+- **Comprehensive Field Validation**: Advanced field integrity checking
+  - **Field Overlap Detection**: Identifies and reports overlapping bit ranges between fields in the same register
+  - **Field Boundary Validation**: Ensures fields do not exceed register width boundaries
+  - **Intelligent Error Reporting**: Provides precise error messages with specific bit ranges and field names
+  - **Multi-level Validation**: Validates fields before gap detection to ensure data integrity
 - **Virtual Environment Integration**: Isolated Python dependencies for reliable testing
 
 ## Troubleshooting

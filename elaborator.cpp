@@ -242,6 +242,7 @@ void SystemRDLElaborator::elaborate_component_instance(
 
         node->inst_name = inst_name;
         node->type_name = comp_type;
+        node->source_ctx = inst_ctx;  // Save source context for error reporting
 
         // Calculate address
         Address instance_address = current_address;
@@ -317,6 +318,7 @@ void SystemRDLElaborator::elaborate_array_instance(
 
         node->inst_name = base_name + "[" + std::to_string(i) + "]";
         node->type_name = comp_type;
+        node->source_ctx = inst_ctx;  // Save source context for error reporting
         node->absolute_address = parent->absolute_address + base_address + i * stride;
         node->array_dimensions = dimensions;
         node->array_indices = {i};
@@ -399,6 +401,8 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode* node) {
     if (!node) return;
 
     if (auto reg_node = dynamic_cast<ElaboratedReg*>(node)) {
+        // Validate register fields first
+        validate_register_fields(reg_node);
         // Detect and fill register gaps before calculating size
         detect_and_fill_register_gaps(reg_node);
         reg_node->size = (reg_node->register_width + 7) / 8; // Byte count (round up)
@@ -685,6 +689,7 @@ void SystemRDLElaborator::elaborate_named_component_instance(
 
         node->inst_name = inst_name;
         node->type_name = comp_def.type;
+        node->source_ctx = inst_ctx;  // Save source context for error reporting
 
         // Calculate address
         Address instance_address = current_address;
@@ -760,6 +765,7 @@ void SystemRDLElaborator::elaborate_named_array_instance(
 
         node->inst_name = base_name + "[" + std::to_string(i) + "]";
         node->type_name = comp_def.type;
+        node->source_ctx = inst_ctx;  // Save source context for error reporting
         node->absolute_address = parent->absolute_address + base_address + i * stride;
         node->array_dimensions = dimensions;
         node->array_indices = {i};
@@ -1595,6 +1601,108 @@ EnumDefinition* SystemRDLElaborator::find_enum_definition(const std::string& nam
 StructDefinition* SystemRDLElaborator::find_struct_definition(const std::string& name) {
     auto it = struct_definitions_.find(name);
     return (it != struct_definitions_.end()) ? &it->second : nullptr;
+}
+
+// Field validation implementation
+void SystemRDLElaborator::validate_register_fields(ElaboratedReg* reg_node) {
+    if (!reg_node) return;
+
+    // Check field boundaries
+    check_field_boundaries(reg_node);
+
+    // Check field overlaps
+    check_field_overlaps(reg_node);
+}
+
+void SystemRDLElaborator::check_field_boundaries(ElaboratedReg* reg_node) {
+    if (!reg_node) return;
+
+    for (const auto& child : reg_node->children) {
+                if (auto field = dynamic_cast<ElaboratedField*>(child.get())) {
+            // Skip reserved fields (auto-generated)
+            auto reserved_prop = field->get_property("reserved");
+            if (reserved_prop && reserved_prop->type == PropertyValue::BOOLEAN &&
+                reserved_prop->bool_val) {
+                continue;
+            }
+
+                        // Check if field exceeds register width
+            if (field->msb >= reg_node->register_width) {
+                report_field_boundary_error(field->inst_name, field->msb, reg_node->register_width, field->source_ctx);
+            }
+
+            // Check if field LSB exceeds register width
+            if (field->lsb >= reg_node->register_width) {
+                report_field_boundary_error(field->inst_name, field->lsb, reg_node->register_width, field->source_ctx);
+            }
+        }
+    }
+}
+
+void SystemRDLElaborator::check_field_overlaps(ElaboratedReg* reg_node) {
+    if (!reg_node) return;
+
+    // Get all non-reserved fields
+    std::vector<ElaboratedField*> fields;
+    for (const auto& child : reg_node->children) {
+                if (auto field = dynamic_cast<ElaboratedField*>(child.get())) {
+            // Skip reserved fields (auto-generated)
+            auto reserved_prop = field->get_property("reserved");
+            if (reserved_prop && reserved_prop->type == PropertyValue::BOOLEAN &&
+                reserved_prop->bool_val) {
+                continue;
+            }
+            fields.push_back(field);
+        }
+    }
+
+    // Check for overlaps between all field pairs
+    for (size_t i = 0; i < fields.size(); ++i) {
+        for (size_t j = i + 1; j < fields.size(); ++j) {
+            if (fields_overlap(fields[i], fields[j])) {
+                // Calculate overlap range
+                size_t overlap_start = std::max(fields[i]->lsb, fields[j]->lsb);
+                size_t overlap_end = std::min(fields[i]->msb, fields[j]->msb);
+
+                report_field_overlap_error(fields[i]->inst_name, fields[j]->inst_name,
+                                         overlap_start, overlap_end, fields[i]->source_ctx);
+            }
+        }
+    }
+}
+
+bool SystemRDLElaborator::fields_overlap(const ElaboratedField* field1, const ElaboratedField* field2) {
+    if (!field1 || !field2) return false;
+
+    // Two fields overlap if their bit ranges intersect
+    // Field 1: [field1->lsb, field1->msb]
+    // Field 2: [field2->lsb, field2->msb]
+    // They overlap if: max(lsb1, lsb2) <= min(msb1, msb2)
+
+    size_t max_lsb = std::max(field1->lsb, field2->lsb);
+    size_t min_msb = std::min(field1->msb, field2->msb);
+
+    return max_lsb <= min_msb;
+}
+
+void SystemRDLElaborator::report_field_overlap_error(const std::string& field1_name,
+                                                    const std::string& field2_name,
+                                                    size_t overlap_start, size_t overlap_end,
+                                                    antlr4::ParserRuleContext* ctx) {
+    std::ostringstream oss;
+    oss << "Field overlap detected: '" << field1_name << "' and '" << field2_name
+        << "' both use bits [" << overlap_end << ":" << overlap_start << "]";
+    report_error(oss.str(), ctx);
+}
+
+void SystemRDLElaborator::report_field_boundary_error(const std::string& field_name,
+                                                     size_t field_msb, size_t reg_width,
+                                                     antlr4::ParserRuleContext* ctx) {
+    std::ostringstream oss;
+    oss << "Field '" << field_name << "' bit position " << field_msb
+        << " exceeds register width of " << reg_width << " bits (valid range: 0-"
+        << (reg_width - 1) << ")";
+    report_error(oss.str(), ctx);
 }
 
 // Gap detection and reserved field generation implementation

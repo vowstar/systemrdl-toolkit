@@ -1,0 +1,31 @@
+// Test register address overlap detection
+addrmap test_address_overlap {
+    // Basic register definition
+    reg test_reg {
+        regwidth = 32;
+        
+        field {
+            sw = rw;
+            hw = r;
+        } data[31:0];
+    };
+    
+    // Test 1: Register address overlap
+    test_reg reg1 @ 0x0000;  // 4 bytes: 0x0000-0x0003
+    test_reg reg2 @ 0x0002;  // 4 bytes: 0x0002-0x0005, overlaps with reg1
+    
+    // Test 2: Register array overlap
+    test_reg array1[2] @ 0x0010 += 0x4;  // 0x0010-0x0013, 0x0014-0x0017
+    test_reg array2[2] @ 0x0012 += 0x4;  // 0x0012-0x0015, overlaps with array1[0]
+    
+    // Test 3: Large gap (valid case for comparison)
+    test_reg reg3 @ 0x1000;  // Far away, no overlap
+    
+    // Test 4: Register file overlap
+    regfile rf {
+        test_reg inner_reg @ 0x0;
+    };
+    
+    rf regfile1 @ 0x2000;    // 4 bytes: 0x2000-0x2003
+    rf regfile2 @ 0x2002;    // 4 bytes: 0x2002-0x2005, overlaps with regfile1
+}; 
