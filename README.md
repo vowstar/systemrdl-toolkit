@@ -279,6 +279,86 @@ The elaborator processes SystemRDL files through semantic analysis and can expor
 ./build/systemrdl_elaborator input.rdl -j=output.json
 ```
 
+### Automatic Gap Detection and Reserved Field Generation
+
+The elaborator automatically detects and fills gaps in register field definitions with reserved fields:
+
+```bash
+# Test automatic gap detection with a register containing field gaps
+./build/systemrdl_elaborator test/test_auto_reserved_fields.rdl
+```
+
+**Example SystemRDL input with gaps**:
+
+```systemrdl
+addrmap test_auto_reserved_fields {
+    reg gap_reg {
+        regwidth = 32;
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Control bit";
+        } ctrl[0:0];        // bit 0
+
+        // Gap: bits 1-3 are unspecified
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Status bits";
+        } status[7:4];      // bits 4-7
+
+        // Gap: bits 8-15 are unspecified
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Data field";
+        } data[23:16];      // bits 16-23
+
+        // Gap: bits 24-30 are unspecified
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Enable bit";
+        } enable[31:31];    // bit 31
+    };
+
+    gap_reg test_reg @ 0x0000;
+};
+```
+
+**Elaborator output with automatic reserved fields**:
+
+```bash
+🔧 reg: test_reg (size: 4 bytes)
+  🔧 field: ctrl [0:0]
+    📝 width: 1, lsb: 0, msb: 0, sw: "rw"
+  🔧 field: RESERVED_3_1 [3:1]    # Automatically generated
+    📝 width: 3, lsb: 1, msb: 3, sw: "r"
+  🔧 field: status [7:4]
+    📝 width: 4, lsb: 4, msb: 7, sw: "rw"
+  🔧 field: RESERVED_15_8 [15:8]  # Automatically generated
+    📝 width: 8, lsb: 8, msb: 15, sw: "r"
+  🔧 field: data [23:16]
+    📝 width: 8, lsb: 16, msb: 23, sw: "rw"
+  🔧 field: RESERVED_30_24 [30:24] # Automatically generated
+    📝 width: 7, lsb: 24, msb: 30, sw: "r"
+  🔧 field: enable [31:31]
+    📝 width: 1, lsb: 31, msb: 31, sw: "rw"
+```
+
+**Features of automatic gap detection**:
+
+- **Intelligent Gap Detection**: Analyzes all field bit ranges to identify unspecified bits
+- **Scientific Naming**: Reserved fields use `RESERVED_<msb>_<lsb>` naming convention
+- **Proper Properties**: Reserved fields are automatically set to `sw=r, hw=na` (read-only)
+- **Complete Coverage**: Ensures all register bits from 0 to (regwidth-1) are covered
+- **Any Register Width**: Works with 8-bit, 16-bit, 32-bit, 64-bit, and custom register widths
+- **Performance Optimized**: Only processes registers with detected gaps
+
 ### Command Line Options
 
 Both tools support the following options:
@@ -573,6 +653,8 @@ The project includes 16 comprehensive test files covering various SystemRDL feat
 - `test_regfile_array.rdl` - Register file arrays
 - `test_simple_enum.rdl` - Basic enumerations
 - `test_simple_param_ref.rdl` - Parameter references
+- `test_auto_reserved_fields.rdl` - Automatic reserved field generation for register gaps
+- `test_comprehensive_gaps.rdl` - Comprehensive gap detection scenarios and edge cases
 
 ## File Description
 
@@ -660,6 +742,13 @@ The project includes 16 comprehensive test files covering various SystemRDL feat
 - **Cross-platform Support**: Compatible with Linux, macOS, and Windows
 - **Unicode Emoji Interface**: User-friendly console output with emoji indicators
 - **Property Analysis**: Complete property inheritance and evaluation system
+- **Automatic Gap Detection and Reserved Field Generation**: Intelligent field gap analysis
+  - **Gap Detection**: Automatically detects unspecified bit ranges in register definitions
+  - **Reserved Field Generation**: Creates appropriately named reserved fields for detected gaps
+  - **Scientific Naming**: Uses systematic naming convention `RESERVED_<msb>_<lsb>` for clarity
+  - **Register Width Support**: Works with registers of any width (8-bit, 16-bit, 32-bit, 64-bit, custom widths)
+  - **Smart Coverage Validation**: Validates field coverage and fills missing bit ranges
+  - **Zero-overhead**: Only activates when gaps are detected, preserving performance
 - **Virtual Environment Integration**: Isolated Python dependencies for reliable testing
 
 ## Troubleshooting
@@ -749,6 +838,27 @@ The project includes 16 comprehensive test files covering various SystemRDL feat
       pip install --upgrade pip
       pip install -r requirements.txt
       ```
+
+11. **Automatic reserved field generation issues**
+    - **Reserved fields not appearing**: Check if register has actual gaps using test files:
+
+      ```bash
+      ./build/systemrdl_elaborator test/test_auto_reserved_fields.rdl
+      ```
+
+    - **Incorrect field naming**: Reserved fields use `RESERVED_<msb>_<lsb>` format automatically
+    - **Register width issues**: Ensure `regwidth` property is correctly specified:
+
+      ```systemrdl
+      reg example_reg {
+          regwidth = 32;  // Must specify register width
+          // ... field definitions
+      };
+      ```
+
+    - **Overlapping fields**: Check for field bit range conflicts - elaborator will detect overlaps
+    - **Custom register widths**: Gap detection works with any register width (8, 16, 32, 64, custom)
+    - **Performance concerns**: Gap detection only activates when gaps are found, no overhead for complete registers
 
 ## Acknowledgments
 
