@@ -1,4 +1,5 @@
 // Comprehensive test suite for automatic gap detection and reserved field generation
+// EXPECT_ELABORATION_FAILURE - This test contains intentional validation errors
 addrmap test_comprehensive_gaps {
 
     // Test 1: Complete register (no gaps expected)
