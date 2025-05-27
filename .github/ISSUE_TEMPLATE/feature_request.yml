@@ -1,0 +1,136 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement
+title: "[Feature] "
+labels: ["enhancement", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a new feature! Please fill out the following information to help us understand your request.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: Provide a clear and concise description of the feature you would like to see.
+      placeholder: Describe the feature...
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Use Case
+      description: What problem would this feature solve? What use case does it address?
+      placeholder: Describe the problem or use case...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How do you envision this feature working? Provide as much detail as possible.
+      placeholder: Describe your proposed solution...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: Describe any alternatives you've considered...
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: What category does this feature belong to?
+      options:
+        - SystemRDL Language Support
+        - Validation and Error Checking
+        - JSON Output and Serialization
+        - Performance Optimization
+        - Build System and Dependencies
+        - Documentation and Examples
+        - CLI Interface and Usability
+        - Platform Support
+        - Integration with Other Tools
+        - Other (please specify in description)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Low - Nice to have
+        - Medium - Would be helpful
+        - High - Important for my use case
+        - Critical - Blocking my work
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Example Usage
+      description: If applicable, provide an example of how this feature would be used.
+      placeholder: |
+        ```systemrdl
+        // Example SystemRDL code showing the feature
+        addrmap example {
+            // Your example here
+        };
+        ```
+
+        ```bash
+        # Example command line usage
+        systemrdl_elaborator example.rdl --new-feature
+        ```
+      render: markdown
+
+  - type: textarea
+    id: systemrdl-spec
+    attributes:
+      label: SystemRDL Specification Reference
+      description: If this feature is based on the SystemRDL specification, please provide a reference.
+      placeholder: e.g., SystemRDL 2.0 Section 5.2.1 - Address Maps
+
+  - type: checkboxes
+    id: implementation
+    attributes:
+      label: Implementation Willingness
+      description: Are you willing to help implement this feature?
+      options:
+        - label: I would like to implement this feature myself
+          required: false
+        - label: I can help with testing and validation
+          required: false
+        - label: I can provide additional requirements and feedback
+          required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context, mockups, or examples about the feature request here.
+      placeholder: Any additional information...
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues to ensure this is not a duplicate
+          required: true
+        - label: This feature is related to SystemRDL processing or tooling
+          required: true
+        - label: I have provided sufficient detail for others to understand the request
+          required: true

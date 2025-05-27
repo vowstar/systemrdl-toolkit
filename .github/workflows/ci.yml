@@ -1,0 +1,267 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            antlr4_setup: |
+              sudo apt-get update
+              sudo apt-get install -y openjdk-11-jdk curl uuid-dev
+          - os: macos-latest
+            antlr4_setup: |
+              brew install openjdk@11
+              brew install curl ossp-uuid
+              echo 'export PATH="/opt/homebrew/opt/openjdk@11/bin:$PATH"' >> $GITHUB_ENV
+          - os: windows-latest
+            antlr4_setup: |
+              choco install openjdk11 curl
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Java (required for ANTLR4)
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '11'
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Install system dependencies
+      run: ${{ matrix.antlr4_setup }}
+
+    - name: Configure CMake
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DUSE_SYSTEM_ANTLR4=OFF
+
+    - name: Build
+      run: |
+        cmake --build build --config Release --parallel 4
+
+    - name: Basic functionality test
+      run: |
+        # Test parser
+        ./build/systemrdl_parser --help
+        # Test elaborator
+        ./build/systemrdl_elaborator --help
+        # Test with a simple SystemRDL file (use existing known-good test)
+        ./build/systemrdl_elaborator test/test_minimal.rdl --json test_output.json
+        cat test_output.json
+
+    - name: Run comparison tests (Ubuntu only)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        python script/compare_implementations.py
+
+    - name: Run validation tests
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        python script/json_output_validator.py --test --parser ./build/systemrdl_parser --elaborator ./build/systemrdl_elaborator --rdl test/test_minimal.rdl
+
+    - name: Upload test artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-artifacts-${{ matrix.os }}
+        path: |
+          build/
+          *.json
+          *.log
+
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install analysis tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 black isort
+        pip install -r requirements.txt
+        sudo apt-get update
+        sudo apt-get install -y cppcheck clang-format
+
+    - name: Python code formatting check
+      run: |
+        black --check --diff script/
+        isort --check-only --diff script/
+
+    - name: Python linting
+      run: |
+        flake8 script/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 script/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: C++ static analysis
+      run: |
+        # Run cppcheck and capture output
+        cppcheck --language=c++ \
+          --enable=warning,style,performance \
+          --suppressions-list=.cppcheck-suppressions \
+          elaborator.cpp elaborator_main.cpp parser_main.cpp 2>&1 | tee cppcheck.log
+
+        # Check if there are any actual warnings or errors (not just information)
+        if grep -E "(warning|error|style):" cppcheck.log > /dev/null; then
+          echo "❌ cppcheck found issues:"
+          grep -E "(warning|error|style):" cppcheck.log
+          exit 1
+        else
+          echo "✅ cppcheck passed - no warnings or errors found"
+        fi
+
+    - name: C++ code formatting check
+      run: |
+        clang-format --version
+        echo "Using .clang-format configuration:"
+        echo "-------------------------------------"
+        head -5 .clang-format
+        echo "-------------------------------------"
+        # Ensure we're in the project root directory
+        cd ${{ github.workspace }}
+        # Find all C++ source files and check formatting
+        find . -name "*.cpp" -o -name "*.h" | \
+          grep -E "\.(cpp|h)$" | \
+          grep -v SystemRDL | \
+          xargs clang-format --style=file:.clang-format --dry-run -Werror
+
+    - name: Markdown linting
+      run: |
+        # Check if pymarkdown is available (same logic as CMake)
+        if python -c "import pymarkdown" 2>/dev/null; then
+          echo "✅ PyMarkdown available - running markdown linting..."
+          python -m pymarkdown --config .pymarkdown.json scan README.md CONTRIBUTING.md CONTRIBUTORS.md
+          echo "✅ Markdown linting passed"
+        else
+          echo "❌ PyMarkdown not found! Please install it to lint Markdown files."
+          exit 1
+        fi
+
+  documentation:
+    name: Documentation Build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install documentation tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Check README
+      run: |
+        # Check if README exists and has reasonable content
+        test -f README.md
+        test $(wc -l < README.md) -gt 50
+
+    - name: Markdown linting
+      run: |
+        # Check if pymarkdown is available (same logic as CMake)
+        if python -c "import pymarkdown" 2>/dev/null; then
+          echo "✅ PyMarkdown available - running markdown linting..."
+          echo "Running markdown linting..."
+          # Lint main markdown files (same as CMake target)
+          python -m pymarkdown --config .pymarkdown.json scan README.md CONTRIBUTING.md CONTRIBUTORS.md
+          echo "✅ Markdown linting completed successfully"
+        else
+          echo "❌ PyMarkdown not found! Please install it to lint Markdown files."
+          echo "   Install with: pip install pymarkdown"
+          echo "   Or use requirements.txt: pip install -r requirements.txt"
+          exit 1
+        fi
+
+    - name: Check documentation completeness
+      run: |
+        # Check if important documentation files exist
+        test -f LICENSE
+        # Check if all public headers have documentation
+        grep -q "^/\*\*" elaborator.h || echo "Warning: elaborator.h may need better documentation"
+
+  compatibility-test:
+    name: SystemRDL Compatibility Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Java and Python
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '11'
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        sudo apt-get update
+        sudo apt-get install -y openjdk-11-jdk curl uuid-dev
+
+    - name: Build project
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DUSE_SYSTEM_ANTLR4=OFF
+        cmake --build build --config Release --parallel 4
+
+    - name: Run comprehensive compatibility tests
+      run: |
+        echo "Running SystemRDL compatibility comparison..."
+        python script/compare_implementations.py
+        echo "Testing JSON output validation..."
+        python script/json_output_validator.py --test --parser ./build/systemrdl_parser --elaborator ./build/systemrdl_elaborator --rdl test/test_minimal.rdl
+
+    - name: Generate test report
+      run: |
+        echo "## Test Results Summary" > test_report.md
+        echo "- Build: ✅ Success" >> test_report.md
+        echo "- SystemRDL Compatibility: ✅ Verified" >> test_report.md
+        echo "- JSON Output Validation: ✅ Passed" >> test_report.md
+        echo "- Generated on: $(date)" >> test_report.md
+        cat test_report.md
+
+    - name: Upload compatibility report
+      uses: actions/upload-artifact@v4
+      with:
+        name: compatibility-report
+        path: |
+          test_report.md

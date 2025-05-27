@@ -1,0 +1,100 @@
+name: 📚 Documentation Improvement
+description: Suggest improvements to documentation
+title: "[Docs] "
+labels: ["documentation", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve our documentation! Please fill out the following information.
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Documentation Type
+      description: What type of documentation needs improvement?
+      options:
+        - README.md
+        - Contributing Guidelines
+        - Build Instructions
+        - API Documentation
+        - Code Comments
+        - Examples and Tutorials
+        - SystemRDL Language Guide
+        - Comparison Report
+        - Other (please specify)
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-issue
+    attributes:
+      label: Current Issue
+      description: What is unclear, missing, or incorrect in the current documentation?
+      placeholder: Describe what's wrong with the current documentation...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-improvement
+    attributes:
+      label: Proposed Improvement
+      description: How would you improve the documentation? What should be added, changed, or clarified?
+      placeholder: Describe your proposed improvements...
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: If applicable, specify the file, section, or line number where the improvement is needed.
+      placeholder: e.g., README.md line 45, elaborator.h function documentation
+
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Target Audience
+      description: Who would benefit most from this documentation improvement?
+      options:
+        - New Users
+        - Developers/Contributors
+        - Advanced Users
+        - SystemRDL Specification Authors
+        - Tool Integrators
+        - All Users
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: implementation
+    attributes:
+      label: Implementation Willingness
+      description: Are you willing to help implement this documentation improvement?
+      options:
+        - label: I would like to write/update the documentation myself
+          required: false
+        - label: I can provide content but need help with formatting
+          required: false
+        - label: I can review and provide feedback on proposed changes
+          required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the documentation improvement here.
+      placeholder: Any additional information...
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues to ensure this is not a duplicate
+          required: true
+        - label: I have checked the current documentation to confirm the issue exists
+          required: true
