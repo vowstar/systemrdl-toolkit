@@ -1,0 +1,11 @@
+constParameterPointer
+constVariablePointer
+missingIncludeSystem
+noExplicitConstructor
+normalCheckLevelMaxBranches
+unmatchedSuppression
+unreadVariable
+unusedFunction
+unusedStructMember
+useStlAlgorithm
+variableScope

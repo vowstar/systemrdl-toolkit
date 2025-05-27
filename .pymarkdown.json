@@ -1,0 +1,141 @@
+{
+    "plugins": {
+        "md001": {
+            "enabled": true
+        },
+        "md003": {
+            "enabled": true,
+            "style": "atx"
+        },
+        "md004": {
+            "enabled": true,
+            "style": "dash"
+        },
+        "md005": {
+            "enabled": true
+        },
+        "md007": {
+            "enabled": true,
+            "indent": 4
+        },
+        "md009": {
+            "enabled": true,
+            "br_spaces": 2
+        },
+        "md010": {
+            "enabled": true
+        },
+        "md011": {
+            "enabled": true
+        },
+        "md012": {
+            "enabled": false
+        },
+        "md013": {
+            "enabled": true,
+            "line_length": 120,
+            "headings": false,
+            "tables": false,
+            "code_blocks": false
+        },
+        "md014": {
+            "enabled": true
+        },
+        "md018": {
+            "enabled": true
+        },
+        "md019": {
+            "enabled": true
+        },
+        "md020": {
+            "enabled": true
+        },
+        "md021": {
+            "enabled": true
+        },
+        "md022": {
+            "enabled": true
+        },
+        "md023": {
+            "enabled": true
+        },
+        "md024": {
+            "enabled": false
+        },
+        "md025": {
+            "enabled": true
+        },
+        "md026": {
+            "enabled": true
+        },
+        "md027": {
+            "enabled": true
+        },
+        "md028": {
+            "enabled": true
+        },
+        "md029": {
+            "enabled": true,
+            "style": "ordered"
+        },
+        "md030": {
+            "enabled": true
+        },
+        "md031": {
+            "enabled": true
+        },
+        "md032": {
+            "enabled": true
+        },
+        "md033": {
+            "enabled": false
+        },
+        "md034": {
+            "enabled": true
+        },
+        "md035": {
+            "enabled": true
+        },
+        "md036": {
+            "enabled": false
+        },
+        "md037": {
+            "enabled": true
+        },
+        "md038": {
+            "enabled": true
+        },
+        "md039": {
+            "enabled": true
+        },
+        "md040": {
+            "enabled": true
+        },
+        "md041": {
+            "enabled": true
+        },
+        "md042": {
+            "enabled": true
+        },
+        "md043": {
+            "enabled": false
+        },
+        "md044": {
+            "enabled": true
+        },
+        "md045": {
+            "enabled": true
+        },
+        "md046": {
+            "enabled": true,
+            "style": "fenced"
+        },
+        "md047": {
+            "enabled": true
+        },
+        "md048": {
+            "enabled": true,
+            "style": "backtick"
+        }
+    }
+}

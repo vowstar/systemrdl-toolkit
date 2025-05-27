@@ -89,9 +89,6 @@ core.*
 # GDB history
 .gdb_history
 
-# Clang format
-.clang-format
-
 # Package managers
 conan.lock
 vcpkg_installed/

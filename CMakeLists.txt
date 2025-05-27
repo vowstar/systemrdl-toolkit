@@ -119,7 +119,7 @@ add_custom_target(download-antlr4-jar
 
 # Custom target to generate C++ files from grammar (not executed by default)
 add_custom_target(generate-antlr4-cpp
-    COMMAND java -jar ${ANTLR4_JAR_PATH} -Dlanguage=Cpp -visitor -no-listener 
+    COMMAND java -jar ${ANTLR4_JAR_PATH} -Dlanguage=Cpp -visitor -no-listener
         SystemRDL.g4
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     DEPENDS download-antlr4-jar
@@ -241,19 +241,22 @@ foreach(rdl_file ${RDL_TEST_FILES})
     )
 endforeach()
 
-# Find Python3 for JSON validation tests
-# First try to find Python in virtual environment if it exists
+# Find Python and markdown linting tools
 if(EXISTS "${CMAKE_SOURCE_DIR}/.venv/bin/python3")
-    set(Python3_EXECUTABLE "${CMAKE_SOURCE_DIR}/.venv/bin/python3")
-    message(STATUS "Using Python from virtual environment: ${Python3_EXECUTABLE}")
+    # Use virtual environment Python if available
+    set(PYTHON_EXECUTABLE "${CMAKE_SOURCE_DIR}/.venv/bin/python3")
+    message(STATUS "Using Python from virtual environment: ${PYTHON_EXECUTABLE}")
 else()
-    find_package(Python3 COMPONENTS Interpreter)
+    find_program(PYTHON_EXECUTABLE
+        NAMES python3 python
+        DOC "Path to Python executable"
+    )
 endif()
 
 # Check if we have a working Python3 interpreter
-if(Python3_EXECUTABLE)
+if(PYTHON_EXECUTABLE)
     set(Python3_FOUND TRUE)
-    message(STATUS "Python3 executable: ${Python3_EXECUTABLE}")
+    message(STATUS "Python3 executable: ${PYTHON_EXECUTABLE}")
 else()
     set(Python3_FOUND FALSE)
     message(WARNING "Python3 not found")
@@ -267,7 +270,7 @@ if(Python3_FOUND)
         # JSON test using unified Python script (replaces bash script)
         add_test(
             NAME "json_test_${test_name}"
-            COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/json_output_validator.py
+            COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/json_output_validator.py
                     --test
                     --parser ${CMAKE_BINARY_DIR}/systemrdl_parser
                     --elaborator ${CMAKE_BINARY_DIR}/systemrdl_elaborator
@@ -283,7 +286,7 @@ if(Python3_FOUND)
     # RDL Semantic Validation Test - validates all RDL files with Python SystemRDL compiler
     add_test(
         NAME "rdl_semantic_validation"
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/rdl_semantic_validator.py
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/rdl_semantic_validator.py
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     )
     set_tests_properties("rdl_semantic_validation" PROPERTIES
@@ -352,3 +355,364 @@ foreach(rdl_file ${RDL_TEST_FILES})
     get_filename_component(test_name ${rdl_file} NAME)
     message(STATUS "  - ${test_name}")
 endforeach()
+
+# ==============================================================================
+# Code Quality and Formatting Targets
+# ==============================================================================
+
+# Find required tools for code quality checks
+find_program(CLANG_FORMAT_EXECUTABLE
+    NAMES clang-format clang-format-14 clang-format-13 clang-format-12
+    DOC "Path to clang-format executable"
+)
+
+find_program(CPPCHECK_EXECUTABLE
+    NAMES cppcheck
+    DOC "Path to cppcheck executable"
+)
+
+# Check for Python markdown linting tools
+if(PYTHON_EXECUTABLE)
+    execute_process(
+        COMMAND ${PYTHON_EXECUTABLE} -c "import pymarkdown; print('pymarkdown available')"
+        RESULT_VARIABLE PYMARKDOWN_CHECK_RESULT
+        OUTPUT_QUIET
+        ERROR_QUIET
+    )
+    if(PYMARKDOWN_CHECK_RESULT EQUAL 0)
+        set(PYMARKDOWN_AVAILABLE TRUE)
+    else()
+        set(PYMARKDOWN_AVAILABLE FALSE)
+    endif()
+else()
+    set(PYMARKDOWN_AVAILABLE FALSE)
+endif()
+
+# Collect source files for quality checks
+file(GLOB_RECURSE CPP_SOURCE_FILES
+    "${CMAKE_SOURCE_DIR}/elaborator.cpp"
+    "${CMAKE_SOURCE_DIR}/elaborator_main.cpp"
+    "${CMAKE_SOURCE_DIR}/parser_main.cpp"
+    "${CMAKE_SOURCE_DIR}/*.h"
+)
+
+# Filter out build directory, generated files, and other unwanted files
+list(FILTER CPP_SOURCE_FILES EXCLUDE REGEX ".*/(build|\.git|\.venv|__pycache__)/.+")
+list(FILTER CPP_SOURCE_FILES EXCLUDE REGEX ".*/SystemRDL(Lexer|Parser|BaseVisitor|Visitor)\.(h|cpp)$")
+
+# Collect Python files for quality checks
+file(GLOB_RECURSE PYTHON_SOURCE_FILES
+    "${CMAKE_SOURCE_DIR}/script/*.py"
+)
+
+# Filter out unwanted python files
+list(FILTER PYTHON_SOURCE_FILES EXCLUDE REGEX ".*/(build|\.git|\.venv|__pycache__)/.+")
+
+# Collect Markdown files for linting
+file(GLOB_RECURSE MARKDOWN_FILES
+    "${CMAKE_SOURCE_DIR}/*.md"
+    "${CMAKE_SOURCE_DIR}/docs/*.md"
+)
+
+# Filter out unwanted markdown files - exclude build artifacts, git files,
+# virtual environments, cache directories, GitHub templates, and test data
+list(FILTER MARKDOWN_FILES EXCLUDE REGEX ".*/(build|\.git|\.venv|__pycache__|\.github|test)/.*")
+
+# Also exclude specific files that may have special formatting requirements
+list(FILTER MARKDOWN_FILES EXCLUDE REGEX ".*/CHANGELOG\.md$")
+list(FILTER MARKDOWN_FILES EXCLUDE REGEX ".*/UPDATED_.*\.md$")
+
+# ==============================================================================
+# C++ Code Quality Targets
+# ==============================================================================
+
+if(CLANG_FORMAT_EXECUTABLE)
+    # Check C++ code formatting
+    add_custom_target(format-check
+        COMMAND echo "Checking C++ code formatting..."
+        COMMAND ${CLANG_FORMAT_EXECUTABLE} --version
+        COMMAND echo "Using .clang-format configuration from project root"
+        COMMAND ${CLANG_FORMAT_EXECUTABLE}
+            --style=file:${CMAKE_SOURCE_DIR}/.clang-format
+            --dry-run
+            -Werror
+            ${CPP_SOURCE_FILES}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Checking C++ code formatting with clang-format"
+    )
+
+    # Show C++ formatting differences
+    add_custom_target(format-diff
+        COMMAND echo "Showing C++ formatting differences..."
+        COMMAND ${CLANG_FORMAT_EXECUTABLE} --version
+        COMMAND ${CLANG_FORMAT_EXECUTABLE}
+            --style=file:${CMAKE_SOURCE_DIR}/.clang-format
+            --diff
+            ${CPP_SOURCE_FILES} || echo "Files shown above need formatting"
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Showing C++ formatting differences"
+    )
+
+    # Auto-format C++ code
+    add_custom_target(format
+        COMMAND echo "Auto-formatting C++ code..."
+        COMMAND ${CLANG_FORMAT_EXECUTABLE} --version
+        COMMAND ${CLANG_FORMAT_EXECUTABLE}
+            --style=file:${CMAKE_SOURCE_DIR}/.clang-format
+            -i
+            ${CPP_SOURCE_FILES}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Auto-formatting C++ code with clang-format"
+    )
+else()
+    # Fallback targets when clang-format is not available
+    add_custom_target(format-check
+        COMMAND echo "❌ clang-format not found! Please install clang-format to check C++ formatting."
+        COMMAND echo "   Ubuntu/Debian: sudo apt-get install clang-format"
+        COMMAND echo "   Gentoo: sudo emerge clang"
+        COMMAND false
+    )
+
+    add_custom_target(format-diff
+        COMMAND echo "❌ clang-format not found! Please install clang-format to show formatting differences."
+        COMMAND false
+    )
+
+    add_custom_target(format
+        COMMAND echo "❌ clang-format not found! Please install clang-format to auto-format C++ code."
+        COMMAND false
+    )
+endif()
+
+if(CPPCHECK_EXECUTABLE)
+    # Run cppcheck static analysis
+    add_custom_target(cppcheck
+        COMMAND echo "Running cppcheck static analysis..."
+        COMMAND ${CPPCHECK_EXECUTABLE} --version
+        COMMAND ${CPPCHECK_EXECUTABLE}
+            --language=c++
+            --enable=warning,style,performance
+            --suppressions-list=${CMAKE_SOURCE_DIR}/.cppcheck-suppressions
+            --inline-suppr
+            --quiet
+            ${CPP_SOURCE_FILES} || echo "Note: Some informational messages may appear above"
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Running cppcheck static analysis"
+    )
+
+    # Run cppcheck with verbose output
+    add_custom_target(cppcheck-verbose
+        COMMAND echo "Running cppcheck static analysis (verbose)..."
+        COMMAND ${CPPCHECK_EXECUTABLE} --version
+        COMMAND ${CPPCHECK_EXECUTABLE}
+            --enable=warning,style,performance
+            --suppressions-list=${CMAKE_SOURCE_DIR}/.cppcheck-suppressions
+            --inline-suppr
+            --verbose
+            ${CPP_SOURCE_FILES}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Running cppcheck static analysis (verbose)"
+    )
+else()
+    # Fallback targets when cppcheck is not available
+    add_custom_target(cppcheck
+        COMMAND echo "❌ cppcheck not found! Please install cppcheck for static analysis."
+        COMMAND echo "   Ubuntu/Debian: sudo apt-get install cppcheck"
+        COMMAND echo "   Gentoo: sudo emerge dev-util/cppcheck"
+        COMMAND false
+    )
+
+    add_custom_target(cppcheck-verbose
+        COMMAND echo "❌ cppcheck not found! Please install cppcheck for static analysis."
+        COMMAND false
+    )
+endif()
+
+# ==============================================================================
+# Python Code Quality Targets
+# ==============================================================================
+
+if(PYTHON_EXECUTABLE)
+    # Check Python code formatting
+    add_custom_target(python-format-check
+        COMMAND ${CMAKE_COMMAND} -E echo "Checking Python code formatting..."
+        COMMAND ${PYTHON_EXECUTABLE} -m black --check --diff ${PYTHON_SOURCE_FILES}
+        COMMAND ${PYTHON_EXECUTABLE} -m isort --check-only --diff ${PYTHON_SOURCE_FILES}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Checking Python code formatting"
+    )
+
+    # Auto-format Python code
+    add_custom_target(python-format
+        COMMAND ${CMAKE_COMMAND} -E echo "Auto-formatting Python code..."
+        COMMAND ${PYTHON_EXECUTABLE} -m black ${PYTHON_SOURCE_FILES}
+        COMMAND ${PYTHON_EXECUTABLE} -m isort ${PYTHON_SOURCE_FILES}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Auto-formatting Python code with black and isort"
+    )
+
+    # Run Python linting
+    add_custom_target(python-lint
+        COMMAND ${CMAKE_COMMAND} -E echo "Running Python linting..."
+        COMMAND ${PYTHON_EXECUTABLE} -m flake8 ${PYTHON_SOURCE_FILES} --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics || ${CMAKE_COMMAND} -E echo "Python linting completed"
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Running Python linting with flake8"
+    )
+
+    # Complete Python quality check
+    add_custom_target(python-quality
+        COMMAND echo "Running complete Python quality checks..."
+        DEPENDS python-format-check python-lint
+        COMMENT "Running complete Python quality checks"
+    )
+else()
+    # Fallback targets when Python is not available
+    add_custom_target(python-format-check
+        COMMAND echo "❌ Python not found! Please install Python to check Python code quality."
+        COMMAND false
+    )
+
+    add_custom_target(python-format
+        COMMAND echo "❌ Python not found! Please install Python to format Python code."
+        COMMAND false
+    )
+
+    add_custom_target(python-lint
+        COMMAND echo "❌ Python not found! Please install Python to lint Python code."
+        COMMAND false
+    )
+
+    add_custom_target(python-quality
+        COMMAND echo "❌ Python not found! Please install Python to check Python code quality."
+        COMMAND false
+    )
+endif()
+
+# ==============================================================================
+# Markdown Linting Targets
+# ==============================================================================
+
+if(PYMARKDOWN_AVAILABLE)
+    # Check markdown formatting and style
+    add_custom_target(markdown-lint
+        COMMAND echo "Running markdown linting..."
+        COMMAND ${PYTHON_EXECUTABLE} -c "import pymarkdown"
+        COMMAND ${PYTHON_EXECUTABLE} -m pymarkdown --config ${CMAKE_SOURCE_DIR}/.pymarkdown.json scan ${MARKDOWN_FILES}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Linting Markdown files with PyMarkdown"
+    )
+
+    # Auto-fix markdown issues where possible
+    add_custom_target(markdown-fix
+        COMMAND echo "Auto-fixing markdown issues..."
+        COMMAND ${PYTHON_EXECUTABLE} -m pymarkdown --config ${CMAKE_SOURCE_DIR}/.pymarkdown.json fix ${MARKDOWN_FILES} || echo "Some issues may require manual fixing"
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Auto-fixing Markdown issues with PyMarkdown"
+    )
+
+    # Show markdown linting rules
+    add_custom_target(markdown-rules
+        COMMAND echo "Available markdown linting rules:"
+        COMMAND ${PYTHON_EXECUTABLE} -m pymarkdown plugins list
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Showing available markdown linting rules"
+    )
+else()
+    # Fallback targets when pymarkdown is not available
+    add_custom_target(markdown-lint
+        COMMAND echo "❌ PyMarkdown not found! Please install it to lint Markdown files."
+        COMMAND echo "   Install with: pip install pymarkdown"
+        COMMAND echo "   Or use requirements.txt: pip install -r requirements.txt"
+        COMMAND false
+    )
+
+    add_custom_target(markdown-fix
+        COMMAND echo "❌ PyMarkdown not found! Please install it to fix Markdown files."
+        COMMAND false
+    )
+
+    add_custom_target(markdown-rules
+        COMMAND echo "❌ PyMarkdown not found! Please install it to see markdown rules."
+        COMMAND false
+    )
+endif()
+
+# ==============================================================================
+# Combined Quality Targets
+# ==============================================================================
+
+# Check all code quality (no auto-fixes)
+add_custom_target(quality-check
+    COMMAND echo "Running all quality checks..."
+    DEPENDS format-check cppcheck python-quality markdown-lint
+    COMMENT "Running all quality checks (C++, Python, Markdown)"
+)
+
+# Auto-format all code
+add_custom_target(quality-format
+    COMMAND echo "Auto-formatting all code..."
+    DEPENDS format python-format markdown-fix
+    COMMENT "Auto-formatting all code (C++, Python, Markdown)"
+)
+
+# Fix all auto-fixable issues
+add_custom_target(fix-all
+    COMMAND echo "Fixing all auto-fixable issues..."
+    DEPENDS quality-format
+    COMMENT "Auto-fixing all code quality issues"
+)
+
+# Comprehensive quality analysis with verbose output
+add_custom_target(quality-all
+    COMMAND echo "Running comprehensive quality analysis..."
+    DEPENDS format-diff cppcheck-verbose python-quality markdown-lint
+    COMMENT "Running comprehensive quality analysis"
+)
+
+# Pre-commit style checks (fast)
+add_custom_target(pre-commit
+    COMMAND echo "Running pre-commit checks..."
+    DEPENDS quality-check test-fast
+    COMMENT "Running pre-commit checks (quality + fast tests)"
+)
+
+# ==============================================================================
+# Help target
+# ==============================================================================
+
+add_custom_target(quality-help
+    COMMAND echo ""
+    COMMAND echo "📋 Available Code Quality Targets:"
+    COMMAND echo "=================================="
+    COMMAND echo ""
+    COMMAND echo "🔍 Code Checking:"
+    COMMAND echo "  quality-check      - Run all quality checks"
+    COMMAND echo "  format-check       - Check C++ code formatting"
+    COMMAND echo "  format-diff        - Show C++ formatting differences"
+    COMMAND echo "  cppcheck           - Run C++ static analysis"
+    COMMAND echo "  cppcheck-verbose   - Run C++ static analysis verbose"
+    COMMAND echo "  python-quality     - Run Python quality checks"
+    COMMAND echo "  python-format-check - Check Python code formatting"
+    COMMAND echo "  python-lint        - Run Python linting"
+    COMMAND echo "  markdown-lint      - Lint Markdown files"
+    COMMAND echo "  markdown-rules     - Show available markdown rules"
+    COMMAND echo ""
+    COMMAND echo "🔧 Code Fixing:"
+    COMMAND echo "  quality-format     - Auto-format all code"
+    COMMAND echo "  format             - Auto-format C++ code"
+    COMMAND echo "  python-format      - Auto-format Python code"
+    COMMAND echo "  markdown-fix       - Auto-fix Markdown issues"
+    COMMAND echo "  fix-all            - Fix all auto-fixable issues"
+    COMMAND echo ""
+    COMMAND echo "🚀 Combined Targets:"
+    COMMAND echo "  pre-commit         - Run pre-commit checks"
+    COMMAND echo "  quality-all        - Run complete quality analysis"
+    COMMAND echo ""
+    COMMAND echo "💡 Examples:"
+    COMMAND echo "  make quality-check    # Check code quality"
+    COMMAND echo "  make format           # Auto-format C++ code"
+    COMMAND echo "  make markdown-lint    # Check Markdown files"
+    COMMAND echo "  make pre-commit       # Run what CI will check"
+    COMMAND echo ""
+    COMMENT "Showing code quality help"
+)
