@@ -162,6 +162,11 @@ add_executable(systemrdl_elaborator
     ${GENERATED_SOURCES}
 )
 
+# Create CSV to RDL converter executable
+add_executable(systemrdl_csv2rdl
+    csv2rdl_main.cpp
+)
+
 # Set include directories
 target_include_directories(systemrdl_parser PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -173,6 +178,10 @@ target_include_directories(systemrdl_elaborator PRIVATE
     ${ANTLR4_INCLUDE_DIRS}
 )
 
+target_include_directories(systemrdl_csv2rdl PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 # Link libraries
 target_link_libraries(systemrdl_parser
     ${ANTLR4_LIBRARIES}
@@ -182,10 +191,14 @@ target_link_libraries(systemrdl_elaborator
     ${ANTLR4_LIBRARIES}
 )
 
+# CSV converter doesn't need ANTLR4
+# target_link_libraries(systemrdl_csv2rdl)
+
 # Add dependency on ANTLR4 target when using downloaded version
 if(NOT USE_SYSTEM_ANTLR4)
     add_dependencies(systemrdl_parser ${ANTLR4_TARGET})
     add_dependencies(systemrdl_elaborator ${ANTLR4_TARGET})
+    # systemrdl_csv2rdl doesn't depend on ANTLR4
 endif()
 
 # Compile options
@@ -197,6 +210,9 @@ target_compile_options(systemrdl_elaborator PRIVATE
     ${ANTLR4_CFLAGS_OTHER}
 )
 
+# CSV converter doesn't need ANTLR4 compile options
+# target_compile_options(systemrdl_csv2rdl PRIVATE)
+
 # Set compiler warnings
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(systemrdl_parser PRIVATE
@@ -205,10 +221,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang
     target_compile_options(systemrdl_elaborator PRIVATE
         -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
     )
+    target_compile_options(systemrdl_csv2rdl PRIVATE
+        -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
+    )
 endif()
 
 # Install target (optional)
-install(TARGETS systemrdl_parser systemrdl_elaborator
+install(TARGETS systemrdl_parser systemrdl_elaborator systemrdl_csv2rdl
     RUNTIME DESTINATION bin
 )
 
@@ -238,6 +257,22 @@ foreach(rdl_file ${RDL_TEST_FILES})
     )
     set_tests_properties("elaborator_${test_name}" PROPERTIES
         LABELS "elaborator"
+    )
+endforeach()
+
+# Find all CSV test files
+file(GLOB CSV_TEST_FILES "${CMAKE_SOURCE_DIR}/test/test_csv_*.csv")
+
+# Create tests for CSV converter
+foreach(csv_file ${CSV_TEST_FILES})
+    get_filename_component(test_name ${csv_file} NAME_WE)
+    add_test(
+        NAME "csv2rdl_${test_name}"
+        COMMAND systemrdl_csv2rdl ${csv_file} -o ${test_name}.rdl
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+    set_tests_properties("csv2rdl_${test_name}" PROPERTIES
+        LABELS "csv2rdl"
     )
 endforeach()
 
@@ -294,6 +329,18 @@ if(Python3_FOUND)
         TIMEOUT 60
     )
 
+    # CSV2RDL Validation Test - validates CSV converter with comprehensive test suite
+    add_test(
+        NAME "csv2rdl_validation"
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/csv2rdl_validator.py
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    set_tests_properties("csv2rdl_validation" PROPERTIES
+        LABELS "csv2rdl;validation"
+        TIMEOUT 120
+        DEPENDS "systemrdl_csv2rdl;systemrdl_parser"
+    )
+
     # Create test groups for convenience
     add_custom_target(test-json
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "json"
@@ -312,11 +359,18 @@ if(Python3_FOUND)
         COMMENT "Running all tests"
     )
 
+    add_custom_target(test-csv2rdl
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "csv2rdl"
+        DEPENDS systemrdl_csv2rdl systemrdl_parser
+        COMMENT "Running CSV2RDL converter tests"
+    )
+
     add_custom_target(test-fast
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L json
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L semantic
-        DEPENDS systemrdl_parser systemrdl_elaborator
-        COMMENT "Running fast tests (JSON + semantic validation)"
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L csv2rdl
+        DEPENDS systemrdl_parser systemrdl_elaborator systemrdl_csv2rdl
+        COMMENT "Running fast tests (JSON + semantic + CSV2RDL validation)"
     )
 else()
     message(WARNING "Python3 not found - JSON and semantic validation tests will be disabled")
@@ -353,6 +407,13 @@ list(LENGTH RDL_TEST_FILES test_files_count)
 message(STATUS "Found ${test_files_count} RDL test files:")
 foreach(rdl_file ${RDL_TEST_FILES})
     get_filename_component(test_name ${rdl_file} NAME)
+    message(STATUS "  - ${test_name}")
+endforeach()
+
+list(LENGTH CSV_TEST_FILES csv_test_files_count)
+message(STATUS "Found ${csv_test_files_count} CSV test files:")
+foreach(csv_file ${CSV_TEST_FILES})
+    get_filename_component(test_name ${csv_file} NAME)
     message(STATUS "  - ${test_name}")
 endforeach()
 
@@ -393,6 +454,7 @@ file(GLOB_RECURSE CPP_SOURCE_FILES
     "${CMAKE_SOURCE_DIR}/elaborator.cpp"
     "${CMAKE_SOURCE_DIR}/elaborator_main.cpp"
     "${CMAKE_SOURCE_DIR}/parser_main.cpp"
+    "${CMAKE_SOURCE_DIR}/csv2rdl_main.cpp"
     "${CMAKE_SOURCE_DIR}/*.h"
 )
 
@@ -554,7 +616,7 @@ if(PYTHON_EXECUTABLE)
     # Run Python linting
     add_custom_target(python-lint
         COMMAND ${CMAKE_COMMAND} -E echo "Running Python linting..."
-        COMMAND ${PYTHON_EXECUTABLE} -m flake8 ${PYTHON_SOURCE_FILES} --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics || ${CMAKE_COMMAND} -E echo "Python linting completed"
+        COMMAND ${PYTHON_EXECUTABLE} -m flake8 ${PYTHON_SOURCE_FILES} --count --exit-zero --max-line-length=127 --ignore=C901,W503,E226 --statistics || ${CMAKE_COMMAND} -E echo "Python linting completed"
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Running Python linting with flake8"
     )

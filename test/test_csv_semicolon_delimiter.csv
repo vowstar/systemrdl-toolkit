@@ -1,0 +1,5 @@
+addrmap_offset;addrmap_name;reg_offset;reg_name;reg_width;field_name;field_lsb;field_msb;reset_value;sw_access;hw_access;description
+0x0000;SEMICOLON_TEST;;;;;;;;;Semicolon Test Address Map
+;;0x0000;TEST_REG;32;;;;;;;;;Test Register
+;;;;;ENABLE;0;0;0;RW;RW;Enable Field
+;;;;;STATUS;1;1;0;RO;RO;Status Field

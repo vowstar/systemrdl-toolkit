@@ -1,0 +1,12 @@
+addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,description
+0x0000,MULTILINE_TEST,,,,,,,,,,,"Test Address Map
+for multiline descriptions
+with multiple lines"
+,,0x0000,TEST_REG,32,,,,,,,Test Register
+,,,,,COMPLEX_FIELD,0,7,0,RW,RW,"This is a complex field with:
+- Multiple lines
+- Special characters: !@#$%^&*()
+- Numbers: 0x1234, 42, 3.14
+- Quotes: ""nested quotes""
+- Commas, semicolons; and other: punctuation"
+,,,,,SIMPLE_FIELD,8,15,0,RO,RO,Simple single line description 

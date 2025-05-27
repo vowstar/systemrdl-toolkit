@@ -243,6 +243,176 @@ The following files are generated from `SystemRDL.g4`:
 - `SystemRDLBaseVisitor.cpp/h`
 - `SystemRDLVisitor.cpp/h`
 
+## CSV to SystemRDL Converter Usage
+
+The toolbox includes a professional CSV to SystemRDL converter (`systemrdl_csv2rdl`) with advanced parsing capabilities
+and comprehensive validation.
+
+### Basic Usage
+
+```bash
+# Convert CSV file to SystemRDL (auto-generate output filename)
+./build/systemrdl_csv2rdl input.csv
+
+# Specify custom output filename
+./build/systemrdl_csv2rdl input.csv -o output.rdl
+
+# Display help information
+./build/systemrdl_csv2rdl --help
+```
+
+### CSV Format Requirements
+
+The converter supports a three-layer structure: **addrmap → reg → field**. CSV files should contain the following
+columns (header names are case-insensitive with fuzzy matching support):
+
+| Column | Required | Description | Example |
+|--------|----------|-------------|---------|
+| `addrmap_offset` | Yes | Address map base offset | `0x0000` |
+| `addrmap_name` | Yes | Address map name | `DEMO` |
+| `reg_offset` | Yes | Register offset within address map | `0x0000` |
+| `reg_name` | Yes | Register name | `CTRL` |
+| `reg_width` | Yes | Register width in bits | `32` |
+| `field_name` | Yes | Field name | `ENABLE` |
+| `field_lsb` | Yes | Field least significant bit | `0` |
+| `field_msb` | Yes | Field most significant bit | `0` |
+| `reset_value` | Yes | Field reset value | `0` |
+| `sw_access` | Yes | Software access type | `RW`/`RO`/`WO` |
+| `hw_access` | Yes | Hardware access type | `RW`/`RO`/`WO` |
+| `description` | Optional | Field/register description | `Enable control bit` |
+
+### CSV Format Example
+
+See the complete example: [`test/test_csv_basic_example.csv`](test/test_csv_basic_example.csv)
+
+This example demonstrates:
+
+- Three-layer structure (addrmap → reg → field)
+- Multi-line descriptions with proper quoting
+- Empty fields to indicate hierarchy relationships
+- Various access types (RW/RO) for software and hardware
+
+### Advanced Features
+
+#### Intelligent Header Matching
+
+- **Case-insensitive**: `AddrmapOffset` → `addrmap_offset`
+- **Fuzzy matching**: Handles typos with Levenshtein distance ≤3
+- **Abbreviation support**: `sw_acc` → `sw_access`, `hw_acc` → `hw_access`
+
+#### Multi-line Field Support
+
+The converter handles multi-line descriptions properly:
+
+```csv
+field_name,description
+MODE,"Operation mode selection
+- 0x0: Mode0: Foo bar  
+- 0x1: Mode1: Foz baz
+- 0x2: Mode2: Fooo baar
+- 0x3: Reserved"
+```
+
+#### Flexible Delimiters
+
+Automatically detects and supports:
+- Comma-separated values (`,`)
+- Semicolon-separated values (`;`)
+
+#### String Processing
+
+- **Name fields** (addrmap_name, reg_name, field_name): Remove all newlines and trim whitespace
+- **Description fields**: Preserve internal newlines, collapse multiple consecutive newlines
+- **Regular fields**: Basic trim operations
+
+### Validation and Testing
+
+#### Automated Validation Suite
+
+Run comprehensive validation from any directory:
+
+```bash
+# Run complete validation suite
+python3 script/csv2rdl_validator.py
+
+# The validator performs three levels of testing:
+# 1. CSV2RDL conversion success
+# 2. SystemRDL syntax validation (using parser)
+# 3. Content pattern validation
+```
+
+#### Test Coverage
+
+The validation suite includes 8 comprehensive test scenarios:
+
+- **Basic Example**: Standard CSV conversion
+- **Multiline Processing**: Various multi-line field scenarios
+- **Delimiter Detection**: Semicolon vs comma delimiter handling
+- **Fuzzy Header Matching**: Header name variations and typos
+- **Extreme Cases**: Edge cases with special characters
+
+#### Manual Testing
+
+```bash
+# Convert and validate manually
+./build/systemrdl_csv2rdl test/test_csv_basic_example.csv
+./build/systemrdl_parser test/test_csv_basic_example.rdl
+```
+
+### Generated SystemRDL Output
+
+```systemrdl
+addrmap DEMO {
+
+    reg {
+        name = "Control Register";
+        desc = "Control Register";
+        regwidth = 32;
+
+        field {
+            name = "ENABLE";
+            desc = "Enable control bit";
+            sw = rw;
+            hw = rw;
+        } ENABLE[0:0] = 0;
+
+        field {
+            name = "MODE";
+            desc = "Operation mode selection
+- 0x0: Mode0: Normal operation
+- 0x1: Mode1: Test mode
+- 0x2: Mode2: Debug mode
+- 0x3: Reserved";
+            sw = rw;
+            hw = rw;
+        } MODE[2:1] = 0;
+
+    } CTRL @ 0x0000;
+
+    reg {
+        name = "Status Register";
+        desc = "Status Register";
+        regwidth = 32;
+
+        field {
+            name = "READY";
+            desc = "Ready status";
+            sw = r;
+            hw = r;
+        } READY[0:0] = 0;
+
+        field {
+            name = "ERROR";
+            desc = "Error flag";
+            sw = r;
+            hw = r;
+        } ERROR[1:1] = 0;
+
+    } STATUS @ 0x0004;
+
+};
+```
+
 ## Code Quality and Development Tools
 
 The project includes comprehensive code quality checking and automatic formatting tools integrated into the CMake build
@@ -479,7 +649,7 @@ make format-diff
 The build system gracefully handles missing tools:
 
 - **clang-format not found**: Formatting targets show helpful error messages
-- **cppcheck not found**: Static analysis targets show installation instructions  
+- **cppcheck not found**: Static analysis targets show installation instructions
 - **Python tools missing**: Install via `pip install black isort flake8`
 
 All tools are automatically detected during CMake configuration and appropriate targets are created.
@@ -729,7 +899,7 @@ Address     Size    Name      Path
 
 The project includes comprehensive testing capabilities with both C++ tools and Python validation scripts:
 
-### Prerequisites
+### Setup Requirements
 
 Ensure Python virtual environment is set up and activated (see [Python Dependencies](#python-dependencies) section for
 detailed setup):
@@ -820,7 +990,15 @@ python3 script/json_output_validator.py --test --parser build/systemrdl_parser -
 - Checks AST JSON format compliance
 - Validates elaborated model format
 - Performs end-to-end testing
-- Compares content consistency between outputs
+- Compares consistency between parser and elaborator outputs
+- Supports individual file validation and batch testing
+
+- `script/csv2rdl_validator.py` - CSV to SystemRDL converter validation suite
+  - Three-tier validation: conversion success, syntax validation, content validation
+  - Auto-discovers CSV test files using `test_csv_*.csv` naming convention
+  - Cross-directory execution with automatic project path detection
+  - Comprehensive test coverage: basic, multiline, delimiters, fuzzy matching
+  - Professional validation framework with detailed reporting and exit codes
 
 ### Comprehensive Testing
 
@@ -917,6 +1095,13 @@ The project includes 16 comprehensive test files covering various SystemRDL feat
 - `json_output.h` - JSON output formatting and export functions
 - `CMakeLists.txt` - CMake build configuration with integrated testing and ANTLR4 management
 
+### CSV to SystemRDL Converter
+
+- `csv2rdl_main.cpp` - CSV to SystemRDL converter with intelligent header matching and multi-line support
+- `script/csv2rdl_validator.py` - Comprehensive validation suite for CSV converter testing
+- `test/test_csv_*.csv` - CSV test files covering various scenarios (basic, multiline, delimiters, fuzzy matching)
+- `test/TEST_CSV_README.md` - CSV test documentation and validation procedures
+
 ### Grammar and Generated Files
 
 - `SystemRDL.g4` - ANTLR4 grammar file for SystemRDL 2.0 specification
@@ -946,6 +1131,13 @@ The project includes 16 comprehensive test files covering various SystemRDL feat
   - Performs end-to-end testing with automatic JSON generation
   - Compares consistency between parser and elaborator outputs
   - Supports individual file validation and batch testing
+
+- `script/csv2rdl_validator.py` - CSV to SystemRDL converter validation suite
+  - Three-tier validation: conversion success, syntax validation, content validation
+  - Auto-discovers CSV test files using `test_csv_*.csv` naming convention
+  - Cross-directory execution with automatic project path detection
+  - Comprehensive test coverage: basic, multiline, delimiters, fuzzy matching
+  - Professional validation framework with detailed reporting and exit codes
 
 ### Development Environment
 
@@ -978,6 +1170,15 @@ The project includes 16 comprehensive test files covering various SystemRDL feat
   - Future-ready for multiple output formats (e.g., `--yaml`, `--xml`)
 - **Comprehensive Error Reporting**: Detailed error detection and reporting with line/column information
 - **Address Map Generation**: Automatic generation of memory address maps from elaborated models
+- **CSV to SystemRDL Converter**: Professional-grade CSV to SystemRDL conversion tool
+  - **Intelligent Header Matching**: Case-insensitive, fuzzy matching with Levenshtein distance (≤3)
+  - **Multi-line CSV Support**: Handles quoted multi-line cells with proper field processing
+  - **Flexible Delimiters**: Automatic detection of comma and semicolon separators
+  - **Three-layer Structure**: Complete addrmap → reg → field hierarchy support
+  - **Access Control Mapping**: Separate software/hardware access permissions (RW/RO/WO)
+  - **Smart String Processing**: Field-specific newline and whitespace handling
+  - **Validation Framework**: Three-tier validation with comprehensive test coverage
+  - **Cross-directory Execution**: Path-agnostic script execution from any directory
 - **Python Validation Framework**: Comprehensive validation using official SystemRDL tools
   - **Semantic Validation**: Uses official `systemrdl-compiler` for specification compliance
   - **JSON Schema Validation**: Validates output format and structure

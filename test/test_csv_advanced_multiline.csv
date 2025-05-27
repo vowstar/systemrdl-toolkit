@@ -1,0 +1,24 @@
+addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,description
+0x0000,"TEST_MULTI
+LINE_MAP",,,,,,,,,,Address map with newline in name
+,,"0x0000","CONTROL
+REG",32,,,,,,,Register with newline in name
+,,,,,"FIELD_WITH
+NEWLINE_NAME",0,0,0,RW,RW,"Field with newline in name and multi-line description:
+Line 1 content
+
+
+Line 4 content (after multiple newlines)
+
+Final line"
+,,,,,MODE,1,2,0,RW,RW,"Mode selection:
+
+
+0x0: Mode A
+
+
+0x1: Mode B
+
+
+0x2: Mode C"
+,,,,,SIMPLE,3,3,0,RW,RW,Simple single line description 

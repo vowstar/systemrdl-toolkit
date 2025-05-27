@@ -1,0 +1,18 @@
+addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,description
+0x0000,"EXTREME_
+MULTILINE_
+TEST",,,,,,,,,,"Extrem addr
+map,,,;;;"
+,,0x0000,"EXTREME_
+REG_
+NAME",32,,,,,,,"Extremd
+reg
+name"""""""
+,,,,,"EXTREME_
+FIELD_
+NAME",0,7,0,RW,RW,"Extreme field with:
+- Multiple lines
+- Special chars: !@#$%^&*()
+- Quotes: ""nested quotes""
+- Numbers: 0x1234
+- End of extreme description "

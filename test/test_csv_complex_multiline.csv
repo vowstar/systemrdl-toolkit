@@ -1,0 +1,14 @@
+addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,description
+"0x0000","COMPLEX_TEST","","","","","","","","","","Test Address Map
+with multiple lines
+and complex formatting"
+"","","0x0000","MULTI_REG","32","","","","","","","Register with
+multiline description
+containing ""quotes"" and
+special characters: !@#$%"
+"","","","","","FIELD1","0","7","0","RW","RW","Field 1 description
+- Line 1: Basic info
+- Line 2: More details
+- Line 3: ""Quoted text""
+End of description"
+"","","","","","FIELD2","8","15","255","RO","RO","Single line with ""quotes"" and commas, semicolons;" 

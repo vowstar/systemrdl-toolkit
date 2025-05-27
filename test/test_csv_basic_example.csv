@@ -1,0 +1,47 @@
+addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,description
+0x0000,DEMO,,,,,,,,,,
+,,0x0000,CTRL,32,,,,,,,Control register
+,,,,,ENABLE,0,0,0,RW,RW,Enable control bit
+,,,,,MODE,1,2,0,RW,RW,"Operation mode selection
+- 0x0: Mode0 : Foo bar
+- 0x1: Mode1 : Foz baz
+- 0x2: Mode2 : Fooo baar
+- 0x3: Reserved"
+,,,,,PRIORITY,3,5,0,RW,RW,Priority level (0-7)
+,,,,,RESERVED_6_7,6,7,0,RO,RO,Reserved bits
+,,,,,THRESHOLD,8,15,128,RW,RW,Threshold value (0-255)
+,,,,,COUNT,16,23,0,RW,RW,Counter value
+,,,,,STATUS_MASK,24,27,0,RW,RW,Status mask bits
+,,,,,INTERRUPT_EN,28,28,0,RW,RW,Interrupt enable
+,,,,,DEBUG_MODE,29,29,0,RW,RW,Debug mode enable
+,,,,,RESET_REQ,30,30,0,WO,WO,Reset request (write 1 to trigger)
+,,,,,BUSY,31,31,0,RO,RO,Busy status (read-only)
+,,0x0004,STATUS,32,,,,,,,Status register
+,,,,,READY,0,0,0,RO,RO,Ready status
+,,,,,ERROR,1,1,0,RO,RO,Error flag
+,,,,,WARNING,2,2,0,RO,RO,Warning flag
+,,,,,OVERFLOW,3,3,0,RO,RO,Overflow detected
+,,,,,UNDERFLOW,4,4,0,RO,RO,Underflow detected
+,,,,,RESERVED_5_7,5,7,0,RO,RO,Reserved bits
+,,,,,STATE,8,11,0,RO,RO,Current state (4-bit state machine)
+,,,,,ERROR_CODE,12,19,0,RO,RO,Error code (8-bit)
+,,,,,VERSION_MINOR,20,23,0,RO,RO,Version minor (4-bit)
+,,,,,VERSION_MAJOR,24,27,1,RO,RO,Version major (4-bit)
+,,,,,DEVICE_ID,28,31,5,RO,RO,Device ID (4-bit)
+,,0x0008,CONFIG,32,,,,,,,Configuration register
+,,,,,CLK_DIV,0,7,120,RW,RW,Clock divider (0-255)
+,,,,,TIMEOUT,8,15,100,RW,RW,Timeout value (0-255)
+,,,,,RETRY_COUNT,16,19,3,RW,RW,Retry count (0-15)
+,,,,,AUTO_MODE,20,20,1,RW,RW,Auto mode enable
+,,,,,SYNC_MODE,21,21,0,RW,RW,Synchronous mode
+,,,,,INVERT_CLK,22,22,0,RW,RW,Invert clock signal
+,,,,,TEST_MODE,23,23,0,RW,RW,Test mode enable
+,,,,,CALIBRATION,24,31,18,RW,RW,Calibration value (8-bit)
+,,0x000C,DATA[5],32,,,,,,,Data register
+,,,,,DATA_LOW,0,15,0,RW,RW,Data low 16 bits
+,,,,,DATA_HIGH,16,31,0,RW,RW,Data high 16 bits
+,,0x0020,VERSION,32,,,,,,,Interrupt register
+,,,,,MAJOR,0,7,1,RO,RO,Interrupt enable bits
+,,,,,MINOR,8,15,0,RO,RO,Interrupt pending bits
+,,,,,BUILD,16,23,0,RO,RO,Interrupt clear bits (write 1 to clear)
+,,,,,PATCH,24,31,0,RO,RO,Interrupt mask bits 
