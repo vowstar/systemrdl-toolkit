@@ -10,6 +10,7 @@ addrmap complex_system {
     } small_regs[8] @ 0x0000 += 0x4;
 
     reg {
+        regwidth = 64;  // Explicitly specify 64-bit register width
         field {
             sw = rw;
             hw = r;

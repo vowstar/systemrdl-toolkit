@@ -21,6 +21,7 @@ addrmap test_param_expressions {
         longint MEM_SIZE = KB_SIZE * 1024,              // Calculate byte count
         longint ALIGN = 2**10                           // Power operation
     ) {
+        memwidth = 32;  // 32-bit memory width
         // Memory configuration
     };
 
@@ -43,20 +44,20 @@ addrmap test_param_expressions {
     expr_reg reg_default @ 0x0008;
 
     // Use expressions when instantiating memory
-    expr_mem #(
+    external expr_mem #(
         .KB_SIZE(8),
         .MEM_SIZE(8 * 1024 + 512),                      // Complex expression
         .ALIGN(1 << 12)                                 // Bit shift operation
     ) mem1 @ 0x10000000;
 
-    expr_mem #(
+    external expr_mem #(
         .KB_SIZE(2),
         .MEM_SIZE((2 * 1024) * 2),                      // Parenthesized expression
         .ALIGN(4096)                                    // Direct value
     ) mem2 @ 0x20000000;
 
     // Use default parameters for memory
-    expr_mem mem_default @ 0x30000000;
+    external expr_mem mem_default @ 0x30000000;
 
     // Test nested expressions
     reg complex_reg #(

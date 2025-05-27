@@ -2,19 +2,21 @@
 addrmap memory_system {
     // Define basic memory types
     mem ram_mem {
+        memwidth = 32;  // 32-bit memory width
         // Memory typically has no internal structure, but can have attributes
     };
 
     mem rom_mem {
+        memwidth = 32;  // 32-bit memory width
         // ROM memory
     };
 
     // Instantiate different types of memory
-    ram_mem main_ram @ 0x10000000;
-    rom_mem boot_rom @ 0x00000000;
+    external ram_mem main_ram @ 0x10000000;
+    external rom_mem boot_rom @ 0x00000000;
 
     // Memory array
-    ram_mem buffer_array[8] @ 0x20000000 += 0x1000;
+    external ram_mem buffer_array[8] @ 0x20000000 += 0x1000;
 
     // Mixed system: registers + memory
     reg control_reg {
@@ -40,12 +42,14 @@ addrmap memory_system {
     control_reg mem_ctrl @ 0x40000000;
 
     // Anonymous memory definition and instantiation
-    mem {
+    external mem {
+        memwidth = 64;  // 64-bit memory width for large memory
         // Large capacity memory
     } large_memory @ 0x80000000;
 
     // Small cache memory array
-    mem {
+    external mem {
+        memwidth = 32;  // 32-bit memory width for cache
         // Cache memory
     } cache_mem[4] @ 0x50000000 += 0x10000;
 };

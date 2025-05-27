@@ -46,7 +46,7 @@ addrmap test_expressions {
         field {
             sw = rw;
             hw = r;
-            reset = ~(0xF0 & 0xCC);  // Bit operation combination
+            reset = (~(0xF0 & 0xCC)) & 0xFFFF;  // Bit operation combination, mask to 16 bits
             desc = "Complex bit ops";
         } bitwise_field[31:16];
     };

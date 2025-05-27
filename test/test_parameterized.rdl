@@ -29,13 +29,14 @@ addrmap test_parameterized {
 
     // Define parameterized memory
     mem param_mem #(longint SIZE = 1024, string TYPE = "ram") {
+        memwidth = 32;  // 32-bit memory width
         // Memory attributes can be set based on parameters
     };
 
     // Instantiate memories of different sizes
-    param_mem #(.SIZE(2048), .TYPE("cache")) cache_mem @ 0x10000000;
-    param_mem #(.SIZE(4096), .TYPE("buffer")) buffer_mem @ 0x20000000;
+    external param_mem #(.SIZE(2048), .TYPE("cache")) cache_mem @ 0x10000000;
+    external param_mem #(.SIZE(4096), .TYPE("buffer")) buffer_mem @ 0x20000000;
 
     // Use memory with default parameters
-    param_mem default_mem @ 0x30000000;
+    external param_mem default_mem @ 0x30000000;
 };

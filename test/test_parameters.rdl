@@ -2,6 +2,7 @@
 addrmap test_param {
     // Try to define a parameterized register
     reg param_reg #(longint WIDTH = 32) {
+        regwidth = WIDTH;  // Set register width to match field width
         field {
             sw = rw;
             hw = r;

@@ -94,32 +94,32 @@ def test_all_rdl_files(test_dir="test"):
     if not os.path.exists(test_dir):
         print(f"❌ Test directory does not exist: {test_dir}")
         return False
-    
+
     rdl_files = glob.glob(os.path.join(test_dir, "*.rdl"))
     if not rdl_files:
         print(f"❌ No RDL files found in directory {test_dir}")
         return False
-    
+
     print(f"🎯 Found {len(rdl_files)} RDL files for testing")
     print("="*60)
-    
+
     success_count = 0
     total_count = len(rdl_files)
-    
+
     for rdl_file in sorted(rdl_files):
         print(f"\n{'='*60}")
         print(f"Testing file {os.path.basename(rdl_file)} ({success_count + 1}/{total_count})")
         print(f"{'='*60}")
-        
+
         if demonstrate_elaboration(rdl_file):
             success_count += 1
-        
+
         print(f"\n{'='*60}")
-    
+
     print(f"\n🏁 Testing complete!")
     print(f"✅ Success: {success_count}/{total_count}")
     print(f"❌ Failed: {total_count - success_count}/{total_count}")
-    
+
     return success_count == total_count
 
 if __name__ == "__main__":
