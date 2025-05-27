@@ -21,7 +21,79 @@ sudo apt-get install cmake build-essential pkg-config libantlr4-runtime-dev
 sudo emerge cmake dev-util/cmake dev-libs/antlr-cpp
 ```
 
-### Download ANTLR4 JAR (for grammar generation)
+## Building
+
+The project now features flexible ANTLR4 version management with automatic downloading and building capabilities.
+
+### ANTLR4 Version Control
+
+You can control which ANTLR4 version to use in several ways:
+
+#### 1. Default Version (4.13.2) - Automatic Download
+
+```bash
+mkdir build && cd build
+cmake .. -DUSE_SYSTEM_ANTLR4=OFF
+make
+```
+
+#### 2. Environment Variable
+
+```bash
+export ANTLR4_VERSION=4.11.1
+mkdir build && cd build
+cmake .. -DUSE_SYSTEM_ANTLR4=OFF
+make
+```
+
+#### 3. Command Line Parameter
+
+```bash
+mkdir build && cd build
+cmake .. -DUSE_SYSTEM_ANTLR4=OFF -DANTLR4_VERSION=4.12.0
+make
+```
+
+#### 4. Use System-Installed ANTLR4
+
+```bash
+# Install system ANTLR4 first (e.g., sudo apt install antlr4-cpp-runtime-dev)
+mkdir build && cd build
+cmake .. -DUSE_SYSTEM_ANTLR4=ON
+make
+```
+
+### Version Selection Priority
+
+Version selection follows this priority order:
+
+1. Command line parameter (`-DANTLR4_VERSION=x.y.z`)
+2. Environment variable (`ANTLR4_VERSION=x.y.z`)
+3. Default version (4.13.2)
+
+### Code Generation
+
+The build system now includes integrated targets for ANTLR4 JAR download and C++ code generation:
+
+```bash
+# Download ANTLR4 JAR (uses configured version)
+make download-antlr4-jar
+
+# Generate C++ files from SystemRDL.g4
+make generate-antlr4-cpp
+```
+
+The generated files will include relative paths in comments:
+
+```cpp
+// Generated from SystemRDL.g4 by ANTLR 4.x.y
+```
+
+### Manual Installation (Legacy)
+
+For manual ANTLR4 setup, you can still follow the traditional approach:
+
+#### Download ANTLR4 JAR
 
 ```bash
 # Download ANTLR4 JAR file
@@ -33,7 +105,7 @@ alias antlr4='java -jar antlr-4.13.2-complete.jar'
 alias grun='java org.antlr.v4.gui.TestRig'
 ```
 
-### Install ANTLR4 C++ Runtime from Source (if not available in package manager)
+#### Install ANTLR4 C++ Runtime from Source
 
 ```bash
 # Download ANTLR4 source code
@@ -48,15 +120,7 @@ make -j$(nproc)
 sudo make install
 ```
 
-## Generating C++ Files from Grammar
-
-Before building the project, you need to generate the C++ source files from the SystemRDL grammar file using ANTLR4.
-
-### Prerequisites
-
-Make sure you have downloaded the ANTLR4 JAR file as described in the dependencies section above.
-
-### Generate C++ Files
+#### Generate C++ Files Manually
 
 ```bash
 # Generate C++ lexer, parser, and visitor files from the grammar
@@ -69,24 +133,14 @@ java -jar antlr-4.13.2-complete.jar -Dlanguage=Cpp -no-listener -visitor SystemR
 # - SystemRDLVisitor.h
 ```
 
-### Alternative (using alias if set up)
-
-If you have set up the ANTLR4 alias as shown in the dependencies section:
-
-```bash
-antlr4 -Dlanguage=Cpp -no-listener -visitor SystemRDL.g4
-```
-
-**Note:** The generated C++ files are required for compilation. If you modify the `SystemRDL.g4` grammar file, you must regenerate these files before building.
-
-## Building
+**Note:** The generated C++ files are required for compilation. With the new build system, these are automatically managed, but if you modify the `SystemRDL.g4` grammar file, you can regenerate them using `make generate-antlr4-cpp`.
 
 ### Standard Build
 
 ```bash
 mkdir build
 cd build
-cmake ..
+cmake .. -DUSE_SYSTEM_ANTLR4=OFF  # Use automatic ANTLR4 download
 make -j$(nproc)
 ```
 
@@ -97,15 +151,27 @@ The project includes comprehensive testing capabilities through CMake's CTest fr
 ```bash
 mkdir build
 cd build
-cmake ..
+cmake .. -DUSE_SYSTEM_ANTLR4=OFF
 make -j$(nproc)
 
-# Run all tests
-make test
+# Run fast tests (JSON + semantic validation)
+make test-fast
 
-# Or run tests with detailed output
+# Run all tests
+make test-all
+
+# Or using CTest directly
 ctest --output-on-failure --verbose
 ```
+
+### Generated Files
+
+The following files are generated from `SystemRDL.g4`:
+
+- `SystemRDLLexer.cpp/h`
+- `SystemRDLParser.cpp/h`
+- `SystemRDLBaseVisitor.cpp/h`
+- `SystemRDLVisitor.cpp/h`
 
 ## Usage
 
@@ -270,13 +336,29 @@ Address     Size    Name      Path
 
 ## Testing
 
-The project includes automatic testing of all SystemRDL files in the `test/` directory. Several testing options are available:
+The project includes automatic testing of all SystemRDL files in the `test/` directory with enhanced testing capabilities:
 
-### Run All Tests
+### Quick Testing
 
 ```bash
-# Standard CTest execution
+# Run fast tests (JSON + semantic validation)
 cd build
+make test-fast
+
+# Run JSON output tests only
+make test-json
+
+# Run semantic validation tests only
+make test-semantic
+```
+
+### Comprehensive Testing
+
+```bash
+# Run all tests (parser + elaborator + JSON + semantic)
+make test-all
+
+# Standard CTest execution
 make test
 
 # Verbose output with details
@@ -286,7 +368,7 @@ ctest --output-on-failure --verbose
 make run-tests
 ```
 
-### Run Specific Test Categories
+### Test Categories
 
 ```bash
 # Test only the parser
@@ -298,9 +380,11 @@ make test-elaborator
 # Or using CTest labels
 ctest -L parser --output-on-failure
 ctest -L elaborator --output-on-failure
+ctest -L json --output-on-failure
+ctest -L semantic --output-on-failure
 ```
 
-### Run Individual Tests
+### Individual Test Execution
 
 ```bash
 # Test specific file with parser
@@ -308,23 +392,42 @@ ctest -R "parser_test_minimal" --output-on-failure
 
 # Test specific file with elaborator
 ctest -R "elaborator_test_minimal" --output-on-failure
+
+# Test specific JSON output
+ctest -R "json_test_minimal" --output-on-failure
 ```
+
+### Available Test Targets
+
+- `test-fast` - Quick tests (JSON + semantic validation) for rapid development
+- `test-json` - JSON output validation tests
+- `test-semantic` - RDL semantic validation using Python SystemRDL compiler
+- `test-parser` - SystemRDL parser tests
+- `test-elaborator` - SystemRDL elaborator tests
+- `test-all` - Complete test suite
 
 ## File Description
 
 - `parser_main.cpp` - Main program for the SystemRDL parser
 - `elaborator_main.cpp` - Main program for the SystemRDL elaborator
 - `elaborator.cpp/.h` - Elaboration engine implementation
-- `CMakeLists.txt` - CMake build configuration with integrated testing
+- `CMakeLists.txt` - CMake build configuration with integrated testing and ANTLR4 management
 - `SystemRDL.g4` - ANTLR4 grammar file
-- `SystemRDLLexer.*` - Generated lexer
-- `SystemRDLParser.*` - Generated parser
-- `SystemRDLBaseVisitor.*` - Generated base visitor class
+- `SystemRDLLexer.*` - Generated lexer (auto-generated)
+- `SystemRDLParser.*` - Generated parser (auto-generated)
+- `SystemRDLBaseVisitor.*` - Generated base visitor class (auto-generated)
+- `SystemRDLVisitor.*` - Generated visitor interface (auto-generated)
 - `test/*.rdl` - Test SystemRDL files for validation
+- `script/*.py` - Python validation and testing scripts
 
 ## Features
 
 - **Complete SystemRDL 2.0 Support**: Full implementation of the SystemRDL 2.0 specification
+- **Flexible ANTLR4 Version Management**: Support for multiple ANTLR4 versions with automatic download
+  - Environment variable support (`ANTLR4_VERSION`)
+  - Command line parameter support (`-DANTLR4_VERSION=x.y.z`)
+  - Automatic JAR download and C++ code generation
+  - System ANTLR4 runtime integration
 - **AST Generation**: Detailed Abstract Syntax Tree representation of SystemRDL designs
 - **Elaboration Engine**: Semantic analysis and elaboration of SystemRDL descriptions
 - **JSON Export**: Export parsed AST and elaborated model to structured JSON format
@@ -339,6 +442,9 @@ ctest -R "elaborator_test_minimal" --output-on-failure
 - **Address Map Generation**: Automatic generation of memory address maps from elaborated models
 - **Extensible Architecture**: Modular design for easy extension and customization
 - **Integrated Testing**: CMake-based testing framework with comprehensive test coverage
+  - JSON output validation tests
+  - Semantic validation using Python SystemRDL compiler
+  - Fast test targets for rapid development
 - **Cross-platform Support**: Compatible with Linux, macOS, and Windows
 - **Unicode Emoji Interface**: User-friendly console output with emoji indicators
 - **Property Analysis**: Complete property inheritance and evaluation system
@@ -346,20 +452,33 @@ ctest -R "elaborator_test_minimal" --output-on-failure
 ## Troubleshooting
 
 1. **ANTLR4 runtime library not found**
-   - Ensure ANTLR4 C++ runtime library is installed
-   - Check if the library is in standard paths, or modify paths in CMakeLists.txt
+   - If using system ANTLR4 (`USE_SYSTEM_ANTLR4=ON`): Ensure ANTLR4 C++ runtime library is installed
+   - If using downloaded ANTLR4 (`USE_SYSTEM_ANTLR4=OFF`): The system will automatically download and build it
+   - Check if the library is in standard paths, or use `cmake .. -DUSE_SYSTEM_ANTLR4=OFF` for automatic management
 
-2. **Compilation errors**
+2. **Version conflicts**
+   - Use `cmake .. -DUSE_SYSTEM_ANTLR4=OFF -DANTLR4_VERSION=4.13.2` to specify exact version
+   - Clear build directory if switching between system and downloaded ANTLR4: `rm -rf build/*`
+
+3. **Compilation errors**
    - Ensure using C++17 or higher version compiler
-   - Check if all generated ANTLR4 files exist
+   - If using custom ANTLR4 version, ensure it's compatible (4.9.0+)
+   - Regenerate C++ files if needed: `make generate-antlr4-cpp`
 
-3. **Runtime errors**
+4. **Network issues during download**
+   - Check internet connection for ANTLR4 JAR and runtime download
+   - Use proxy if necessary: `export https_proxy=your_proxy`
+   - Fallback to system ANTLR4: `cmake .. -DUSE_SYSTEM_ANTLR4=ON`
+
+5. **Runtime errors**
    - Ensure input SystemRDL file has correct syntax
    - Check if file path is correct
+   - Use verbose mode for debugging: `./systemrdl_parser file.rdl --verbose`
 
-4. **Test failures**
+6. **Test failures**
    - Run individual tests to identify specific issues: `ctest -R "test_name" --output-on-failure`
    - Check test file syntax and ensure it complies with SystemRDL 2.0 specification
+   - Use `make test-fast` for quick validation during development
 
 ## Acknowledgments
 

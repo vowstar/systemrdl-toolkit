@@ -8,41 +8,123 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Enable testing
 enable_testing()
 
-# Find ANTLR4 runtime library
-# find_package(PkgConfig REQUIRED)
-# pkg_check_modules(ANTLR4 REQUIRED antlr4-runtime)
+# Include FetchContent module for downloading dependencies
+include(FetchContent)
 
-# If pkg-config cannot find it, try manual search
-if(NOT ANTLR4_FOUND)
-    find_path(ANTLR4_INCLUDE_DIR
-        NAMES antlr4-runtime.h
-        PATHS
-            /usr/include/antlr4-runtime
-            /usr/local/include/antlr4-runtime
-            /opt/antlr4/include/antlr4-runtime
-    )
+# Option to control ANTLR4 usage
+option(USE_SYSTEM_ANTLR4 "Use system-installed ANTLR4 C++ runtime" OFF)
 
-    find_library(ANTLR4_LIBRARY
-        NAMES antlr4-runtime
-        PATHS
-            /usr/lib64
-            /usr/local/lib64
-            /opt/antlr4/lib64
-            /usr/lib
-            /usr/local/lib
-            /opt/antlr4/lib
-    )
-
-    if(ANTLR4_INCLUDE_DIR AND ANTLR4_LIBRARY)
-        set(ANTLR4_FOUND TRUE)
-        set(ANTLR4_INCLUDE_DIRS ${ANTLR4_INCLUDE_DIR})
-        set(ANTLR4_LIBRARIES ${ANTLR4_LIBRARY})
+# ANTLR4 version to use when not using system version
+# Can be overridden by environment variable or command line
+if(NOT ANTLR4_VERSION)
+    if(DEFINED ENV{ANTLR4_VERSION})
+        set(ANTLR4_VERSION $ENV{ANTLR4_VERSION})
+        message(STATUS "Using ANTLR4 version from environment variable: ${ANTLR4_VERSION}")
+    else()
+        set(ANTLR4_VERSION "4.13.2")
+        message(STATUS "Using default ANTLR4 version: ${ANTLR4_VERSION}")
     endif()
+else()
+    message(STATUS "Using ANTLR4 version from command line: ${ANTLR4_VERSION}")
 endif()
 
-if(NOT ANTLR4_FOUND)
-    message(FATAL_ERROR "ANTLR4 runtime library not found. Please install antlr4-cpp-runtime-dev or similar package.")
+# Print version info
+message(STATUS "ANTLR4 version: ${ANTLR4_VERSION}")
+
+if(USE_SYSTEM_ANTLR4)
+    # Use system ANTLR4 - existing logic
+    message(STATUS "Using system ANTLR4 C++ runtime")
+
+    # Find ANTLR4 runtime library
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(ANTLR4 antlr4-runtime)
+
+    # If pkg-config cannot find it, try manual search
+    if(NOT ANTLR4_FOUND)
+        find_path(ANTLR4_INCLUDE_DIR
+            NAMES antlr4-runtime.h
+            PATHS
+                /usr/include/antlr4-runtime
+                /usr/local/include/antlr4-runtime
+                /opt/antlr4/include/antlr4-runtime
+        )
+
+        find_library(ANTLR4_LIBRARY
+            NAMES antlr4-runtime
+            PATHS
+                /usr/lib64
+                /usr/local/lib64
+                /opt/antlr4/lib64
+                /usr/lib
+                /usr/local/lib
+                /opt/antlr4/lib
+        )
+
+        if(ANTLR4_INCLUDE_DIR AND ANTLR4_LIBRARY)
+            set(ANTLR4_FOUND TRUE)
+            set(ANTLR4_INCLUDE_DIRS ${ANTLR4_INCLUDE_DIR})
+            set(ANTLR4_LIBRARIES ${ANTLR4_LIBRARY})
+        endif()
+    endif()
+
+    if(NOT ANTLR4_FOUND)
+        message(FATAL_ERROR "ANTLR4 runtime library not found. Please install antlr4-cpp-runtime-dev or similar package, or set USE_SYSTEM_ANTLR4=OFF to download automatically.")
+    endif()
+
+    # Set variables for compatibility
+    set(ANTLR4_TARGET antlr4_static)
+
+else()
+    # Download and build ANTLR4 C++ runtime
+    message(STATUS "Downloading ANTLR4 C++ runtime version ${ANTLR4_VERSION}")
+
+    # Configure ANTLR4 build options before FetchContent - disable all unnecessary components
+    set(ANTLR4_BUILD_CPP_TESTS OFF CACHE BOOL "Build ANTLR4 C++ tests" FORCE)
+    set(ANTLR4_INSTALL OFF CACHE BOOL "Install ANTLR4 C++ runtime" FORCE)
+    set(WITH_DEMO OFF CACHE BOOL "Build ANTLR4 demo" FORCE)
+    set(WITH_LIBCXX OFF CACHE BOOL "Build with libc++" FORCE)
+    set(ANTLR_BUILD_CPP_TESTS OFF CACHE BOOL "Build ANTLR C++ tests" FORCE)
+
+    FetchContent_Declare(
+        antlr4_runtime
+        URL https://github.com/antlr/antlr4/archive/refs/tags/${ANTLR4_VERSION}.tar.gz
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        SOURCE_SUBDIR runtime/Cpp
+    )
+
+    FetchContent_MakeAvailable(antlr4_runtime)
+
+    # Set variables for downloaded version
+    set(ANTLR4_INCLUDE_DIRS ${antlr4_runtime_SOURCE_DIR}/runtime/Cpp/runtime/src)
+    set(ANTLR4_LIBRARIES antlr4_static)
+    set(ANTLR4_TARGET antlr4_static)
+    set(ANTLR4_FOUND TRUE)
 endif()
+
+# Custom target to download ANTLR4 JAR file (not executed by default)
+set(ANTLR4_JAR_PATH ${CMAKE_BINARY_DIR}/antlr4-${ANTLR4_VERSION}-complete.jar)
+set(ANTLR4_DOWNLOAD_URL https://repo1.maven.org/maven2/org/antlr/antlr4/${ANTLR4_VERSION}/antlr4-${ANTLR4_VERSION}-complete.jar)
+
+add_custom_command(
+    OUTPUT ${ANTLR4_JAR_PATH}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}
+    COMMAND curl -L -o ${ANTLR4_JAR_PATH} ${ANTLR4_DOWNLOAD_URL}
+    COMMENT "Downloading ANTLR4 JAR ${ANTLR4_VERSION} from ${ANTLR4_DOWNLOAD_URL}"
+)
+
+add_custom_target(download-antlr4-jar
+    DEPENDS ${ANTLR4_JAR_PATH}
+    COMMENT "Download ANTLR4 JAR file for code generation"
+)
+
+# Custom target to generate C++ files from grammar (not executed by default)
+add_custom_target(generate-antlr4-cpp
+    COMMAND java -jar ${ANTLR4_JAR_PATH} -Dlanguage=Cpp -visitor -no-listener 
+        SystemRDL.g4
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    DEPENDS download-antlr4-jar
+    COMMENT "Generating C++ files from SystemRDL.g4 grammar"
+)
 
 # Add generated source files
 set(GENERATED_SOURCES
@@ -99,6 +181,12 @@ target_link_libraries(systemrdl_parser
 target_link_libraries(systemrdl_elaborator
     ${ANTLR4_LIBRARIES}
 )
+
+# Add dependency on ANTLR4 target when using downloaded version
+if(NOT USE_SYSTEM_ANTLR4)
+    add_dependencies(systemrdl_parser ${ANTLR4_TARGET})
+    add_dependencies(systemrdl_elaborator ${ANTLR4_TARGET})
+endif()
 
 # Compile options
 target_compile_options(systemrdl_parser PRIVATE
