@@ -173,6 +173,9 @@ std::unique_ptr<ElaboratedAddrmap> SystemRDLElaborator::elaborate(
                             elaborate_component_body(body, elaborated.get());
                         }
 
+                        // Validate instance addresses after elaboration is complete
+                        validate_instance_addresses(elaborated.get());
+
                         return elaborated;
                     }
                 }
@@ -1966,6 +1969,94 @@ size_t SystemRDLElaborator::calculate_next_available_bit(ElaboratedReg* reg_node
     }
 
     return next_bit;
+}
+
+// Instance address validation implementation
+void SystemRDLElaborator::validate_instance_addresses(ElaboratedNode* parent) {
+    if (!parent) return;
+
+    // Check address overlaps among child instances
+    check_instance_address_overlaps(parent);
+
+    // Recursively validate address spaces in child containers
+    for (const auto& child : parent->children) {
+        if (dynamic_cast<ElaboratedAddrmap*>(child.get()) ||
+            dynamic_cast<ElaboratedRegfile*>(child.get())) {
+            validate_instance_addresses(child.get());
+        }
+    }
+}
+
+void SystemRDLElaborator::check_instance_address_overlaps(ElaboratedNode* parent) {
+    if (!parent) return;
+
+    // Collect addressable child instances
+    std::vector<ElaboratedNode*> addressable_children;
+
+    for (const auto& child : parent->children) {
+        // Only check addressable components (regs, regfiles, memories)
+        // Fields are handled separately by field validation
+        if (dynamic_cast<ElaboratedReg*>(child.get()) ||
+            dynamic_cast<ElaboratedRegfile*>(child.get()) ||
+            dynamic_cast<ElaboratedMem*>(child.get())) {
+            addressable_children.push_back(child.get());
+        }
+    }
+
+    // Check for overlaps between all instance pairs
+    for (size_t i = 0; i < addressable_children.size(); ++i) {
+        for (size_t j = i + 1; j < addressable_children.size(); ++j) {
+            if (instances_overlap(addressable_children[i], addressable_children[j])) {
+                // Calculate address ranges for error reporting
+                Address addr1_start = addressable_children[i]->absolute_address;
+                Address addr1_end = addr1_start + addressable_children[i]->size - 1;
+                Address addr2_start = addressable_children[j]->absolute_address;
+                Address addr2_end = addr2_start + addressable_children[j]->size - 1;
+
+                report_instance_overlap_error(
+                    addressable_children[i]->inst_name,
+                    addressable_children[j]->inst_name,
+                    addr1_start, addr1_end,
+                    addr2_start, addr2_end,
+                    addressable_children[i]->source_ctx
+                );
+            }
+        }
+    }
+}
+
+bool SystemRDLElaborator::instances_overlap(const ElaboratedNode* instance1, const ElaboratedNode* instance2) {
+    if (!instance1 || !instance2) return false;
+
+    // Skip instances with invalid addresses or sizes
+    if (instance1->size == 0 || instance2->size == 0) return false;
+
+    // Calculate address ranges
+    Address addr1_start = instance1->absolute_address;
+    Address addr1_end = addr1_start + instance1->size - 1;
+    Address addr2_start = instance2->absolute_address;
+    Address addr2_end = addr2_start + instance2->size - 1;
+
+    // Two ranges overlap if: max(start1, start2) <= min(end1, end2)
+    Address max_start = std::max(addr1_start, addr2_start);
+    Address min_end = std::min(addr1_end, addr2_end);
+
+    return max_start <= min_end;
+}
+
+void SystemRDLElaborator::report_instance_overlap_error(
+    const std::string& instance1_name, const std::string& instance2_name,
+    Address addr1_start, Address addr1_end,
+    Address addr2_start, Address addr2_end,
+    antlr4::ParserRuleContext* ctx) {
+
+    std::ostringstream oss;
+    oss << "Instance address overlap detected: '" << instance1_name
+        << "' at address range 0x" << std::hex << std::uppercase << addr1_start
+        << "-0x" << addr1_end << " overlaps with '" << instance2_name
+        << "' at address range 0x" << addr2_start << "-0x" << addr2_end;
+
+    report_error(oss.str(), ctx);
 }
 
 } // namespace systemrdl

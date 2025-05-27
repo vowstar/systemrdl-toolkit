@@ -357,6 +357,15 @@ private:
                                     size_t field_msb, size_t reg_width,
                                     antlr4::ParserRuleContext* ctx = nullptr);
 
+    // Instance address validation methods
+    void validate_instance_addresses(ElaboratedNode* parent);
+    void check_instance_address_overlaps(ElaboratedNode* parent);
+    bool instances_overlap(const ElaboratedNode* instance1, const ElaboratedNode* instance2);
+    void report_instance_overlap_error(const std::string& instance1_name, const std::string& instance2_name,
+                                      Address addr1_start, Address addr1_end,
+                                      Address addr2_start, Address addr2_end,
+                                      antlr4::ParserRuleContext* ctx = nullptr);
+
     // Parameter handling methods
     std::vector<ParameterDefinition> parse_parameter_definitions(
         SystemRDLParser::Param_defContext* param_def_ctx
