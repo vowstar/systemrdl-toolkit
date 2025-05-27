@@ -3,37 +3,43 @@
 Compare SystemRDL implementations: Python (systemrdl-compiler) vs C++ (systemrdl_elaborator)
 """
 
-import os
-import sys
 import glob
+import os
 import subprocess
-import tempfile
+import sys
 from pathlib import Path
+
 
 class ImplementationComparator:
     def __init__(self, test_dir="test"):
-        self.test_dir = test_dir
-        self.cpp_exe = "build/systemrdl_elaborator"
-        self.python_script = "script/rdl_semantic_validator.py"
+        # Get project root directory based on script location
+        script_dir = Path(__file__).parent
+        project_root = script_dir.parent
+
+        # Set paths relative to project root
+        self.test_dir = str(project_root / test_dir)
+        self.cpp_exe = str(project_root / "build" / "systemrdl_elaborator")
+        self.python_script = str(script_dir / "rdl_semantic_validator.py")
+
         self.results = {
-            'cpp_only_pass': [],
-            'python_only_pass': [],
-            'both_pass': [],
-            'both_fail': [],
-            'different_errors': [],
-            'cpp_fail_python_pass': [],
-            'python_fail_cpp_pass': []
+            "cpp_only_pass": [],
+            "python_only_pass": [],
+            "both_pass": [],
+            "both_fail": [],
+            "different_errors": [],
+            "cpp_fail_python_pass": [],
+            "python_fail_cpp_pass": [],
         }
 
     def check_expect_elaboration_failure(self, rdl_file):
         """Check if RDL file is marked as expecting elaboration failure"""
         try:
-            with open(rdl_file, 'r', encoding='utf-8') as f:
+            with open(rdl_file, "r", encoding="utf-8") as f:
                 # Check first few lines for EXPECT_ELABORATION_FAILURE marker
                 for i, line in enumerate(f):
                     if i >= 10:  # Only check first 10 lines
                         break
-                    if 'EXPECT_ELABORATION_FAILURE' in line:
+                    if "EXPECT_ELABORATION_FAILURE" in line:
                         return True
                 return False
         except Exception:
@@ -43,10 +49,7 @@ class ImplementationComparator:
         """Run C++ implementation and return (success, output)"""
         try:
             result = subprocess.run(
-                [self.cpp_exe, rdl_file],
-                capture_output=True,
-                text=True,
-                timeout=10
+                [self.cpp_exe, rdl_file], capture_output=True, text=True, timeout=10
             )
             return result.returncode == 0, result.stdout + result.stderr
         except Exception as e:
@@ -59,7 +62,7 @@ class ImplementationComparator:
                 ["python3", self.python_script, rdl_file],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
             return result.returncode == 0, result.stdout + result.stderr
         except Exception as e:
@@ -68,20 +71,23 @@ class ImplementationComparator:
     def extract_error_messages(self, output):
         """Extract key error messages from output"""
         errors = []
-        lines = output.split('\n')
+        lines = output.split("\n")
         for line in lines:
-            if ('error:' in line.lower() or 'fatal:' in line.lower() or
-                'field overlap detected' in line.lower() or
-                'field exceeds' in line.lower() or
-                'overlaps with' in line.lower()):
+            if (
+                "error:" in line.lower()
+                or "fatal:" in line.lower()
+                or "field overlap detected" in line.lower()
+                or "field exceeds" in line.lower()
+                or "overlaps with" in line.lower()
+            ):
                 # Clean up the error message
                 error = line.strip()
                 # For C++ format, remove "Line X:Y - " prefix
-                if ' - ' in error and 'Line ' in error:
-                    error = error.split(' - ', 1)[1]
+                if " - " in error and "Line " in error:
+                    error = error.split(" - ", 1)[1]
                 # For Python format, extract after file:line:col
-                elif ':' in error:
-                    parts = error.split(':', 3)
+                elif ":" in error:
+                    parts = error.split(":", 3)
                     if len(parts) >= 4:
                         error = parts[3].strip()
                 errors.append(error)
@@ -114,7 +120,7 @@ class ImplementationComparator:
 
         # Categorize results
         if cpp_success and python_success:
-            self.results['both_pass'].append(file_name)
+            self.results["both_pass"].append(file_name)
             print("   📊 Status: BOTH PASS ✅")
         elif not cpp_success and not python_success:
             # Check if error messages are similar
@@ -122,19 +128,19 @@ class ImplementationComparator:
             python_errors = self.extract_error_messages(python_output)
 
             if self.errors_similar(cpp_errors, python_errors):
-                self.results['both_fail'].append(file_name)
+                self.results["both_fail"].append(file_name)
                 print("   📊 Status: BOTH FAIL (similar errors) ⚠️")
             else:
-                self.results['different_errors'].append((file_name, cpp_errors, python_errors))
+                self.results["different_errors"].append((file_name, cpp_errors, python_errors))
                 print("   📊 Status: BOTH FAIL (different errors) ⚠️")
                 print(f"      C++ errors: {cpp_errors}")
                 print(f"      Python errors: {python_errors}")
         elif cpp_success and not python_success:
-            self.results['cpp_only_pass'].append((file_name, python_output))
+            self.results["cpp_only_pass"].append((file_name, python_output))
             print("   📊 Status: C++ PASS, Python FAIL ⚠️")
             print(f"      Python error: {self.extract_error_messages(python_output)}")
         elif not cpp_success and python_success:
-            self.results['python_only_pass'].append((file_name, cpp_output))
+            self.results["python_only_pass"].append((file_name, cpp_output))
             print("   📊 Status: Python PASS, C++ FAIL ⚠️")
             print(f"      C++ error: {self.extract_error_messages(cpp_output)}")
 
@@ -150,20 +156,20 @@ class ImplementationComparator:
         python_concepts = set()
 
         for error in cpp_errors:
-            if 'overlap' in error.lower():
-                cpp_concepts.add('overlap')
-            if 'exceed' in error.lower() or 'boundary' in error.lower():
-                cpp_concepts.add('boundary')
-            if 'power of 2' in error.lower():
-                cpp_concepts.add('power_of_2')
+            if "overlap" in error.lower():
+                cpp_concepts.add("overlap")
+            if "exceed" in error.lower() or "boundary" in error.lower():
+                cpp_concepts.add("boundary")
+            if "power of 2" in error.lower():
+                cpp_concepts.add("power_of_2")
 
         for error in python_errors:
-            if 'overlap' in error.lower():
-                python_concepts.add('overlap')
-            if 'exceed' in error.lower() or 'boundary' in error.lower():
-                python_concepts.add('boundary')
-            if 'power of 2' in error.lower():
-                python_concepts.add('power_of_2')
+            if "overlap" in error.lower():
+                python_concepts.add("overlap")
+            if "exceed" in error.lower() or "boundary" in error.lower():
+                python_concepts.add("boundary")
+            if "power of 2" in error.lower():
+                python_concepts.add("power_of_2")
 
         return len(cpp_concepts.intersection(python_concepts)) > 0
 
@@ -179,7 +185,7 @@ class ImplementationComparator:
             return False
 
         print(f"🎯 Found {len(rdl_files)} RDL files for comparison")
-        print("="*80)
+        print("=" * 80)
 
         # Test executables
         if not os.path.exists(self.cpp_exe):
@@ -198,15 +204,17 @@ class ImplementationComparator:
 
     def print_summary(self):
         """Print comparison summary"""
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("📊 COMPARISON SUMMARY")
-        print("="*80)
+        print("=" * 80)
 
-        total_files = (len(self.results['both_pass']) +
-                      len(self.results['both_fail']) +
-                      len(self.results['different_errors']) +
-                      len(self.results['cpp_only_pass']) +
-                      len(self.results['python_only_pass']))
+        total_files = (
+            len(self.results["both_pass"])
+            + len(self.results["both_fail"])
+            + len(self.results["different_errors"])
+            + len(self.results["cpp_only_pass"])
+            + len(self.results["python_only_pass"])
+        )
 
         print(f"📁 Total files tested: {total_files}")
         print(f"✅ Both implementations pass: {len(self.results['both_pass'])}")
@@ -216,47 +224,48 @@ class ImplementationComparator:
         print(f"🐍 Python only passes: {len(self.results['python_only_pass'])}")
 
         # Detailed breakdown
-        if self.results['both_pass']:
+        if self.results["both_pass"]:
             print(f"\n✅ BOTH PASS ({len(self.results['both_pass'])}):")
-            for file_name in self.results['both_pass']:
+            for file_name in self.results["both_pass"]:
                 print(f"   - {file_name}")
 
-        if self.results['cpp_only_pass']:
+        if self.results["cpp_only_pass"]:
             print(f"\n🔧 C++ ONLY PASS ({len(self.results['cpp_only_pass'])}):")
-            for file_name, python_error in self.results['cpp_only_pass']:
+            for file_name, python_error in self.results["cpp_only_pass"]:
                 print(f"   - {file_name}")
                 errors = self.extract_error_messages(python_error)
                 if errors:
                     print(f"     Python error: {errors[0]}")
 
-        if self.results['python_only_pass']:
+        if self.results["python_only_pass"]:
             print(f"\n🐍 PYTHON ONLY PASS ({len(self.results['python_only_pass'])}):")
-            for file_name, cpp_error in self.results['python_only_pass']:
+            for file_name, cpp_error in self.results["python_only_pass"]:
                 print(f"   - {file_name}")
                 errors = self.extract_error_messages(cpp_error)
                 if errors:
                     print(f"     C++ error: {errors[0]}")
 
-        if self.results['different_errors']:
+        if self.results["different_errors"]:
             print(f"\n⚠️  DIFFERENT ERROR TYPES ({len(self.results['different_errors'])}):")
-            for file_name, cpp_errors, python_errors in self.results['different_errors']:
+            for file_name, cpp_errors, python_errors in self.results["different_errors"]:
                 print(f"   - {file_name}")
                 print(f"     C++: {cpp_errors}")
                 print(f"     Python: {python_errors}")
 
         # Analysis
-        print(f"\n🔍 ANALYSIS:")
-        compatibility = len(self.results['both_pass']) + len(self.results['both_fail'])
+        print("\n🔍 ANALYSIS:")
+        compatibility = len(self.results["both_pass"]) + len(self.results["both_fail"])
         compatibility_percent = (compatibility / total_files) * 100 if total_files > 0 else 0
 
         print(f"   📈 Compatibility: {compatibility}/{total_files} ({compatibility_percent:.1f}%)")
 
-        if len(self.results['cpp_only_pass']) > 0:
-            print(f"   🔧 C++ implementation may be more permissive")
-        if len(self.results['python_only_pass']) > 0:
-            print(f"   🐍 Python implementation may be more permissive")
-        if len(self.results['different_errors']) > 0:
-            print(f"   ⚠️  Error message differences detected")
+        if len(self.results["cpp_only_pass"]) > 0:
+            print("   🔧 C++ implementation may be more permissive")
+        if len(self.results["python_only_pass"]) > 0:
+            print("   🐍 Python implementation may be more permissive")
+        if len(self.results["different_errors"]) > 0:
+            print("   ⚠️  Error message differences detected")
+
 
 def main():
     if len(sys.argv) > 1:
@@ -267,6 +276,7 @@ def main():
     comparator = ImplementationComparator(test_dir)
     success = comparator.run_comparison()
     sys.exit(0 if success else 1)
+
 
 if __name__ == "__main__":
     main()

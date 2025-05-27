@@ -4,24 +4,27 @@ Sample script demonstrating SystemRDL elaboration process
 Requires installation: pip install systemrdl-compiler
 """
 
-import sys
-import os
 import glob
-from systemrdl import RDLCompiler, RDLCompileError
+import os
+import sys
+
+from systemrdl import RDLCompileError, RDLCompiler
+
 
 def check_expect_elaboration_failure(rdl_file):
     """Check if RDL file is marked as expecting elaboration failure"""
     try:
-        with open(rdl_file, 'r', encoding='utf-8') as f:
+        with open(rdl_file, "r", encoding="utf-8") as f:
             # Check first few lines for EXPECT_ELABORATION_FAILURE marker
             for i, line in enumerate(f):
                 if i >= 10:  # Only check first 10 lines
                     break
-                if 'EXPECT_ELABORATION_FAILURE' in line:
+                if "EXPECT_ELABORATION_FAILURE" in line:
                     return True
             return False
     except Exception:
         return False
+
 
 def demonstrate_elaboration(rdl_file):
     """Demonstrate SystemRDL elaboration process"""
@@ -49,9 +52,9 @@ def demonstrate_elaboration(rdl_file):
             return False
         else:
             print("✅ Elaboration successful!")
-            print("\n" + "="*50)
+            print("\n" + "=" * 50)
             print(f"📊 Elaborated register model information ({rdl_file}):")
-            print("="*50)
+            print("=" * 50)
 
             # Traverse elaborated model
             traverse_node(root, 0)
@@ -72,6 +75,7 @@ def demonstrate_elaboration(rdl_file):
             print(f"❌ Other error ({rdl_file}): {e}")
             return False
 
+
 def traverse_node(node, depth=0):
     """Recursively traverse elaborated nodes"""
     indent = "  " * depth
@@ -81,6 +85,7 @@ def traverse_node(node, depth=0):
 
     # Special handling for FieldNode - show detailed field information
     from systemrdl.node import FieldNode
+
     if isinstance(node, FieldNode):
         try:
             # Show bit range information
@@ -94,8 +99,8 @@ def traverse_node(node, depth=0):
         # Show field properties
         try:
             # Software access
-            sw = node.get_property('sw')
-            hw = node.get_property('hw')
+            sw = node.get_property("sw")
+            hw = node.get_property("hw")
             if sw or hw:
                 print(f"{indent}   🔧 Access: sw={sw}, hw={hw}")
         except LookupError:
@@ -103,7 +108,7 @@ def traverse_node(node, depth=0):
 
         try:
             # Reset value
-            reset = node.get_property('reset')
+            reset = node.get_property("reset")
             if reset is not None:
                 print(f"{indent}   🔄 Reset value: 0x{reset:X}")
         except (LookupError, TypeError):
@@ -111,7 +116,7 @@ def traverse_node(node, depth=0):
 
         try:
             # Field width (if explicitly set)
-            fieldwidth = node.get_property('fieldwidth')
+            fieldwidth = node.get_property("fieldwidth")
             if fieldwidth is not None:
                 print(f"{indent}   📏 Field width: {fieldwidth}")
         except LookupError:
@@ -119,6 +124,7 @@ def traverse_node(node, depth=0):
 
     # Safely get address information - only try to get address for addressable nodes
     from systemrdl.node import AddressableNode
+
     if isinstance(node, AddressableNode):
         try:
             addr = node.absolute_address
@@ -134,7 +140,7 @@ def traverse_node(node, depth=0):
             print(f"{indent}   📏 Size: <cannot determine>")
 
         # Check if it's an array
-        if hasattr(node, 'array_dimensions') and node.array_dimensions:
+        if hasattr(node, "array_dimensions") and node.array_dimensions:
             print(f"{indent}   🔢 Array dimensions: {node.array_dimensions}")
             try:
                 stride = node.array_stride
@@ -143,9 +149,9 @@ def traverse_node(node, depth=0):
                 print(f"{indent}   🔢 Array stride: <cannot determine>")
 
     # If there's a description, show description
-    if hasattr(node, 'get_property'):
+    if hasattr(node, "get_property"):
         try:
-            desc = node.get_property('desc')
+            desc = node.get_property("desc")
             if desc:  # Only show when description is not empty
                 if len(desc) > 50:
                     desc = desc[:47] + "..."
@@ -155,9 +161,10 @@ def traverse_node(node, depth=0):
             pass
 
     # Recursively process child nodes
-    if hasattr(node, 'children'):
+    if hasattr(node, "children"):
         for child in node.children():
             traverse_node(child, depth + 1)
+
 
 def test_all_rdl_files(test_dir="test"):
     """Test all RDL files in specified directory"""
@@ -171,7 +178,7 @@ def test_all_rdl_files(test_dir="test"):
         return False
 
     print(f"🎯 Found {len(rdl_files)} RDL files for testing")
-    print("="*60)
+    print("=" * 60)
 
     success_count = 0
     total_count = len(rdl_files)
@@ -186,11 +193,12 @@ def test_all_rdl_files(test_dir="test"):
 
         print(f"\n{'='*60}")
 
-    print(f"\n🏁 Testing complete!")
+    print("\n🏁 Testing complete!")
     print(f"✅ Success: {success_count}/{total_count}")
     print(f"❌ Failed: {total_count - success_count}/{total_count}")
 
     return success_count == total_count
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

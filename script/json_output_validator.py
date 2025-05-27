@@ -6,15 +6,15 @@ This script validates the JSON output from both systemrdl_parser and systemrdl_e
 and can also run end-to-end tests to generate and validate JSON output.
 """
 
-import json
-import sys
 import argparse
-import subprocess
-import tempfile
-import shutil
+import json
 import os
+import subprocess
+import sys
+import tempfile
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 
 class JsonValidator:
     def __init__(self, verbose: bool = True):
@@ -49,7 +49,7 @@ class JsonValidator:
             return None
 
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             self.log_success(f"Valid JSON file: {file_path}")
             return data
@@ -110,7 +110,14 @@ class JsonValidator:
 
         node_type = node.get("type")
         if node_type == "rule":
-            rule_fields = ["rule_name", "text", "start_line", "start_column", "stop_line", "stop_column"]
+            rule_fields = [
+                "rule_name",
+                "text",
+                "start_line",
+                "start_column",
+                "stop_line",
+                "stop_column",
+            ]
             for field in rule_fields:
                 if field not in node:
                     self.log_error(f"Missing field '{field}' in rule node at {path}")
@@ -142,7 +149,9 @@ class JsonValidator:
 
         # Check format
         if data["format"] != "SystemRDL_ElaboratedModel":
-            self.log_error(f"Invalid format: expected 'SystemRDL_ElaboratedModel', got '{data['format']}'")
+            self.log_error(
+                f"Invalid format: expected 'SystemRDL_ElaboratedModel', got '{data['format']}'"
+            )
             return False
 
         # Check version
@@ -208,8 +217,9 @@ class JsonValidator:
 
         return True
 
-    def validate_content_match(self, ast_data: Dict[str, Any], elaborated_data: Dict[str, Any],
-                             rdl_file: str) -> bool:
+    def validate_content_match(
+        self, ast_data: Dict[str, Any], elaborated_data: Dict[str, Any], rdl_file: str
+    ) -> bool:
         """Validate that AST and elaborated model contain consistent information"""
 
         # Basic consistency checks
@@ -221,8 +231,9 @@ class JsonValidator:
 
         # Check for addrmap in both
         has_addrmap_ast = self.find_node_type_in_ast(ast_data["ast"], "addrmap")
-        has_addrmap_elaborated = any(node.get("node_type") == "addrmap"
-                                   for node in elaborated_data["model"])
+        has_addrmap_elaborated = any(
+            node.get("node_type") == "addrmap" for node in elaborated_data["model"]
+        )
 
         if has_addrmap_ast and not has_addrmap_elaborated:
             self.log_error("AST contains addrmap but elaborated model doesn't")
@@ -240,6 +251,7 @@ class JsonValidator:
                 if self.find_node_type_in_ast(node["children"], node_type):
                     return True
         return False
+
 
 class JsonTester:
     def __init__(self, verbose: bool = True):
@@ -268,12 +280,12 @@ class JsonTester:
     def check_expect_elaboration_failure(self, rdl_path: str) -> bool:
         """Check if RDL file is marked as expecting elaboration failure"""
         try:
-            with open(rdl_path, 'r', encoding='utf-8') as f:
+            with open(rdl_path, "r", encoding="utf-8") as f:
                 # Check first few lines for EXPECT_ELABORATION_FAILURE marker
                 for i, line in enumerate(f):
                     if i >= 10:  # Only check first 10 lines
                         break
-                    if 'EXPECT_ELABORATION_FAILURE' in line:
+                    if "EXPECT_ELABORATION_FAILURE" in line:
                         return True
                 return False
         except Exception:
@@ -292,7 +304,7 @@ class JsonTester:
         """Get file size in bytes"""
         try:
             return os.path.getsize(file_path)
-        except:
+        except (FileNotFoundError, OSError):
             return 0
 
     def run_end_to_end_test(self, parser_exe: str, elaborator_exe: str, rdl_file: str) -> bool:
@@ -304,16 +316,18 @@ class JsonTester:
         rdl_file = os.path.abspath(rdl_file)
 
         # Check prerequisites
-        if not all([
-            self.check_executable(parser_exe),
-            self.check_executable(elaborator_exe),
-            self.check_rdl_file(rdl_file)
-        ]):
+        if not all(
+            [
+                self.check_executable(parser_exe),
+                self.check_executable(elaborator_exe),
+                self.check_rdl_file(rdl_file),
+            ]
+        ):
             return False
 
         test_name = Path(rdl_file).stem
         expect_failure = self.check_expect_elaboration_failure(rdl_file)
-        
+
         if expect_failure:
             if self.verbose:
                 print(f"🧪 Testing validation for: {test_name} (expecting elaboration failure)")
@@ -322,7 +336,7 @@ class JsonTester:
                 print(f"🧪 Testing JSON output for: {test_name}")
 
         # Create temporary directory
-        with tempfile.TemporaryDirectory(prefix='json_test_') as temp_dir:
+        with tempfile.TemporaryDirectory(prefix="json_test_") as temp_dir:
             temp_path = Path(temp_dir)
 
             # Test parser JSON output with custom filename
@@ -353,14 +367,18 @@ class JsonTester:
             elaborator_cmd = [elaborator_exe, rdl_file, f"--json={elaborated_json}"]
 
             elaborator_success = self.run_command(elaborator_cmd)
-            
+
             if expect_failure:
                 # For validation tests, we expect elaboration to fail
                 if elaborator_success and elaborated_json.exists():
-                    self.validator.log_error("Expected elaboration failure, but elaboration succeeded")
+                    self.validator.log_error(
+                        "Expected elaboration failure, but elaboration succeeded"
+                    )
                     return False
                 else:
-                    self.validator.log_success("Elaboration failed as expected (validation test passed)")
+                    self.validator.log_success(
+                        "Elaboration failed as expected (validation test passed)"
+                    )
                     # For expected failures, we can't test JSON generation, so we're done
                     if self.verbose:
                         print(f"✅ Validation test completed successfully for: {test_name}")
@@ -379,7 +397,9 @@ class JsonTester:
 
                 # Validate elaborator JSON
                 elaborated_data = self.validator.validate_json_file(str(elaborated_json))
-                if not elaborated_data or not self.validator.validate_elaborated_json(elaborated_data):
+                if not elaborated_data or not self.validator.validate_elaborated_json(
+                    elaborated_data
+                ):
                     return False
 
                 # Test default filename generation for normal tests only
@@ -422,15 +442,20 @@ class JsonTester:
                     self.validator.log_warning(f"AST JSON seems too small: {ast_size} bytes")
 
                 if elaborated_size > 50:
-                    self.validator.log_success(f"Elaborated JSON has reasonable size: {elaborated_size} bytes")
+                    self.validator.log_success(
+                        f"Elaborated JSON has reasonable size: {elaborated_size} bytes"
+                    )
                 else:
-                    self.validator.log_warning(f"Elaborated JSON seems too small: {elaborated_size} bytes")
+                    self.validator.log_warning(
+                        f"Elaborated JSON seems too small: {elaborated_size} bytes"
+                    )
 
                 # Cross-validate content
                 self.validator.validate_content_match(ast_data, elaborated_data, rdl_file)
 
         self.validator.log_success(f"JSON test completed successfully for: {test_name}")
         return True
+
 
 def main():
     parser = argparse.ArgumentParser(description="Validate and test SystemRDL JSON output")
@@ -451,29 +476,63 @@ def main():
 
     args = parser.parse_args()
 
+    # Get the project root directory based on script location
+    script_dir = Path(__file__).parent
+    project_root = script_dir.parent
+
+    # Adjust relative paths to be relative to project root
+    def adjust_path(path_arg):
+        if not path_arg:
+            return path_arg
+        path = Path(path_arg)
+        # If it's already absolute, keep it as is
+        if path.is_absolute():
+            return str(path)
+        # If it starts with ../ it's probably already relative to script dir
+        if str(path).startswith("../"):
+            return str(script_dir / path)
+        # Otherwise, make it relative to project root
+        return str(project_root / path)
+
+    args.parser = adjust_path(args.parser)
+    args.elaborator = adjust_path(args.elaborator)
+    args.rdl = adjust_path(args.rdl)
+    args.ast = adjust_path(args.ast)
+    args.elaborated = adjust_path(args.elaborated)
+
     # Determine mode
     if args.test:
         # End-to-end test mode
         if not all([args.parser, args.elaborator, args.rdl]):
             print("❌ ERROR: Test mode requires --parser, --elaborator, and --rdl arguments")
+            # Provide usage examples
+            print("Example usage:")
+            print(
+                "  python script/json_output_validator.py --test --parser build/systemrdl_parser --elaborator build/systemrdl_elaborator --rdl test/test_minimal.rdl"
+            )
+            print(
+                "  python json_output_validator.py --test --parser ../build/systemrdl_parser --elaborator ../build/systemrdl_elaborator --rdl ../test/test_minimal.rdl"
+            )
             sys.exit(1)
 
         tester = JsonTester(verbose=not args.quiet)
         success = tester.run_end_to_end_test(args.parser, args.elaborator, args.rdl)
 
         if not success or tester.validator.errors:
-            print(f"\n❌ Test FAILED")
+            print("\n❌ Test FAILED")
             sys.exit(1)
         elif tester.validator.warnings and args.strict:
-            print(f"\n⚠️  Test FAILED (strict mode, warnings treated as errors)")
+            print("\n⚠️  Test FAILED (strict mode, warnings treated as errors)")
             sys.exit(1)
         else:
-            print(f"\n✅ Test PASSED")
+            print("\n✅ Test PASSED")
             sys.exit(0)
     else:
         # Validation mode
         if not args.ast and not args.elaborated:
-            print("❌ ERROR: Must specify at least one of --ast or --elaborated, or use --test mode")
+            print(
+                "❌ ERROR: Must specify at least one of --ast or --elaborated, or use --test mode"
+            )
             sys.exit(1)
 
         validator = JsonValidator(verbose=not args.quiet)
@@ -499,12 +558,12 @@ def main():
         # Cross-validate if both files are provided
         if ast_data and elaborated_data and args.rdl:
             if not args.quiet:
-                print(f"🔍 Cross-validating content consistency")
+                print("🔍 Cross-validating content consistency")
             validator.validate_content_match(ast_data, elaborated_data, args.rdl)
 
         # Summary
         if not args.quiet:
-            print(f"\n📊 Validation Summary:")
+            print("\n📊 Validation Summary:")
             print(f"   Errors: {len(validator.errors)}")
             print(f"   Warnings: {len(validator.warnings)}")
 
@@ -517,6 +576,7 @@ def main():
         else:
             print("\n✅ Validation PASSED")
             sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
