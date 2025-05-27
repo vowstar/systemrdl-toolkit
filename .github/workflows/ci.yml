@@ -103,9 +103,15 @@ jobs:
         ./build/systemrdl_parser --help
         # Test elaborator
         ./build/systemrdl_elaborator --help
+        # Test CSV2RDL converter
+        ./build/systemrdl_csv2rdl --help
         # Test with a simple SystemRDL file (use existing known-good test)
-        ./build/systemrdl_elaborator test/test_minimal.rdl --json test_output.json
-        cat test_output.json
+        ./build/systemrdl_elaborator test/test_minimal.rdl --json build/test_output.json
+        cat build/test_output.json
+        # Test CSV converter with basic example
+        ./build/systemrdl_csv2rdl test/test_csv_basic_example.csv -o build/test_csv_output.rdl
+        # Validate generated SystemRDL file
+        ./build/systemrdl_parser build/test_csv_output.rdl
 
     - name: Basic functionality test - Windows MSYS2
       if: matrix.os == 'windows-latest'
@@ -115,9 +121,15 @@ jobs:
         ./build/systemrdl_parser --help
         # Test elaborator
         ./build/systemrdl_elaborator --help
+        # Test CSV2RDL converter
+        ./build/systemrdl_csv2rdl --help
         # Test with a simple SystemRDL file (use existing known-good test)
-        ./build/systemrdl_elaborator test/test_minimal.rdl --json test_output.json
-        cat test_output.json
+        ./build/systemrdl_elaborator test/test_minimal.rdl --json build/test_output.json
+        cat build/test_output.json
+        # Test CSV converter with basic example
+        ./build/systemrdl_csv2rdl test/test_csv_basic_example.csv -o build/test_csv_output.rdl
+        # Validate generated SystemRDL file
+        ./build/systemrdl_parser build/test_csv_output.rdl
 
     - name: Run comparison tests (Ubuntu only)
       if: matrix.os == 'ubuntu-latest'
@@ -128,6 +140,8 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         python script/json_output_validator.py --test --parser ./build/systemrdl_parser --elaborator ./build/systemrdl_elaborator --rdl test/test_minimal.rdl
+        # Run CSV2RDL validation suite
+        python script/csv2rdl_validator.py
 
     - name: Upload test artifacts
       if: failure()
@@ -135,8 +149,9 @@ jobs:
       with:
         name: test-artifacts-${{ matrix.os }}
         path: |
-          build/
-          *.json
+          build/*.json
+          build/*.rdl
+          build/*.log
           *.log
 
   code-quality:
@@ -168,7 +183,7 @@ jobs:
     - name: Python linting
       run: |
         flake8 script/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 script/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        flake8 script/ --count --exit-zero --max-line-length=127 --ignore=C901,W503,E226 --statistics
 
     - name: C++ static analysis
       run: |
@@ -176,7 +191,7 @@ jobs:
         cppcheck --language=c++ \
           --enable=warning,style,performance \
           --suppressions-list=.cppcheck-suppressions \
-          elaborator.cpp elaborator_main.cpp parser_main.cpp 2>&1 | tee cppcheck.log
+          elaborator.cpp elaborator_main.cpp parser_main.cpp csv2rdl_main.cpp 2>&1 | tee cppcheck.log
 
         # Check if there are any actual warnings or errors (not just information)
         if grep -E "(warning|error|style):" cppcheck.log > /dev/null; then
@@ -292,6 +307,8 @@ jobs:
         python script/compare_implementations.py
         echo "Testing JSON output validation..."
         python script/json_output_validator.py --test --parser ./build/systemrdl_parser --elaborator ./build/systemrdl_elaborator --rdl test/test_minimal.rdl
+        echo "Testing CSV2RDL converter validation..."
+        python script/csv2rdl_validator.py
 
     - name: Generate test report
       run: |
@@ -299,6 +316,7 @@ jobs:
         echo "- Build: ✅ Success" >> test_report.md
         echo "- SystemRDL Compatibility: ✅ Verified" >> test_report.md
         echo "- JSON Output Validation: ✅ Passed" >> test_report.md
+        echo "- CSV2RDL Converter Validation: ✅ Passed" >> test_report.md
         echo "- Generated on: $(date)" >> test_report.md
         cat test_report.md
 
