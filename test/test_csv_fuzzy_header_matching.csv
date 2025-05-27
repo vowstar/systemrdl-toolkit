@@ -1,0 +1,5 @@
+AddrmapOffset,Addrmap_Name,RegOffset,RegName,RegWidth,FieldName,Field_LSB,FieldMsb,resetvalue,sw_acc,hw_acc,Description
+0x0000,TEST,,,,,,,,,,"Test Address Map"
+,,0x0000,CTRL_REG,32,,,,,,,Control Register
+,,,,,ENABLE,0,0,0,RW,RW,Enable Bit
+,,,,,MODE_SEL,1,2,0,RW,RW,Mode Selection
