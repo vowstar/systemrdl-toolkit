@@ -1,6 +1,7 @@
 # Contributing to SystemRDL Toolbox
 
-Thank you for your interest in contributing to the SystemRDL Toolbox! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to the SystemRDL Toolbox!
+This document provides guidelines and information for contributors.
 
 ## 🎯 Project Overview
 
