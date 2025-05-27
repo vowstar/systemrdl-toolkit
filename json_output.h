@@ -53,6 +53,15 @@ public:
         is_array_stack_.push_back(false);
     }
 
+    void start_object(const std::string& key) {
+        if (!first_item_) json_ << ",\n";
+        write_indent();
+        json_ << escape_string(key) << ": {\n";
+        indent_level_++;
+        first_item_ = true;
+        is_array_stack_.push_back(false);
+    }
+
     void end_object() {
         json_ << "\n";
         indent_level_--;
@@ -221,8 +230,7 @@ protected:
         }
 
         if (!node.properties.empty()) {
-            json_.start_object();
-            json_.add_string("_section", "properties");
+            json_.start_object("properties");
             for (const auto& prop : node.properties) {
                 write_property(prop.first, prop.second);
             }

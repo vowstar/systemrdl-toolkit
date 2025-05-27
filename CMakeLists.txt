@@ -153,6 +153,68 @@ foreach(rdl_file ${RDL_TEST_FILES})
     )
 endforeach()
 
+# Find Python3 for JSON validation tests
+find_package(Python3 COMPONENTS Interpreter)
+
+# Create JSON output tests if Python3 is available
+if(Python3_FOUND)
+    foreach(rdl_file ${RDL_TEST_FILES})
+        get_filename_component(test_name ${rdl_file} NAME_WE)
+
+        # JSON test using unified Python script (replaces bash script)
+        add_test(
+            NAME "json_test_${test_name}"
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/json_tester.py
+                    --test
+                    --parser ${CMAKE_BINARY_DIR}/systemrdl_parser
+                    --elaborator ${CMAKE_BINARY_DIR}/systemrdl_elaborator
+                    --rdl ${rdl_file}
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        )
+        set_tests_properties("json_test_${test_name}" PROPERTIES
+            LABELS "json;test"
+            DEPENDS "systemrdl_parser;systemrdl_elaborator"
+        )
+
+        # Detailed JSON validation test for existing files
+        add_test(
+            NAME "json_validate_${test_name}"
+            COMMAND ${CMAKE_COMMAND} -E env
+                RDL_FILE=${rdl_file}
+                TEST_NAME=${test_name}
+                ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/json_tester.py
+                --ast ${CMAKE_BINARY_DIR}/${test_name}_ast.json
+                --elaborated ${CMAKE_BINARY_DIR}/${test_name}_elaborated.json
+                --rdl ${rdl_file}
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        )
+        set_tests_properties("json_validate_${test_name}" PROPERTIES
+            LABELS "json;validation"
+            DEPENDS "json_generate_${test_name}"
+        )
+
+        # Test to generate JSON files for validation test
+        add_test(
+            NAME "json_generate_${test_name}"
+            COMMAND ${CMAKE_COMMAND} -E env
+                bash -c "
+                ${CMAKE_BINARY_DIR}/systemrdl_parser ${rdl_file} --json=${test_name}_ast.json > /dev/null 2>&1 &&
+                ${CMAKE_BINARY_DIR}/systemrdl_elaborator ${rdl_file} --json=${test_name}_elaborated.json > /dev/null 2>&1
+                "
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        )
+        set_tests_properties("json_generate_${test_name}" PROPERTIES
+            LABELS "json;generate"
+            DEPENDS "systemrdl_parser;systemrdl_elaborator"
+        )
+
+    endforeach()
+
+    message(STATUS "JSON validation tests enabled (Python3 found: ${Python3_EXECUTABLE})")
+else()
+    message(WARNING "Python3 not found - JSON validation tests will be skipped")
+endif()
+
 # Custom target to run all tests with nice output
 add_custom_target(run-tests
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose
@@ -172,6 +234,20 @@ add_custom_target(test-elaborator
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -L elaborator
     DEPENDS systemrdl_elaborator
     COMMENT "Running SystemRDL elaborator tests..."
+)
+
+# Custom target to run JSON tests
+add_custom_target(test-json
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -L json
+    DEPENDS systemrdl_parser systemrdl_elaborator
+    COMMENT "Running SystemRDL JSON output tests..."
+)
+
+# Custom target to run all tests except JSON (for faster testing)
+add_custom_target(test-fast
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -LE json
+    DEPENDS systemrdl_parser systemrdl_elaborator
+    COMMENT "Running fast SystemRDL tests (no JSON validation)..."
 )
 
 # Print configuration information
