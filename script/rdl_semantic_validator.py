@@ -27,7 +27,7 @@ def demonstrate_elaboration(rdl_file):
     """Demonstrate SystemRDL elaboration process"""
 
     expect_failure = check_expect_elaboration_failure(rdl_file)
-    
+
     # Create compiler instance
     rdlc = RDLCompiler()
 
@@ -78,6 +78,44 @@ def traverse_node(node, depth=0):
 
     # Print node information
     print(f"{indent}📦 {node.__class__.__name__}: {node.inst_name}")
+
+    # Special handling for FieldNode - show detailed field information
+    from systemrdl.node import FieldNode
+    if isinstance(node, FieldNode):
+        try:
+            # Show bit range information
+            msb = node.msb
+            lsb = node.lsb
+            width = node.width
+            print(f"{indent}   🎯 Bit range: [{msb}:{lsb}] (width: {width})")
+        except (ValueError, AttributeError):
+            print(f"{indent}   🎯 Bit range: <cannot determine>")
+
+        # Show field properties
+        try:
+            # Software access
+            sw = node.get_property('sw')
+            hw = node.get_property('hw')
+            if sw or hw:
+                print(f"{indent}   🔧 Access: sw={sw}, hw={hw}")
+        except LookupError:
+            pass
+
+        try:
+            # Reset value
+            reset = node.get_property('reset')
+            if reset is not None:
+                print(f"{indent}   🔄 Reset value: 0x{reset:X}")
+        except (LookupError, TypeError):
+            pass
+
+        try:
+            # Field width (if explicitly set)
+            fieldwidth = node.get_property('fieldwidth')
+            if fieldwidth is not None:
+                print(f"{indent}   📏 Field width: {fieldwidth}")
+        except LookupError:
+            pass
 
     # Safely get address information - only try to get address for addressable nodes
     from systemrdl.node import AddressableNode
