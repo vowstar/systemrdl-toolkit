@@ -1,51 +1,93 @@
 # SystemRDL Library Example
 
-This directory contains a complete working example showing how to use the SystemRDL library in your own C++ projects.
+This directory contains a complete working example demonstrating the **modern SystemRDL API** usage.
 
-## Prerequisites
+## Building the Example
 
-First, you need to build and install the SystemRDL library. From the project root directory:
+### Prerequisites
+
+1. **Install the SystemRDL library first**:
 
 ```bash
+# From the project root directory
 mkdir build && cd build
 cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
 make -j$(nproc)
 sudo make install
 ```
 
-## Building the Example
-
-Once the library is installed, build this example:
+### Build and Run
 
 ```bash
-cd example
+# From the example/ directory
 mkdir build && cd build
 cmake ..
 make
+
+# Run the example
+./example_app
 ```
 
-## Running the Example
+## What the Example Demonstrates
 
-Run the example with the provided test RDL file:
+The example showcases all major features of the modern SystemRDL API:
 
-```bash
-./example_app ../test_example.rdl
+- **🚀 String-based Operations**: Parse and elaborate SystemRDL content directly from strings
+- **📁 File Operations**: Read SystemRDL files using convenient file wrappers
+- **🌊 Stream Processing**: Input/output using standard C++ streams
+- **📊 CSV Integration**: Convert CSV register data to SystemRDL format
+- **🛡️ Error Handling**: Robust error management with Result types
+- **🏗️ Advanced Elaboration**: Complex SystemRDL designs with arrays and hierarchies
+- **⚡ Modern C++**: Clean API without ANTLR4 header exposure
+
+## Expected Output
+
+When you run the example, you should see output like:
+
+```text
+🚀 SystemRDL Modern API Example
+
+📋 Example 1: Parse SystemRDL content
+✅ Parse successful!
+
+🚀 Example 2: Simple Elaboration
+✅ Elaboration successful!
+
+🎯 Example 3: Advanced Elaboration (Arrays & Complex Features)
+✅ Advanced elaboration successful!
+
+📊 Example 4: Convert CSV to SystemRDL
+✅ CSV conversion successful!
+
+📁 Example 5: File-based operations
+✅ File parse successful!
+
+🌊 Example 6: Stream operations
+✅ Stream processing successful!
+
+❗ Example 7: Error handling
+✅ Error handling working correctly!
 ```
 
-Or use any of the test files from the main project:
+## Files
 
-```bash
-./example_app ../../test/test_basic_chip.rdl
+- `CMakeLists.txt` - CMake configuration for the example
+- `example.cpp` - Main example source code demonstrating all API features
+- `test_example.rdl` - Sample SystemRDL file for testing
+
+## Integration in Your Project
+
+To use the SystemRDL library in your own project, add this to your `CMakeLists.txt`:
+
+```cmake
+find_package(SystemRDL REQUIRED)
+target_link_libraries(your_target SystemRDL::systemrdl)
 ```
 
-## What the Example Does
+Then include the modern API header:
 
-The example demonstrates:
+```cpp
+#include <systemrdl/systemrdl_api.h>
+```
 
-- Parsing SystemRDL files using the library
-- Elaborating the parsed design
-- Error handling
-- Extracting design information
-- Working with elaborated nodes
-
-See `example.cpp` for the complete source code and comments explaining each step.
+For complete API documentation and usage patterns, see the main project README.md.

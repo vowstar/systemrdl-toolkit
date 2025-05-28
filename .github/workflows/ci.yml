@@ -112,6 +112,10 @@ jobs:
         ./build/systemrdl_csv2rdl test/test_csv_basic_example.csv -o build/test_csv_output.rdl
         # Validate generated SystemRDL file
         ./build/systemrdl_parser build/test_csv_output.rdl
+        # Test example application (library integration test)
+        echo "Running example application..."
+        ./build/example/example
+        echo "✅ Example application completed successfully"
 
     - name: Basic functionality test - Windows MSYS2
       if: matrix.os == 'windows-latest'
@@ -130,6 +134,10 @@ jobs:
         ./build/systemrdl_csv2rdl test/test_csv_basic_example.csv -o build/test_csv_output.rdl
         # Validate generated SystemRDL file
         ./build/systemrdl_parser build/test_csv_output.rdl
+        # Test example application (library integration test)
+        echo "Running example application..."
+        ./build/example/example
+        echo "✅ Example application completed successfully"
 
     - name: Run comparison tests (Ubuntu only)
       if: matrix.os == 'ubuntu-latest'
@@ -191,7 +199,7 @@ jobs:
         cppcheck --language=c++ \
           --enable=warning,style,performance \
           --suppressions-list=.cppcheck-suppressions \
-          elaborator.cpp elaborator_main.cpp parser_main.cpp csv2rdl_main.cpp 2>&1 | tee cppcheck.log
+          elaborator.cpp elaborator_main.cpp parser_main.cpp csv2rdl_main.cpp example/example.cpp 2>&1 | tee cppcheck.log
 
         # Check if there are any actual warnings or errors (not just information)
         if grep -E "(warning|error|style):" cppcheck.log > /dev/null; then
@@ -211,10 +219,11 @@ jobs:
         echo "-------------------------------------"
         # Ensure we're in the project root directory
         cd ${{ github.workspace }}
-        # Find all C++ source files and check formatting
+        # Find all C++ source files and check formatting (including example directory)
         find . -name "*.cpp" -o -name "*.h" | \
           grep -E "\.(cpp|h)$" | \
           grep -v SystemRDL | \
+          grep -v build | \
           xargs clang-format --style=file:.clang-format --dry-run -Werror
 
     - name: Markdown linting

@@ -1129,7 +1129,7 @@ The project includes 16 comprehensive test files covering various SystemRDL feat
 
 - `script/json_output_validator.py` - JSON output validation and testing framework
   - Validates AST JSON schema and structure compliance
-  - Validates elaborated model JSON format and content
+  - Validates elaborated model JSON format and structure
   - Performs end-to-end testing with automatic JSON generation
   - Compares consistency between parser and elaborator outputs
   - Supports individual file validation and batch testing
@@ -1426,7 +1426,162 @@ target_include_directories(my_app PRIVATE /usr/local/include/systemrdl)
 
 ### Library API Usage
 
-#### Basic Example
+The SystemRDL library provides both a **traditional API** for advanced users who need direct ANTLR4 access, and a
+**modern API** for easy integration without ANTLR4 complexity.
+
+#### Modern API (Recommended)
+
+The modern API provides a clean, simple interface without exposing ANTLR4 headers. It supports string-based
+operations, file operations, and stream processing.
+
+##### String-based Operations
+
+```cpp
+#include <systemrdl/systemrdl_api.h>
+#include <iostream>
+
+int main() {
+    // Parse SystemRDL content
+    std::string rdl_content = R"(
+        addrmap simple_chip {
+            reg {
+                field {
+                    sw = rw;
+                    hw = r;
+                    desc = "Control bit";
+                } ctrl[0:0] = 0;
+            } control_reg @ 0x0000;
+        };
+    )";
+
+    // Parse to AST JSON
+    auto parse_result = systemrdl::parse(rdl_content);
+    if (parse_result.ok()) {
+        std::cout << "✅ Parse successful!" << std::endl;
+        std::cout << "📄 AST JSON: " << parse_result.value() << std::endl;
+    } else {
+        std::cerr << "❌ Parse failed: " << parse_result.error() << std::endl;
+        return 1;
+    }
+
+    // Elaborate SystemRDL design
+    auto elaborate_result = systemrdl::elaborate(rdl_content);
+    if (elaborate_result.ok()) {
+        std::cout << "✅ Elaboration successful!" << std::endl;
+        std::cout << "🏗️ Elaborated JSON: " << elaborate_result.value() << std::endl;
+    } else {
+        std::cerr << "❌ Elaboration failed: " << elaborate_result.error() << std::endl;
+        return 1;
+    }
+
+    return 0;
+}
+```
+
+##### File-based Operations
+
+```cpp
+#include <systemrdl/systemrdl_api.h>
+
+int main() {
+    // Parse SystemRDL file
+    auto parse_result = systemrdl::file::parse("design.rdl");
+    if (parse_result.ok()) {
+        std::cout << "File parsed successfully!" << std::endl;
+        // process parse_result.value()
+    }
+
+    // Elaborate SystemRDL file
+    auto elaborate_result = systemrdl::file::elaborate("design.rdl");
+    if (elaborate_result.ok()) {
+        std::cout << "File elaborated successfully!" << std::endl;
+        // process elaborate_result.value()
+    }
+
+    return 0;
+}
+```
+
+##### CSV to SystemRDL Conversion
+
+```cpp
+#include <systemrdl/systemrdl_api.h>
+
+int main() {
+    std::string csv_content = 
+        "addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,"
+        "field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,description\n"
+        "0x0000,DEMO,0x0000,CTRL,32,ENABLE,0,0,0,RW,RW,Enable control bit\n"
+        "0x0000,DEMO,0x0000,CTRL,32,MODE,2,1,0,RW,RW,Operation mode\n";
+
+    auto result = systemrdl::csv_to_rdl(csv_content);
+    if (result.ok()) {
+        std::cout << "SystemRDL output:\n" << result.value() << std::endl;
+    }
+
+    return 0;
+}
+```
+
+##### Stream Operations
+
+```cpp
+#include <systemrdl/systemrdl_api.h>
+#include <fstream>
+#include <sstream>
+
+int main() {
+    std::ifstream input_file("input.rdl");
+    std::ofstream output_file("output.json");
+
+    // Parse from stream to stream
+    if (systemrdl::stream::parse(input_file, output_file)) {
+        std::cout << "Stream processing successful!" << std::endl;
+    }
+
+    return 0;
+}
+```
+
+##### Error Handling
+
+The modern API uses a `Result` type that encapsulates success/error states:
+
+```cpp
+auto result = systemrdl::parse(rdl_content);
+
+// Check if operation succeeded
+if (result.ok()) {
+    // Access the successful result
+    std::string json_output = result.value();
+    // process json_output...
+} else {
+    // Handle the error
+    std::string error_message = result.error();
+    std::cerr << "Error: " << error_message << std::endl;
+}
+
+// Alternative pattern
+if (result.has_error()) {
+    std::cerr << "Operation failed: " << result.error() << std::endl;
+    return 1;
+}
+```
+
+##### API Features
+
+- **🧹 Clean Interface**: No ANTLR4 headers exposed to user code
+- **📝 String-based**: Work with `std::string` and `std::string_view`
+- **📁 File Support**: Direct file input/output operations
+- **🌊 Stream Support**: Standard C++ stream processing
+- **⚡ Performance**: Uses modern C++17 features like `string_view`
+- **🛡️ Type Safety**: Strong typing with Result pattern
+- **🔄 Flexible Input**: Multiple ways to provide SystemRDL content
+- **📊 CSV Integration**: Built-in CSV to SystemRDL conversion
+
+#### Traditional API (Advanced Users)
+
+For users who need direct access to ANTLR4 features or fine-grained control:
 
 ```cpp
 #include <systemrdl/elaborator.h>
@@ -1500,7 +1655,20 @@ for (const auto& entry : address_map) {
 
 ### Library Components
 
-#### Core Classes
+#### Modern API Components
+
+| Component | Header | Description |
+|-----------|--------|-------------|
+| `systemrdl::Result` | `systemrdl_api.h` | Result type for error handling |
+| `systemrdl::parse()` | `systemrdl_api.h` | Parse SystemRDL content to AST JSON |
+| `systemrdl::elaborate()` | `systemrdl_api.h` | Elaborate SystemRDL content to JSON |
+| `systemrdl::csv_to_rdl()` | `systemrdl_api.h` | Convert CSV to SystemRDL format |
+| `systemrdl::file::*` | `systemrdl_api.h` | File-based operations namespace |
+| `systemrdl::stream::*` | `systemrdl_api.h` | Stream-based operations namespace |
+
+#### Traditional API Components
+
+##### Core Classes
 
 | Class | Description |
 |-------|-------------|
@@ -1512,14 +1680,14 @@ for (const auto& entry : address_map) {
 | `ElaboratedField` | Field component |
 | `ElaboratedMem` | Memory component |
 
-#### Visitors
+##### Visitors
 
 | Visitor | Purpose |
 |---------|---------|
 | `ElaboratedNodeVisitor` | Base visitor interface |
 | `AddressMapVisitor` | Generate address map |
 
-#### Utilities
+##### Utilities
 
 | Component | Description |
 |-----------|-------------|
@@ -1528,24 +1696,204 @@ for (const auto& entry : address_map) {
 | `EnumDefinition` | Enumeration definitions |
 | `StructDefinition` | Structure definitions |
 
+#### Common Usage Patterns
+
+##### Pattern 1: Simple Register Map Processing
+
+```cpp
+#include <systemrdl/systemrdl_api.h>
+#include <iostream>
+#include <fstream>
+
+int main() {
+    // Read and process a SystemRDL file
+    auto result = systemrdl::file::elaborate("chip_registers.rdl");
+    
+    if (!result.ok()) {
+        std::cerr << "Failed to process register map: " << result.error() << std::endl;
+        return 1;
+    }
+    
+    // Save elaborated model to file
+    std::ofstream output("chip_elaborated.json");
+    output << result.value();
+    
+    std::cout << "Successfully processed register map!" << std::endl;
+    return 0;
+}
+```
+
+##### Pattern 2: CSV Register Database Import
+
+```cpp
+#include <systemrdl/systemrdl_api.h>
+#include <iostream>
+
+// Convert CSV register database to SystemRDL
+bool convert_csv_database(const std::string& csv_file, const std::string& rdl_file) {
+    auto result = systemrdl::file::csv_to_rdl(csv_file);
+    
+    if (!result.ok()) {
+        std::cerr << "CSV conversion failed: " << result.error() << std::endl;
+        return false;
+    }
+    
+    // Save SystemRDL output
+    std::ofstream output(rdl_file);
+    output << result.value();
+    
+    std::cout << "Successfully converted " << csv_file << " to " << rdl_file << std::endl;
+    return true;
+}
+
+int main() {
+    return convert_csv_database("registers.csv", "registers.rdl") ? 0 : 1;
+}
+```
+
+##### Pattern 3: Build System Integration
+
+```cpp
+#include <systemrdl/systemrdl_api.h>
+#include <filesystem>
+
+// Process all SystemRDL files in a directory
+void process_rdl_directory(const std::string& input_dir, const std::string& output_dir) {
+    std::filesystem::create_directories(output_dir);
+    
+    for (const auto& entry : std::filesystem::directory_iterator(input_dir)) {
+        if (entry.path().extension() == ".rdl") {
+            std::string input_file = entry.path().string();
+            std::string output_file = output_dir + "/" + 
+                                    entry.path().stem().string() + "_elaborated.json";
+            
+            auto result = systemrdl::file::elaborate(input_file);
+            if (result.ok()) {
+                std::ofstream output(output_file);
+                output << result.value();
+                std::cout << "✅ Processed: " << input_file << std::endl;
+            } else {
+                std::cerr << "❌ Failed to process " << input_file 
+                         << ": " << result.error() << std::endl;
+            }
+        }
+    }
+}
+```
+
+##### Pattern 4: Error Validation and Reporting
+
+```cpp
+#include <systemrdl/systemrdl_api.h>
+#include <vector>
+#include <string>
+
+struct ValidationResult {
+    std::string filename;
+    bool success;
+    std::string error_message;
+};
+
+std::vector<ValidationResult> validate_rdl_files(const std::vector<std::string>& files) {
+    std::vector<ValidationResult> results;
+    
+    for (const auto& file : files) {
+        ValidationResult result;
+        result.filename = file;
+        
+        auto parse_result = systemrdl::file::parse(file);
+        if (parse_result.ok()) {
+            // Try elaboration as well
+            auto elab_result = systemrdl::file::elaborate(file);
+            result.success = elab_result.ok();
+            result.error_message = elab_result.ok() ? "" : elab_result.error();
+        } else {
+            result.success = false;
+            result.error_message = parse_result.error();
+        }
+        
+        results.push_back(result);
+    }
+    
+    return results;
+}
+```
+
 ### Example Project
 
-See the `example/` directory for a complete working example showing library usage.
+The `example/` directory contains a complete working example demonstrating the **modern API** usage in a real C++
+project. This example shows how to integrate SystemRDL functionality into your applications without dealing with
+ANTLR4 complexity.
+
+#### What the Example Demonstrates
+
+- **🚀 Modern API Usage**: Complete demonstration of string-based operations
+- **📁 File Operations**: Reading SystemRDL files using convenient wrappers
+- **🌊 Stream Processing**: Input/output using standard C++ streams
+- **📊 CSV Integration**: Converting CSV data to SystemRDL format
+- **🛡️ Error Handling**: Robust error management with Result types
+- **🏗️ Elaboration**: Advanced SystemRDL design processing with arrays and hierarchies
+- **⚡ Performance**: Modern C++17 patterns with `string_view`
 
 To build and run the example:
 
 ```bash
-# First install the library
-cmake .. && make && sudo make install
+# First build and install the library
+mkdir build && cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
+make -j$(nproc)
+sudo make install
 
-# Then build the example
-cd example
+# Then build and run the example
+cd ../example
 mkdir build && cd build
 cmake ..
 make
 
-# Run the example
-./example_app ../test_example.rdl
+# Run the modern API demonstration
+./example_app
+```
+
+#### Example Output
+
+The example produces comprehensive output demonstrating all modern API features:
+
+```text
+🚀 SystemRDL Modern API Example
+
+📋 Example 1: Parse SystemRDL content
+✅ Parse successful!
+
+🚀 Example 2: Simple Elaboration
+✅ Elaboration successful!
+
+🎯 Example 3: Advanced Elaboration (Arrays & Complex Features)
+✅ Advanced elaboration successful!
+📊 This demonstrates:
+   • Array instantiation (mem_ctrl[4])
+   • Complex address mapping with strides  
+   • Hierarchical regfile structures
+   • Automatic gap filling and validation
+
+📊 Example 4: Convert CSV to SystemRDL
+✅ CSV conversion successful!
+
+📁 Example 5: File-based operations
+✅ File parse successful!
+✅ File elaboration successful!
+
+🌊 Example 6: Stream operations
+✅ Stream processing successful!
+
+❗ Example 7: Error handling
+✅ Error handling working correctly!
+
+💡 Key features demonstrated:
+   • Clean interface without ANTLR4 header exposure
+   • String-based input/output for ease of use
+   • Consistent error handling pattern
+   • Multiple input/output methods supported
+   • Modern C++ design patterns
 ```
 
 ### Library Dependencies
@@ -1553,7 +1901,7 @@ make
 #### Required
 
 - **CMake** 3.16 or later
-- **C++17** compatible compiler
+- **C++17** compatible compiler  
 - **ANTLR4 C++ runtime** (automatically downloaded if not using system version)
 
 #### Optional
@@ -1651,7 +1999,7 @@ make format
 make cppcheck
 
 # Run all quality checks
-make quality-check-all
+make quality-check
 ```
 
 ##### Testing
@@ -1668,7 +2016,7 @@ make test-json
 
 #### Version Information
 
-- **Version**: 1.0.0
+- **Version**: 0.1.0
 - **SystemRDL Standard**: 2.0
 - **ANTLR4 Version**: 4.13.2 (default)
 - **C++ Standard**: C++17
