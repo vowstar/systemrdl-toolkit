@@ -1,7 +1,7 @@
-# SystemRDL Toolbox
+# SystemRDL Toolkit
 
-This is a comprehensive SystemRDL toolbox based on ANTLR4 that provides parsing and elaboration capabilities for
-SystemRDL files. The toolbox includes:
+This is a comprehensive SystemRDL toolkit based on ANTLR4 that provides parsing and elaboration capabilities for
+SystemRDL files. The toolkit includes:
 
 - **Parser**: Parses SystemRDL files and generates Abstract Syntax Trees (AST)
 - **Elaborator**: Processes and elaborates the parsed SystemRDL descriptions for further analysis and code generation
@@ -245,7 +245,7 @@ The following files are generated from `SystemRDL.g4`:
 
 ## CSV to SystemRDL Converter Usage
 
-The toolbox includes a professional CSV to SystemRDL converter (`systemrdl_csv2rdl`) with advanced parsing capabilities
+The toolkit includes a professional CSV to SystemRDL converter (`systemrdl_csv2rdl`) with advanced parsing capabilities
 and comprehensive validation.
 
 ### Basic Usage

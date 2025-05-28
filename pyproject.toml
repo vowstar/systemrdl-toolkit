@@ -1,4 +1,4 @@
-# SystemRDL Toolbox Python configuration
+# SystemRDL Toolkit Python configuration
 
 [tool.black]
 line-length = 127

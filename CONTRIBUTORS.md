@@ -6,7 +6,7 @@ The primary author is Huang Rui <vowstar@gmail.com>.
 
 ## Contributors
 
-SystemRDL Toolbox exists thanks to all the people who contribute.
+SystemRDL Toolkit exists thanks to all the people who contribute.
 
 ### Special Thanks
 
