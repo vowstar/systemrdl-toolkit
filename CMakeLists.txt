@@ -1,12 +1,27 @@
 cmake_minimum_required(VERSION 3.16)
-project(SystemRDL-Toolkit)
+project(SystemRDL-Toolkit
+    VERSION 0.1.0
+    DESCRIPTION "SystemRDL parsing and elaboration toolkit library"
+    LANGUAGES CXX
+)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Enable testing
-enable_testing()
+# Include GNUInstallDirs for standard paths
+include(GNUInstallDirs)
+
+# Add options for building components
+option(SYSTEMRDL_BUILD_TOOLS "Build command-line tools" ON)
+option(SYSTEMRDL_BUILD_TESTS "Build tests" ON)
+option(SYSTEMRDL_BUILD_SHARED "Build shared library" ON)
+option(SYSTEMRDL_BUILD_STATIC "Build static library" ON)
+
+# Enable testing if requested
+if(SYSTEMRDL_BUILD_TESTS)
+    enable_testing()
+endif()
 
 # Include FetchContent module for downloading dependencies
 include(FetchContent)
@@ -101,6 +116,206 @@ else()
     set(ANTLR4_FOUND TRUE)
 endif()
 
+# ==============================================================================
+# LibSystemRDL Core Library
+# ==============================================================================
+
+# Define source files for the library
+set(SYSTEMRDL_LIB_SOURCES
+    SystemRDLLexer.cpp
+    SystemRDLParser.cpp
+    SystemRDLBaseVisitor.cpp
+    SystemRDLVisitor.cpp
+    elaborator.cpp
+)
+
+# Define public header files for the library
+set(SYSTEMRDL_LIB_PUBLIC_HEADERS
+    elaborator.h
+    SystemRDLLexer.h
+    SystemRDLParser.h
+    SystemRDLBaseVisitor.h
+    SystemRDLVisitor.h
+)
+
+# Define private header files
+set(SYSTEMRDL_LIB_PRIVATE_HEADERS
+    cmdline_parser.h
+    json_output.h
+)
+
+# Create shared library if requested
+if(SYSTEMRDL_BUILD_SHARED)
+    add_library(systemrdl_shared SHARED ${SYSTEMRDL_LIB_SOURCES})
+
+    # Set target properties
+    set_target_properties(systemrdl_shared PROPERTIES
+        OUTPUT_NAME systemrdl
+        VERSION ${PROJECT_VERSION}
+        SOVERSION ${PROJECT_VERSION_MAJOR}
+    )
+
+    # Include directories
+    target_include_directories(systemrdl_shared
+        PUBLIC
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/systemrdl>
+        PRIVATE
+            ${ANTLR4_INCLUDE_DIRS}
+    )
+
+    # Link libraries - handle ANTLR4 differently for downloaded vs system
+    if(USE_SYSTEM_ANTLR4)
+        target_link_libraries(systemrdl_shared
+            PUBLIC
+                ${ANTLR4_LIBRARIES}
+        )
+    else()
+        # For downloaded ANTLR4, we need to be more careful about dependencies
+        add_dependencies(systemrdl_shared ${ANTLR4_TARGET})
+        # Link to the built library directly
+        target_link_libraries(systemrdl_shared
+            PRIVATE
+                ${ANTLR4_TARGET}
+        )
+    endif()
+
+    # Compile options
+    target_compile_options(systemrdl_shared PRIVATE
+        ${ANTLR4_CFLAGS_OTHER}
+    )
+
+    # Set compiler warnings
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        target_compile_options(systemrdl_shared PRIVATE
+            -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
+        )
+    endif()
+
+    # Create alias for consistent naming
+    add_library(SystemRDL::systemrdl_shared ALIAS systemrdl_shared)
+endif()
+
+# Create static library if requested
+if(SYSTEMRDL_BUILD_STATIC)
+    add_library(systemrdl_static STATIC ${SYSTEMRDL_LIB_SOURCES})
+
+    # Set target properties
+    set_target_properties(systemrdl_static PROPERTIES
+        OUTPUT_NAME systemrdl_static
+        POSITION_INDEPENDENT_CODE ON
+    )
+
+    # Include directories
+    target_include_directories(systemrdl_static
+        PUBLIC
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/systemrdl>
+        PRIVATE
+            ${ANTLR4_INCLUDE_DIRS}
+    )
+
+    # Link libraries
+    if(USE_SYSTEM_ANTLR4)
+        target_link_libraries(systemrdl_static
+            PUBLIC
+                ${ANTLR4_LIBRARIES}
+        )
+    else()
+        target_link_libraries(systemrdl_static
+            PRIVATE
+                ${ANTLR4_LIBRARIES}
+        )
+        # Add dependency on ANTLR4 target when using downloaded version
+        add_dependencies(systemrdl_static ${ANTLR4_TARGET})
+        # Make sure we link to the actual library file, not the target
+        target_link_libraries(systemrdl_static PRIVATE $<TARGET_FILE:${ANTLR4_TARGET}>)
+    endif()
+
+    # Compile options
+    target_compile_options(systemrdl_static PRIVATE
+        ${ANTLR4_CFLAGS_OTHER}
+    )
+
+    # Set compiler warnings
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        target_compile_options(systemrdl_static PRIVATE
+            -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
+        )
+    endif()
+
+    # Create alias for consistent naming
+    add_library(SystemRDL::systemrdl_static ALIAS systemrdl_static)
+endif()
+
+# Create a generic alias that points to shared library if available, otherwise static
+if(SYSTEMRDL_BUILD_SHARED)
+    add_library(SystemRDL::systemrdl ALIAS systemrdl_shared)
+    set(SYSTEMRDL_MAIN_TARGET systemrdl_shared)
+elseif(SYSTEMRDL_BUILD_STATIC)
+    add_library(SystemRDL::systemrdl ALIAS systemrdl_static)
+    set(SYSTEMRDL_MAIN_TARGET systemrdl_static)
+else()
+    message(FATAL_ERROR "At least one of SYSTEMRDL_BUILD_SHARED or SYSTEMRDL_BUILD_STATIC must be ON")
+endif()
+
+# ==============================================================================
+# Command Line Tools (Optional)
+# ==============================================================================
+
+if(SYSTEMRDL_BUILD_TOOLS)
+    # Create AST printer executable
+    add_executable(systemrdl_parser
+        parser_main.cpp
+    )
+
+    # Create Elaborator executable
+    add_executable(systemrdl_elaborator
+        elaborator_main.cpp
+    )
+
+    # Create CSV to RDL converter executable
+    add_executable(systemrdl_csv2rdl
+        csv2rdl_main.cpp
+    )
+
+    # Link tools to the library
+    target_link_libraries(systemrdl_parser PRIVATE ${SYSTEMRDL_MAIN_TARGET})
+    target_link_libraries(systemrdl_elaborator PRIVATE ${SYSTEMRDL_MAIN_TARGET})
+
+    # Add ANTLR4 include directories for tools that need generated headers
+    target_include_directories(systemrdl_parser PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${ANTLR4_INCLUDE_DIRS}
+    )
+    target_include_directories(systemrdl_elaborator PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${ANTLR4_INCLUDE_DIRS}
+    )
+
+    # CSV converter doesn't need the full library, just basic includes
+    target_include_directories(systemrdl_csv2rdl PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    # Set compiler warnings for tools
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        target_compile_options(systemrdl_parser PRIVATE
+            -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
+        )
+        target_compile_options(systemrdl_elaborator PRIVATE
+            -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
+        )
+        target_compile_options(systemrdl_csv2rdl PRIVATE
+            -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
+        )
+    endif()
+endif()
+
+# ==============================================================================
+# ANTLR4 Code Generation Targets
+# ==============================================================================
+
 # Custom target to download ANTLR4 JAR file (not executed by default)
 set(ANTLR4_JAR_PATH ${CMAKE_BINARY_DIR}/antlr4-${ANTLR4_VERSION}-complete.jar)
 set(ANTLR4_DOWNLOAD_URL https://repo1.maven.org/maven2/org/antlr/antlr4/${ANTLR4_VERSION}/antlr4-${ANTLR4_VERSION}-complete.jar)
@@ -126,296 +341,273 @@ add_custom_target(generate-antlr4-cpp
     COMMENT "Generating C++ files from SystemRDL.g4 grammar"
 )
 
-# Add generated source files
-set(GENERATED_SOURCES
-    SystemRDLLexer.cpp
-    SystemRDLParser.cpp
-    SystemRDLBaseVisitor.cpp
-    SystemRDLVisitor.cpp
-)
+# ==============================================================================
+# Installation
+# ==============================================================================
 
-# Add generated header files
-set(GENERATED_HEADERS
-    SystemRDLLexer.h
-    SystemRDLParser.h
-    SystemRDLBaseVisitor.h
-    SystemRDLVisitor.h
-)
-
-# Add custom headers
-set(CUSTOM_HEADERS
-    cmdline_parser.h
-    json_output.h
-    elaborator.h
-)
-
-# Create AST printer executable
-add_executable(systemrdl_parser
-    parser_main.cpp
-    ${GENERATED_SOURCES}
-)
-
-# Create Elaborator executable
-add_executable(systemrdl_elaborator
-    elaborator_main.cpp
-    elaborator.cpp
-    ${GENERATED_SOURCES}
-)
-
-# Create CSV to RDL converter executable
-add_executable(systemrdl_csv2rdl
-    csv2rdl_main.cpp
-)
-
-# Set include directories
-target_include_directories(systemrdl_parser PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${ANTLR4_INCLUDE_DIRS}
-)
-
-target_include_directories(systemrdl_elaborator PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${ANTLR4_INCLUDE_DIRS}
-)
-
-target_include_directories(systemrdl_csv2rdl PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-# Link libraries
-target_link_libraries(systemrdl_parser
-    ${ANTLR4_LIBRARIES}
-)
-
-target_link_libraries(systemrdl_elaborator
-    ${ANTLR4_LIBRARIES}
-)
-
-# CSV converter doesn't need ANTLR4
-# target_link_libraries(systemrdl_csv2rdl)
-
-# Add dependency on ANTLR4 target when using downloaded version
-if(NOT USE_SYSTEM_ANTLR4)
-    add_dependencies(systemrdl_parser ${ANTLR4_TARGET})
-    add_dependencies(systemrdl_elaborator ${ANTLR4_TARGET})
-    # systemrdl_csv2rdl doesn't depend on ANTLR4
-endif()
-
-# Compile options
-target_compile_options(systemrdl_parser PRIVATE
-    ${ANTLR4_CFLAGS_OTHER}
-)
-
-target_compile_options(systemrdl_elaborator PRIVATE
-    ${ANTLR4_CFLAGS_OTHER}
-)
-
-# CSV converter doesn't need ANTLR4 compile options
-# target_compile_options(systemrdl_csv2rdl PRIVATE)
-
-# Set compiler warnings
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    target_compile_options(systemrdl_parser PRIVATE
-        -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
-    )
-    target_compile_options(systemrdl_elaborator PRIVATE
-        -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
-    )
-    target_compile_options(systemrdl_csv2rdl PRIVATE
-        -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
+# Install library targets
+if(SYSTEMRDL_BUILD_SHARED)
+    install(TARGETS systemrdl_shared
+        EXPORT SystemRDLTargets
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     )
 endif()
 
-# Install target (optional)
-install(TARGETS systemrdl_parser systemrdl_elaborator systemrdl_csv2rdl
-    RUNTIME DESTINATION bin
+if(SYSTEMRDL_BUILD_STATIC)
+    install(TARGETS systemrdl_static
+        EXPORT SystemRDLTargets
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
+endif()
+
+# Install tools if requested
+if(SYSTEMRDL_BUILD_TOOLS)
+    install(TARGETS systemrdl_parser systemrdl_elaborator systemrdl_csv2rdl
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+endif()
+
+# Install public headers
+install(FILES ${SYSTEMRDL_LIB_PUBLIC_HEADERS}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/systemrdl
 )
 
-# Find all RDL test files
-file(GLOB RDL_TEST_FILES "${CMAKE_SOURCE_DIR}/test/*.rdl")
+# Install CMake config files
+install(EXPORT SystemRDLTargets
+    FILE SystemRDLTargets.cmake
+    NAMESPACE SystemRDL::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SystemRDL
+)
 
-# Create tests for parser
-foreach(rdl_file ${RDL_TEST_FILES})
-    get_filename_component(test_name ${rdl_file} NAME_WE)
-    add_test(
-        NAME "parser_${test_name}"
-        COMMAND systemrdl_parser ${rdl_file}
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    )
-    set_tests_properties("parser_${test_name}" PROPERTIES
-        LABELS "parser"
-    )
-endforeach()
+# Create and install package config file
+include(CMakePackageConfigHelpers)
 
-# Create tests for elaborator
-foreach(rdl_file ${RDL_TEST_FILES})
-    get_filename_component(test_name ${rdl_file} NAME_WE)
-    add_test(
-        NAME "elaborator_${test_name}"
-        COMMAND systemrdl_elaborator ${rdl_file}
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    )
-    set_tests_properties("elaborator_${test_name}" PROPERTIES
-        LABELS "elaborator"
-    )
-endforeach()
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/SystemRDLConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/SystemRDLConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SystemRDL
+)
 
-# Find all CSV test files
-file(GLOB CSV_TEST_FILES "${CMAKE_SOURCE_DIR}/test/test_csv_*.csv")
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/SystemRDLConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
 
-# Create tests for CSV converter
-foreach(csv_file ${CSV_TEST_FILES})
-    get_filename_component(test_name ${csv_file} NAME_WE)
-    add_test(
-        NAME "csv2rdl_${test_name}"
-        COMMAND systemrdl_csv2rdl ${csv_file} -o ${test_name}.rdl
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    )
-    set_tests_properties("csv2rdl_${test_name}" PROPERTIES
-        LABELS "csv2rdl"
-    )
-endforeach()
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/SystemRDLConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/SystemRDLConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SystemRDL
+)
 
-# Find Python and markdown linting tools
-if(EXISTS "${CMAKE_SOURCE_DIR}/.venv/bin/python3")
-    # Use virtual environment Python if available
-    set(PYTHON_EXECUTABLE "${CMAKE_SOURCE_DIR}/.venv/bin/python3")
-    message(STATUS "Using Python from virtual environment: ${PYTHON_EXECUTABLE}")
-else()
-    find_program(PYTHON_EXECUTABLE
-        NAMES python3 python
-        DOC "Path to Python executable"
-    )
-endif()
+# Install pkg-config file
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/systemrdl.pc.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/systemrdl.pc"
+    @ONLY
+)
 
-# Check if we have a working Python3 interpreter
-if(PYTHON_EXECUTABLE)
-    set(Python3_FOUND TRUE)
-    message(STATUS "Python3 executable: ${PYTHON_EXECUTABLE}")
-else()
-    set(Python3_FOUND FALSE)
-    message(WARNING "Python3 not found")
-endif()
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/systemrdl.pc"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+)
 
-# Create JSON output tests if Python3 is available
-if(Python3_FOUND)
-    foreach(rdl_file ${RDL_TEST_FILES})
-        get_filename_component(test_name ${rdl_file} NAME_WE)
+# ==============================================================================
+# Tests (Optional)
+# ==============================================================================
 
-        # JSON test using unified Python script (replaces bash script)
+if(SYSTEMRDL_BUILD_TESTS)
+    # Find all RDL test files
+    file(GLOB RDL_TEST_FILES "${CMAKE_SOURCE_DIR}/test/*.rdl")
+
+    # Create tests for parser (only if tools are built)
+    if(SYSTEMRDL_BUILD_TOOLS)
+        foreach(rdl_file ${RDL_TEST_FILES})
+            get_filename_component(test_name ${rdl_file} NAME_WE)
+            add_test(
+                NAME "parser_${test_name}"
+                COMMAND systemrdl_parser ${rdl_file}
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            )
+            set_tests_properties("parser_${test_name}" PROPERTIES
+                LABELS "parser"
+            )
+        endforeach()
+
+        # Create tests for elaborator
+        foreach(rdl_file ${RDL_TEST_FILES})
+            get_filename_component(test_name ${rdl_file} NAME_WE)
+            add_test(
+                NAME "elaborator_${test_name}"
+                COMMAND systemrdl_elaborator ${rdl_file}
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            )
+            set_tests_properties("elaborator_${test_name}" PROPERTIES
+                LABELS "elaborator"
+            )
+        endforeach()
+
+        # Find all CSV test files
+        file(GLOB CSV_TEST_FILES "${CMAKE_SOURCE_DIR}/test/test_csv_*.csv")
+
+        # Create tests for CSV converter
+        foreach(csv_file ${CSV_TEST_FILES})
+            get_filename_component(test_name ${csv_file} NAME_WE)
+            add_test(
+                NAME "csv2rdl_${test_name}"
+                COMMAND systemrdl_csv2rdl ${csv_file} -o ${test_name}.rdl
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            )
+            set_tests_properties("csv2rdl_${test_name}" PROPERTIES
+                LABELS "csv2rdl"
+            )
+        endforeach()
+    endif()
+
+    # Find Python and markdown linting tools
+    if(EXISTS "${CMAKE_SOURCE_DIR}/.venv/bin/python3")
+        # Use virtual environment Python if available
+        set(PYTHON_EXECUTABLE "${CMAKE_SOURCE_DIR}/.venv/bin/python3")
+        message(STATUS "Using Python from virtual environment: ${PYTHON_EXECUTABLE}")
+    else()
+        find_program(PYTHON_EXECUTABLE
+            NAMES python3 python
+            DOC "Path to Python executable"
+        )
+    endif()
+
+    # Check if we have a working Python3 interpreter
+    if(PYTHON_EXECUTABLE)
+        set(Python3_FOUND TRUE)
+        message(STATUS "Python3 executable: ${PYTHON_EXECUTABLE}")
+    else()
+        set(Python3_FOUND FALSE)
+        message(WARNING "Python3 not found")
+    endif()
+
+    # Create JSON output tests if Python3 is available
+    if(Python3_FOUND)
+        foreach(rdl_file ${RDL_TEST_FILES})
+            get_filename_component(test_name ${rdl_file} NAME_WE)
+
+            # JSON test using unified Python script (replaces bash script)
+            add_test(
+                NAME "json_test_${test_name}"
+                COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/json_output_validator.py
+                        --test
+                        --parser ${CMAKE_BINARY_DIR}/systemrdl_parser
+                        --elaborator ${CMAKE_BINARY_DIR}/systemrdl_elaborator
+                        --rdl ${rdl_file}
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            )
+            set_tests_properties("json_test_${test_name}" PROPERTIES
+                LABELS "json;test"
+                DEPENDS "systemrdl_parser;systemrdl_elaborator"
+            )
+        endforeach()
+
+        # RDL Semantic Validation Test - validates all RDL files with Python SystemRDL compiler
         add_test(
-            NAME "json_test_${test_name}"
-            COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/json_output_validator.py
-                    --test
-                    --parser ${CMAKE_BINARY_DIR}/systemrdl_parser
-                    --elaborator ${CMAKE_BINARY_DIR}/systemrdl_elaborator
-                    --rdl ${rdl_file}
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            NAME "rdl_semantic_validation"
+            COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/rdl_semantic_validator.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         )
-        set_tests_properties("json_test_${test_name}" PROPERTIES
-            LABELS "json;test"
-            DEPENDS "systemrdl_parser;systemrdl_elaborator"
+        set_tests_properties("rdl_semantic_validation" PROPERTIES
+            LABELS "semantic;validation;rdl"
+            TIMEOUT 60
         )
+
+        # CSV2RDL Validation Test - validates CSV converter with comprehensive test suite
+        add_test(
+            NAME "csv2rdl_validation"
+            COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/csv2rdl_validator.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
+        set_tests_properties("csv2rdl_validation" PROPERTIES
+            LABELS "csv2rdl;validation"
+            TIMEOUT 120
+            DEPENDS "systemrdl_csv2rdl;systemrdl_parser"
+        )
+
+        # Create test groups for convenience
+        add_custom_target(test-json
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "json"
+            DEPENDS systemrdl_parser systemrdl_elaborator
+            COMMENT "Running JSON output tests"
+        )
+
+        add_custom_target(test-semantic
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "semantic"
+            COMMENT "Running RDL semantic validation tests"
+        )
+
+        add_custom_target(test-all
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+            DEPENDS systemrdl_parser systemrdl_elaborator
+            COMMENT "Running all tests"
+        )
+
+        add_custom_target(test-csv2rdl
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "csv2rdl"
+            DEPENDS systemrdl_csv2rdl systemrdl_parser
+            COMMENT "Running CSV2RDL converter tests"
+        )
+
+        add_custom_target(test-fast
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L json
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L semantic
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L csv2rdl
+            DEPENDS systemrdl_parser systemrdl_elaborator systemrdl_csv2rdl
+            COMMENT "Running fast tests (JSON + semantic + CSV2RDL validation)"
+        )
+    else()
+        message(WARNING "Python3 not found - JSON and semantic validation tests will be disabled")
+    endif()
+
+    # Custom target to run all tests with nice output
+    add_custom_target(run-tests
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose
+        DEPENDS systemrdl_parser systemrdl_elaborator
+        COMMENT "Running all SystemRDL tests..."
+    )
+
+    # Custom target to run only parser tests
+    add_custom_target(test-parser
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -L parser
+        DEPENDS systemrdl_parser
+        COMMENT "Running SystemRDL parser tests..."
+    )
+
+    # Custom target to run only elaborator tests
+    add_custom_target(test-elaborator
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -L elaborator
+        DEPENDS systemrdl_elaborator
+        COMMENT "Running SystemRDL elaborator tests..."
+    )
+
+    # Print configuration information
+    message(STATUS "ANTLR4 include dirs: ${ANTLR4_INCLUDE_DIRS}")
+    message(STATUS "ANTLR4 libraries: ${ANTLR4_LIBRARIES}")
+    message(STATUS "Found ${list_length} RDL test files")
+
+    # Print found test files
+    list(LENGTH RDL_TEST_FILES test_files_count)
+    message(STATUS "Found ${test_files_count} RDL test files:")
+    foreach(rdl_file ${RDL_TEST_FILES})
+        get_filename_component(test_name ${rdl_file} NAME)
+        message(STATUS "  - ${test_name}")
     endforeach()
 
-    # RDL Semantic Validation Test - validates all RDL files with Python SystemRDL compiler
-    add_test(
-        NAME "rdl_semantic_validation"
-        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/rdl_semantic_validator.py
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    )
-    set_tests_properties("rdl_semantic_validation" PROPERTIES
-        LABELS "semantic;validation;rdl"
-        TIMEOUT 60
-    )
-
-    # CSV2RDL Validation Test - validates CSV converter with comprehensive test suite
-    add_test(
-        NAME "csv2rdl_validation"
-        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/csv2rdl_validator.py
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    )
-    set_tests_properties("csv2rdl_validation" PROPERTIES
-        LABELS "csv2rdl;validation"
-        TIMEOUT 120
-        DEPENDS "systemrdl_csv2rdl;systemrdl_parser"
-    )
-
-    # Create test groups for convenience
-    add_custom_target(test-json
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "json"
-        DEPENDS systemrdl_parser systemrdl_elaborator
-        COMMENT "Running JSON output tests"
-    )
-
-    add_custom_target(test-semantic
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "semantic"
-        COMMENT "Running RDL semantic validation tests"
-    )
-
-    add_custom_target(test-all
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS systemrdl_parser systemrdl_elaborator
-        COMMENT "Running all tests"
-    )
-
-    add_custom_target(test-csv2rdl
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "csv2rdl"
-        DEPENDS systemrdl_csv2rdl systemrdl_parser
-        COMMENT "Running CSV2RDL converter tests"
-    )
-
-    add_custom_target(test-fast
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L json
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L semantic
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L csv2rdl
-        DEPENDS systemrdl_parser systemrdl_elaborator systemrdl_csv2rdl
-        COMMENT "Running fast tests (JSON + semantic + CSV2RDL validation)"
-    )
-else()
-    message(WARNING "Python3 not found - JSON and semantic validation tests will be disabled")
+    list(LENGTH CSV_TEST_FILES csv_test_files_count)
+    message(STATUS "Found ${csv_test_files_count} CSV test files:")
+    foreach(csv_file ${CSV_TEST_FILES})
+        get_filename_component(test_name ${csv_file} NAME)
+        message(STATUS "  - ${test_name}")
+    endforeach()
 endif()
-
-# Custom target to run all tests with nice output
-add_custom_target(run-tests
-    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose
-    DEPENDS systemrdl_parser systemrdl_elaborator
-    COMMENT "Running all SystemRDL tests..."
-)
-
-# Custom target to run only parser tests
-add_custom_target(test-parser
-    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -L parser
-    DEPENDS systemrdl_parser
-    COMMENT "Running SystemRDL parser tests..."
-)
-
-# Custom target to run only elaborator tests
-add_custom_target(test-elaborator
-    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose -L elaborator
-    DEPENDS systemrdl_elaborator
-    COMMENT "Running SystemRDL elaborator tests..."
-)
-
-# Print configuration information
-message(STATUS "ANTLR4 include dirs: ${ANTLR4_INCLUDE_DIRS}")
-message(STATUS "ANTLR4 libraries: ${ANTLR4_LIBRARIES}")
-message(STATUS "Found ${list_length} RDL test files")
-
-# Print found test files
-list(LENGTH RDL_TEST_FILES test_files_count)
-message(STATUS "Found ${test_files_count} RDL test files:")
-foreach(rdl_file ${RDL_TEST_FILES})
-    get_filename_component(test_name ${rdl_file} NAME)
-    message(STATUS "  - ${test_name}")
-endforeach()
-
-list(LENGTH CSV_TEST_FILES csv_test_files_count)
-message(STATUS "Found ${csv_test_files_count} CSV test files:")
-foreach(csv_file ${CSV_TEST_FILES})
-    get_filename_component(test_name ${csv_file} NAME)
-    message(STATUS "  - ${test_name}")
-endforeach()
 
 # ==============================================================================
 # Code Quality and Formatting Targets
@@ -509,7 +701,7 @@ if(CLANG_FORMAT_EXECUTABLE)
         COMMAND ${CLANG_FORMAT_EXECUTABLE} --version
         COMMAND ${CLANG_FORMAT_EXECUTABLE}
             --style=file:${CMAKE_SOURCE_DIR}/.clang-format
-            --diff
+            --dry-run
             ${CPP_SOURCE_FILES} || echo "Files shown above need formatting"
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Showing C++ formatting differences"
@@ -564,7 +756,7 @@ if(CPPCHECK_EXECUTABLE)
 
     # Run cppcheck with verbose output
     add_custom_target(cppcheck-verbose
-        COMMAND echo "Running cppcheck static analysis (verbose)..."
+        COMMAND echo "Running cppcheck static analysis verbose..."
         COMMAND ${CPPCHECK_EXECUTABLE} --version
         COMMAND ${CPPCHECK_EXECUTABLE}
             --enable=warning,style,performance
@@ -573,7 +765,7 @@ if(CPPCHECK_EXECUTABLE)
             --verbose
             ${CPP_SOURCE_FILES}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Running cppcheck static analysis (verbose)"
+        COMMENT "Running cppcheck static analysis verbose"
     )
 else()
     # Fallback targets when cppcheck is not available
@@ -674,27 +866,26 @@ if(PYMARKDOWN_AVAILABLE)
 
     # Show markdown linting rules
     add_custom_target(markdown-rules
-        COMMAND echo "Available markdown linting rules:"
+        COMMAND echo "Available PyMarkdown rules:"
         COMMAND ${PYTHON_EXECUTABLE} -m pymarkdown plugins list
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Showing available markdown linting rules"
+        COMMENT "Show available PyMarkdown rules"
     )
 else()
-    # Fallback targets when pymarkdown is not available
+    # Fallback targets when PyMarkdown is not available
     add_custom_target(markdown-lint
-        COMMAND echo "❌ PyMarkdown not found! Please install it to lint Markdown files."
-        COMMAND echo "   Install with: pip install pymarkdown"
-        COMMAND echo "   Or use requirements.txt: pip install -r requirements.txt"
+        COMMAND echo "❌ PyMarkdown not found! Please install pymarkdown to lint Markdown files."
+        COMMAND echo "   pip install pymarkdown"
         COMMAND false
     )
 
     add_custom_target(markdown-fix
-        COMMAND echo "❌ PyMarkdown not found! Please install it to fix Markdown files."
+        COMMAND echo "❌ PyMarkdown not found! Please install pymarkdown to fix Markdown files."
         COMMAND false
     )
 
     add_custom_target(markdown-rules
-        COMMAND echo "❌ PyMarkdown not found! Please install it to see markdown rules."
+        COMMAND echo "❌ PyMarkdown not found! Please install pymarkdown to show available rules."
         COMMAND false
     )
 endif()
@@ -778,3 +969,38 @@ add_custom_target(quality-help
     COMMAND echo ""
     COMMENT "Showing code quality help"
 )
+
+# ==============================================================================
+# Build Summary
+# ==============================================================================
+
+# Print configuration summary
+message(STATUS "")
+message(STATUS "SystemRDL-Toolkit Configuration Summary:")
+message(STATUS "  Version: ${PROJECT_VERSION}")
+message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
+message(STATUS "")
+message(STATUS "Build Options:")
+message(STATUS "  Build shared library: ${SYSTEMRDL_BUILD_SHARED}")
+message(STATUS "  Build static library: ${SYSTEMRDL_BUILD_STATIC}")
+message(STATUS "  Build command-line tools: ${SYSTEMRDL_BUILD_TOOLS}")
+message(STATUS "  Build tests: ${SYSTEMRDL_BUILD_TESTS}")
+message(STATUS "")
+message(STATUS "Dependencies:")
+message(STATUS "  ANTLR4 version: ${ANTLR4_VERSION}")
+message(STATUS "  Use system ANTLR4: ${USE_SYSTEM_ANTLR4}")
+message(STATUS "  Python3 found: ${Python3_FOUND}")
+if(Python3_FOUND)
+    message(STATUS "  Python executable: ${PYTHON_EXECUTABLE}")
+endif()
+message(STATUS "")
+message(STATUS "Install Locations:")
+message(STATUS "  Prefix: ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "  Libraries: ${CMAKE_INSTALL_FULL_LIBDIR}")
+message(STATUS "  Headers: ${CMAKE_INSTALL_FULL_INCLUDEDIR}/systemrdl")
+message(STATUS "  CMake config: ${CMAKE_INSTALL_FULL_LIBDIR}/cmake/SystemRDL")
+if(SYSTEMRDL_BUILD_TOOLS)
+    message(STATUS "  Executables: ${CMAKE_INSTALL_FULL_BINDIR}")
+endif()
+message(STATUS "")

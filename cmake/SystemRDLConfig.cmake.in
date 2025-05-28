@@ -1,0 +1,31 @@
+@PACKAGE_INIT@
+
+# SystemRDL CMake configuration file
+
+include(CMakeFindDependencyMacro)
+
+# Find required dependencies
+find_dependency(Threads REQUIRED)
+
+# Define version variables
+set(SYSTEMRDL_VERSION @PROJECT_VERSION@)
+set(SYSTEMRDL_VERSION_MAJOR @PROJECT_VERSION_MAJOR@)
+set(SYSTEMRDL_VERSION_MINOR @PROJECT_VERSION_MINOR@)
+set(SYSTEMRDL_VERSION_PATCH @PROJECT_VERSION_PATCH@)
+
+# Include target definitions
+include("${CMAKE_CURRENT_LIST_DIR}/SystemRDLTargets.cmake")
+
+# Define variables for backward compatibility
+set(SYSTEMRDL_FOUND TRUE)
+set(SYSTEMRDL_INCLUDE_DIRS "@CMAKE_INSTALL_FULL_INCLUDEDIR@/systemrdl")
+set(SYSTEMRDL_LIBRARIES SystemRDL::systemrdl)
+
+# Check if all requested components are available
+check_required_components(SystemRDL)
+
+# Provide helpful information
+if(SystemRDL_FOUND)
+    get_target_property(SYSTEMRDL_LOCATION SystemRDL::systemrdl LOCATION)
+    message(STATUS "Found SystemRDL: ${SYSTEMRDL_LOCATION} (found version \"${SYSTEMRDL_VERSION}\")")
+endif()
