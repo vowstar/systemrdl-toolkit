@@ -1,11 +1,11 @@
-# Contributing to SystemRDL Toolbox
+# Contributing to SystemRDL Toolkit
 
-Thank you for your interest in contributing to the SystemRDL Toolbox!
+Thank you for your interest in contributing to the SystemRDL Toolkit!
 This document provides guidelines and information for contributors.
 
 ## 🎯 Project Overview
 
-The SystemRDL Toolbox is a C++ implementation of a SystemRDL 2.0 compiler that provides:
+The SystemRDL Toolkit is a C++ implementation of a SystemRDL 2.0 compiler that provides:
 
 - High-performance SystemRDL parsing and elaboration
 - 100% compatibility with the official SystemRDL specification
@@ -26,8 +26,8 @@ The SystemRDL Toolbox is a C++ implementation of a SystemRDL 2.0 compiler that p
 1. **Clone the repository**:
 
    ```bash
-   git clone https://github.com/vowstar/systemrdltoolbox.git
-   cd systemrdltoolbox
+   git clone https://github.com/vowstar/systemrdl-toolkit.git
+   cd systemrdl-toolkit
    ```
 
 2. **Install dependencies**:
@@ -210,7 +210,7 @@ python json_output_validator.py
 ## 🏗️ Project Structure
 
 ```bash
-systemrdltoolbox/
+systemrdl-toolkit/
 ├── elaborator.h              # Main elaborator header
 ├── elaborator.cpp            # Main elaborator implementation
 ├── elaborator_main.cpp       # Elaborator executable
@@ -318,4 +318,4 @@ Contributors are recognized in:
 - **Release notes**: Major contributions highlighted
 - **GitHub contributors graph**: Automatic recognition
 
-Thank you for contributing to the SystemRDL Toolbox! 🎉
+Thank you for contributing to the SystemRDL Toolkit! 🎉

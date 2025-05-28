@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-JSON Output Validator and Tester for SystemRDL Toolbox
+JSON Output Validator and Tester for SystemRDL Toolkit
 
 This script validates the JSON output from both systemrdl_parser and systemrdl_elaborator,
 and can also run end-to-end tests to generate and validate JSON output.
