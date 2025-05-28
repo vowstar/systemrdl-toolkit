@@ -114,29 +114,46 @@ jobs:
         ./build/systemrdl_parser build/test_csv_output.rdl
         # Test example application (library integration test)
         echo "Running example application..."
-        ./build/example/example
+        ./build/example
         echo "✅ Example application completed successfully"
 
     - name: Basic functionality test - Windows MSYS2
       if: matrix.os == 'windows-latest'
       shell: msys2 {0}
       run: |
+        # Fix ANTLR4 DLL dependency issue
+        echo "=== Copying ANTLR4 runtime DLL ==="
+        if [ -f "build/_deps/antlr4_runtime-build/runtime/libantlr4-runtime.dll" ]; then
+          cp build/_deps/antlr4_runtime-build/runtime/libantlr4-runtime.dll build/
+          echo "✅ ANTLR4 DLL copied successfully"
+        else
+          echo "❌ ANTLR4 DLL not found in expected location"
+          find build/_deps -name "*antlr*.dll" -type f
+        fi
+
         # Test parser
-        ./build/systemrdl_parser --help
+        echo "=== Testing systemrdl_parser ==="
+        ./build/systemrdl_parser.exe --help
         # Test elaborator
-        ./build/systemrdl_elaborator --help
+        echo "=== Testing systemrdl_elaborator ==="
+        ./build/systemrdl_elaborator.exe --help
         # Test CSV2RDL converter
-        ./build/systemrdl_csv2rdl --help
+        echo "=== Testing systemrdl_csv2rdl ==="
+        ./build/systemrdl_csv2rdl.exe --help
         # Test with a simple SystemRDL file (use existing known-good test)
-        ./build/systemrdl_elaborator test/test_minimal.rdl --json build/test_output.json
+        echo "=== Testing elaborator with test file ==="
+        ./build/systemrdl_elaborator.exe test/test_minimal.rdl --json build/test_output.json
         cat build/test_output.json
         # Test CSV converter with basic example
-        ./build/systemrdl_csv2rdl test/test_csv_basic_example.csv -o build/test_csv_output.rdl
+        echo "=== Testing CSV converter ==="
+        ./build/systemrdl_csv2rdl.exe test/test_csv_basic_example.csv -o build/test_csv_output.rdl
         # Validate generated SystemRDL file
-        ./build/systemrdl_parser build/test_csv_output.rdl
+        echo "=== Validating generated RDL file ==="
+        ./build/systemrdl_parser.exe build/test_csv_output.rdl
         # Test example application (library integration test)
+        echo "=== Running example application ==="
         echo "Running example application..."
-        ./build/example/example
+        ./build/example.exe
         echo "✅ Example application completed successfully"
 
     - name: Run comparison tests (Ubuntu only)
