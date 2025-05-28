@@ -5,6 +5,7 @@ SystemRDL files. The toolkit includes:
 
 - **Parser**: Parses SystemRDL files and generates Abstract Syntax Trees (AST)
 - **Elaborator**: Processes and elaborates the parsed SystemRDL descriptions for further analysis and code generation
+- **Library**: Use SystemRDL functionality as a library in your C++ projects
 
 ## Dependencies
 
@@ -307,7 +308,7 @@ The converter handles multi-line descriptions properly:
 ```csv
 field_name,description
 MODE,"Operation mode selection
-- 0x0: Mode0: Foo bar  
+- 0x0: Mode0: Foo bar
 - 0x1: Mode1: Foz baz
 - 0x2: Mode2: Fooo baar
 - 0x3: Reserved"
@@ -316,6 +317,7 @@ MODE,"Operation mode selection
 #### Flexible Delimiters
 
 Automatically detects and supports:
+
 - Comma-separated values (`,`)
 - Semicolon-separated values (`;`)
 
@@ -1329,3 +1331,344 @@ development.
 
 For more information about the SystemRDL Compiler project, please visit:
 [https://github.com/SystemRDL/systemrdl-compiler](https://github.com/SystemRDL/systemrdl-compiler)
+
+## Library Usage
+
+This toolkit has been refactored to provide both a standalone library (`libsystemrdl`) and command-line tools.
+The library enables easy integration of SystemRDL parsing and elaboration capabilities into other C++ projects.
+
+### Library Features
+
+- **📚 Library Support**: Use SystemRDL functionality as a library in your C++ projects
+- **🔧 Command-line Tools**: Traditional command-line tools for parsing and elaboration
+- **🏗️ Flexible Build**: Choose between shared/static libraries and optional components
+- **📦 Modern CMake**: Full CMake package support with `find_package()` integration
+- **🔍 Code Quality**: Comprehensive testing and code quality tools
+
+### Build Options
+
+The project provides several build options to customize what gets built:
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `SYSTEMRDL_BUILD_SHARED` | `ON` | Build shared library |
+| `SYSTEMRDL_BUILD_STATIC` | `ON` | Build static library |
+| `SYSTEMRDL_BUILD_TOOLS` | `ON` | Build command-line tools |
+| `SYSTEMRDL_BUILD_TESTS` | `ON` | Build tests |
+| `USE_SYSTEM_ANTLR4` | `OFF` | Use system ANTLR4 instead of downloading |
+
+### Building the Library
+
+#### Basic Library Build
+
+```bash
+mkdir build && cd build
+cmake ..
+make -j$(nproc)
+```
+
+#### Library-Only Build
+
+If you only need the library (no command-line tools):
+
+```bash
+cmake .. -DSYSTEMRDL_BUILD_TOOLS=OFF -DSYSTEMRDL_BUILD_TESTS=OFF
+make -j$(nproc)
+```
+
+#### Installation
+
+```bash
+# Install to default location (/usr/local)
+sudo make install
+
+# Or install to custom location
+cmake .. -DCMAKE_INSTALL_PREFIX=/opt/systemrdl
+make install
+```
+
+### Using the Library in Your Project
+
+#### Method 1: CMake find_package (Recommended)
+
+```cmake
+cmake_minimum_required(VERSION 3.16)
+project(MyProject)
+
+set(CMAKE_CXX_STANDARD 17)
+
+# Find SystemRDL library
+find_package(SystemRDL REQUIRED)
+
+# Create your application
+add_executable(my_app main.cpp)
+
+# Link against SystemRDL
+target_link_libraries(my_app PRIVATE SystemRDL::systemrdl)
+```
+
+#### Method 2: pkg-config
+
+```bash
+# Check if library is found
+pkg-config --exists systemrdl && echo "SystemRDL library found"
+
+# Compile with pkg-config
+g++ -std=c++17 main.cpp $(pkg-config --cflags --libs systemrdl) -o my_app
+```
+
+#### Method 3: Direct linking
+
+```cmake
+target_link_libraries(my_app PRIVATE systemrdl)
+target_include_directories(my_app PRIVATE /usr/local/include/systemrdl)
+```
+
+### Library API Usage
+
+#### Basic Example
+
+```cpp
+#include <systemrdl/elaborator.h>
+#include <systemrdl/SystemRDLLexer.h>
+#include <systemrdl/SystemRDLParser.h>
+#include <antlr4-runtime.h>
+
+using namespace antlr4;
+using namespace systemrdl;
+
+int main() {
+    // Parse SystemRDL file
+    std::ifstream stream("design.rdl");
+    ANTLRInputStream input(stream);
+    SystemRDLLexer lexer(&input);
+    CommonTokenStream tokens(&lexer);
+    SystemRDLParser parser(&tokens);
+    auto tree = parser.root();
+
+    // Elaborate the design
+    Elaborator elaborator;
+    auto root_node = elaborator.elaborate(tree);
+
+    if (elaborator.has_errors()) {
+        // Handle errors
+        for (const auto& error : elaborator.get_errors()) {
+            std::cerr << "Error: " << error.message << std::endl;
+        }
+        return 1;
+    }
+
+    // Use the elaborated design
+    std::cout << "Design: " << root_node->inst_name << std::endl;
+    std::cout << "Type: " << root_node->get_node_type() << std::endl;
+    std::cout << "Size: " << root_node->size << " bytes" << std::endl;
+
+    return 0;
+}
+```
+
+#### Working with Address Maps
+
+```cpp
+// Create address map visitor
+AddressMapVisitor addr_visitor;
+root_node->accept_visitor(addr_visitor);
+
+// Get address layout
+const auto& address_map = addr_visitor.get_address_map();
+for (const auto& entry : address_map) {
+    std::cout << "0x" << std::hex << entry.address
+              << ": " << entry.name
+              << " (" << std::dec << entry.size << " bytes)"
+              << std::endl;
+}
+```
+
+### Available Targets
+
+#### Library Targets
+
+- **`SystemRDL::systemrdl`** - Generic target (shared if available, otherwise static)
+- **`SystemRDL::systemrdl_shared`** - Shared library
+- **`SystemRDL::systemrdl_static`** - Static library
+
+#### Command-line Tools (if enabled)
+
+- **`systemrdl_parser`** - Parse SystemRDL files and generate AST
+- **`systemrdl_elaborator`** - Parse and elaborate SystemRDL designs
+- **`systemrdl_csv2rdl`** - Convert CSV files to SystemRDL format
+
+### Library Components
+
+#### Core Classes
+
+| Class | Description |
+|-------|-------------|
+| `Elaborator` | Main elaboration engine |
+| `ElaboratedNode` | Base class for elaborated elements |
+| `ElaboratedAddrmap` | Address map component |
+| `ElaboratedRegfile` | Register file component |
+| `ElaboratedReg` | Register component |
+| `ElaboratedField` | Field component |
+| `ElaboratedMem` | Memory component |
+
+#### Visitors
+
+| Visitor | Purpose |
+|---------|---------|
+| `ElaboratedNodeVisitor` | Base visitor interface |
+| `AddressMapVisitor` | Generate address map |
+
+#### Utilities
+
+| Component | Description |
+|-----------|-------------|
+| `PropertyValue` | Property value container |
+| `ParameterDefinition` | Parameter definitions |
+| `EnumDefinition` | Enumeration definitions |
+| `StructDefinition` | Structure definitions |
+
+### Example Project
+
+See the `example/` directory for a complete working example showing library usage.
+
+To build and run the example:
+
+```bash
+# First install the library
+cmake .. && make && sudo make install
+
+# Then build the example
+cd example
+mkdir build && cd build
+cmake ..
+make
+
+# Run the example
+./example_app ../test_example.rdl
+```
+
+### Library Dependencies
+
+#### Required
+
+- **CMake** 3.16 or later
+- **C++17** compatible compiler
+- **ANTLR4 C++ runtime** (automatically downloaded if not using system version)
+
+#### Optional
+
+- **Python 3** (for testing and validation)
+- **pkg-config** (for pkg-config support)
+- **clang-format** (for code formatting)
+- **cppcheck** (for static analysis)
+
+### Advanced Library Configuration
+
+#### Custom ANTLR4 Version
+
+```bash
+# Use specific ANTLR4 version
+cmake .. -DANTLR4_VERSION=4.12.0
+
+# Use system ANTLR4
+cmake .. -DUSE_SYSTEM_ANTLR4=ON
+```
+
+#### Install Locations
+
+```bash
+# Custom install prefix
+cmake .. -DCMAKE_INSTALL_PREFIX=/opt/systemrdl
+
+# Custom library directory
+cmake .. -DCMAKE_INSTALL_LIBDIR=lib64
+```
+
+#### Build Types
+
+```bash
+# Debug build
+cmake .. -DCMAKE_BUILD_TYPE=Debug
+
+# Release build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+
+# Release with debug info
+cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
+```
+
+### Library Troubleshooting
+
+#### Library Not Found
+
+```bash
+# Check installation
+find /usr/local -name "*systemrdl*"
+
+# Set custom search path
+cmake .. -DCMAKE_PREFIX_PATH=/opt/systemrdl
+
+# Verify with pkg-config
+pkg-config --exists systemrdl && echo "Found"
+```
+
+#### Compilation Issues
+
+```bash
+# Verbose build output
+make VERBOSE=1
+
+# Check compiler requirements
+g++ --version  # Should support C++17
+
+# Check ANTLR4 installation
+find /usr -name "antlr4-runtime*"
+```
+
+#### Runtime Issues
+
+```bash
+# Check shared library path
+ldd your_app
+
+# Set LD_LIBRARY_PATH if needed
+export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+```
+
+#### Development
+
+##### Code Quality
+
+```bash
+# Check code formatting
+make format-check
+
+# Auto-format code
+make format
+
+# Run static analysis
+make cppcheck
+
+# Run all quality checks
+make quality-check-all
+```
+
+##### Testing
+
+```bash
+# Run all tests
+make test
+
+# Run specific test categories
+make test-parser
+make test-elaborator
+make test-json
+```
+
+#### Version Information
+
+- **Version**: 1.0.0
+- **SystemRDL Standard**: 2.0
+- **ANTLR4 Version**: 4.13.2 (default)
+- **C++ Standard**: C++17

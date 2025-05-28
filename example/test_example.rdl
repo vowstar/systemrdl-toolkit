@@ -1,0 +1,81 @@
+// Simple SystemRDL example for testing the library
+
+addrmap example_chip {
+    name = "Example SoC";
+    desc = "A simple example system-on-chip design";
+    
+    // Control register at base address
+    reg control_reg {
+        name = "Control Register";
+        desc = "Main control register for the system";
+        
+        field enable {
+            desc = "Enable bit for the system";
+            sw = rw;
+            hw = r;
+            reset = 1'b0;
+        }[0:0];
+        
+        field mode {
+            desc = "Operating mode selection";
+            sw = rw;
+            hw = r;
+            reset = 2'b00;
+        }[2:1];
+        
+        field reserved {
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+            reset = 0;
+        }[31:3];
+    } @ 0x0000;
+    
+    // Status register
+    reg status_reg {
+        name = "Status Register";
+        desc = "System status information";
+        
+        field ready {
+            desc = "System ready indicator";
+            sw = r;
+            hw = w;
+            reset = 1'b0;
+        }[0:0];
+        
+        field error {
+            desc = "Error status bit";
+            sw = r;
+            hw = w;
+            reset = 1'b0;
+        }[1:1];
+        
+        field version {
+            desc = "Hardware version";
+            sw = r;
+            hw = na;
+            reset = 8'h01;
+        }[15:8];
+    } @ 0x0004;
+    
+    // Data register file
+    regfile data_regs {
+        name = "Data Registers";
+        desc = "Data storage registers";
+        
+        reg data_reg {
+            name = "Data Register";
+            desc = "32-bit data storage";
+            
+            field data {
+                desc = "Data field";
+                sw = rw;
+                hw = rw;
+                reset = 0;
+            }[31:0];
+        };
+        
+        data_reg data[4] @ 0x0000 += 0x4;
+    } @ 0x0100;
+    
+} @ 0x0000_0000; 
