@@ -1,81 +1,76 @@
 // Simple SystemRDL example for testing the library
 
 addrmap example_chip {
-    name = "Example SoC";
-    desc = "A simple example system-on-chip design";
-    
-    // Control register at base address
-    reg control_reg {
+    name = "Example Chip";
+    desc = "A simple example chip for demonstrating SystemRDL library usage";
+
+    reg {
         name = "Control Register";
-        desc = "Main control register for the system";
-        
-        field enable {
-            desc = "Enable bit for the system";
+        desc = "Main control register";
+        regwidth = 32;
+
+        field {
+            name = "ENABLE";
+            desc = "Enable control bit";
             sw = rw;
             hw = r;
-            reset = 1'b0;
-        }[0:0];
-        
-        field mode {
-            desc = "Operating mode selection";
+        } enable[0:0] = 0;
+
+        field {
+            name = "MODE";
+            desc = "Operation mode selection";
             sw = rw;
             hw = r;
-            reset = 2'b00;
-        }[2:1];
-        
-        field reserved {
+        } mode[2:1] = 0;
+
+        field {
+            name = "RESERVED";
             desc = "Reserved bits";
             sw = r;
             hw = na;
-            reset = 0;
-        }[31:3];
-    } @ 0x0000;
-    
-    // Status register
-    reg status_reg {
+        } reserved[31:3] = 0;
+
+    } control_reg @ 0x0000;
+
+    reg {
         name = "Status Register";
-        desc = "System status information";
-        
-        field ready {
-            desc = "System ready indicator";
+        desc = "Status and error reporting";
+        regwidth = 32;
+
+        field {
+            name = "READY";
+            desc = "System ready status";
             sw = r;
             hw = w;
-            reset = 1'b0;
-        }[0:0];
-        
-        field error {
-            desc = "Error status bit";
+        } ready[0:0] = 0;
+
+        field {
+            name = "ERROR";
+            desc = "Error flag";
             sw = r;
             hw = w;
-            reset = 1'b0;
-        }[1:1];
-        
-        field version {
-            desc = "Hardware version";
+        } error[1:1] = 0;
+
+        field {
+            name = "COUNT";
+            desc = "Status counter";
             sw = r;
-            hw = na;
-            reset = 8'h01;
-        }[15:8];
-    } @ 0x0004;
-    
-    // Data register file
-    regfile data_regs {
-        name = "Data Registers";
-        desc = "Data storage registers";
-        
-        reg data_reg {
+            hw = w;
+        } count[15:8] = 0;
+
+    } status_reg @ 0x0004;
+
+    reg {
             name = "Data Register";
-            desc = "32-bit data storage";
-            
-            field data {
-                desc = "Data field";
+        desc = "Data input/output register";
+        regwidth = 32;
+
+        field {
+            name = "DATA";
+            desc = "32-bit data field";
                 sw = rw;
                 hw = rw;
-                reset = 0;
-            }[31:0];
+        } data[31:0] = 0x12345678;
+
+    } data_reg @ 0x0008;
         };
-        
-        data_reg data[4] @ 0x0000 += 0x4;
-    } @ 0x0100;
-    
-} @ 0x0000_0000; 

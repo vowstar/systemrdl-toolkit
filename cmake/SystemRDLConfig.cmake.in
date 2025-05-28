@@ -29,3 +29,4 @@ if(SystemRDL_FOUND)
     get_target_property(SYSTEMRDL_LOCATION SystemRDL::systemrdl LOCATION)
     message(STATUS "Found SystemRDL: ${SYSTEMRDL_LOCATION} (found version \"${SYSTEMRDL_VERSION}\")")
 endif()
+ 
