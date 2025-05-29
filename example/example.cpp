@@ -228,10 +228,13 @@ int main()
         std::string csv_content
             = "addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,"
               "field_msb,reset_value,sw_access,hw_access,description\n"
-              "0x0000,DEMO,0x0000,CTRL,32,ENABLE,0,0,0,RW,RW,Enable control bit\n"
-              "0x0000,DEMO,0x0000,CTRL,32,MODE,2,1,0,RW,RW,Operation mode\n"
-              "0x0000,DEMO,0x0004,STATUS,32,READY,0,0,0,RO,RO,Ready status\n"
-              "0x0000,DEMO,0x0004,STATUS,32,ERROR,1,1,0,RO,RO,Error flag\n";
+              "0x0000,DEMO,,,,,,,,,,\n"
+              ",,0x0000,CTRL,32,,,,,,,Control register\n"
+              ",,,,,ENABLE,0,0,0,RW,RW,Enable control bit\n"
+              ",,,,,MODE,1,2,0,RW,RW,Operation mode\n"
+              ",,0x0004,STATUS,32,,,,,,,Status register\n"
+              ",,,,,READY,0,0,0,RO,RO,Ready status\n"
+              ",,,,,ERROR,1,1,0,RO,RO,Error flag\n";
 
         auto result = systemrdl::csv_to_rdl(csv_content);
         if (result.ok()) {
