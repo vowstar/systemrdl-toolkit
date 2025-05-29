@@ -102,6 +102,27 @@ else()
     # Enable position independent code for shared library compatibility
     set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE BOOL "Enable PIC for ANTLR4" FORCE)
 
+    # Configure ANTLR4 library type based on platform needs
+    # On Windows, we need shared ANTLR4 for shared SystemRDL to avoid DLL import/export issues
+    # On Unix, we prefer static ANTLR4 to avoid the mixed static/shared runtime issues we fixed
+
+    # Preserve the original BUILD_SHARED_LIBS setting
+    if(DEFINED BUILD_SHARED_LIBS)
+        set(ORIGINAL_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+    else()
+        set(ORIGINAL_BUILD_SHARED_LIBS OFF)
+    endif()
+
+    if(WIN32 AND SYSTEMRDL_BUILD_SHARED)
+        # On Windows, if we're building shared SystemRDL, we need shared ANTLR4
+        set(BUILD_SHARED_LIBS ON)
+        message(STATUS "Configuring ANTLR4 to build shared library for Windows DLL compatibility")
+    else()
+        # On Unix or if only building static SystemRDL, use static ANTLR4
+        set(BUILD_SHARED_LIBS OFF)
+        message(STATUS "Configuring ANTLR4 to build static library")
+    endif()
+
     FetchContent_Declare(
         antlr4_runtime
         URL https://github.com/antlr/antlr4/archive/refs/tags/${ANTLR4_VERSION}.tar.gz
@@ -111,10 +132,23 @@ else()
 
     FetchContent_MakeAvailable(antlr4_runtime)
 
+    # Restore the original BUILD_SHARED_LIBS setting
+    set(BUILD_SHARED_LIBS ${ORIGINAL_BUILD_SHARED_LIBS})
+
     # Set variables for downloaded version
     set(ANTLR4_INCLUDE_DIRS ${antlr4_runtime_SOURCE_DIR}/runtime/Cpp/runtime/src)
-    set(ANTLR4_LIBRARIES antlr4_static)
-    set(ANTLR4_TARGET antlr4_static)
+    if(WIN32 AND SYSTEMRDL_BUILD_SHARED)
+        # On Windows with shared SystemRDL, use shared ANTLR4
+        set(ANTLR4_LIBRARIES antlr4_shared)
+        set(ANTLR4_TARGET antlr4_shared)
+        message(STATUS "Using shared ANTLR4 library for Windows DLL compatibility")
+    else()
+        # Otherwise use static ANTLR4
+        set(ANTLR4_LIBRARIES antlr4_static)
+        set(ANTLR4_TARGET antlr4_static)
+        message(STATUS "Using static ANTLR4 library")
+    endif()
+    set(ANTLR4_SHARED_TARGET antlr4_shared)
     set(ANTLR4_FOUND TRUE)
 endif()
 
@@ -175,21 +209,14 @@ if(SYSTEMRDL_BUILD_SHARED)
                 ${ANTLR4_LIBRARIES}
         )
     else()
-        # For downloaded ANTLR4, prefer shared library if available, otherwise use static with PIC
+        # For downloaded ANTLR4, use the target we determined above
         add_dependencies(systemrdl_shared ${ANTLR4_TARGET})
-        # Check if shared ANTLR4 library is available
-        if(TARGET antlr4_shared)
-            add_dependencies(systemrdl_shared antlr4_shared)
-            target_link_libraries(systemrdl_shared
-                PRIVATE
-                    $<TARGET_FILE:antlr4_shared>
-            )
-        else()
-            target_link_libraries(systemrdl_shared
-                PRIVATE
-                    $<TARGET_FILE:${ANTLR4_TARGET}>
-            )
-        endif()
+        # Always use library file path to avoid CMake export issues with external FetchContent targets
+        # Use TARGET_LINKER_FILE to get the correct library for linking (import lib on Windows, .a/.so on Unix)
+        target_link_libraries(systemrdl_shared
+            PRIVATE
+                $<TARGET_LINKER_FILE:${ANTLR4_TARGET}>
+        )
     endif()
 
     # Compile options
@@ -238,7 +265,7 @@ if(SYSTEMRDL_BUILD_STATIC)
         add_dependencies(systemrdl_static ${ANTLR4_TARGET})
         target_link_libraries(systemrdl_static
             PRIVATE
-                $<TARGET_FILE:${ANTLR4_TARGET}>
+                $<TARGET_LINKER_FILE:${ANTLR4_TARGET}>
         )
     endif()
 
@@ -269,6 +296,14 @@ else()
     message(FATAL_ERROR "At least one of SYSTEMRDL_BUILD_SHARED or SYSTEMRDL_BUILD_STATIC must be ON")
 endif()
 
+# For tools that directly link to ANTLR4, prefer static linking to avoid mixing
+# If we have both shared and static SystemRDL libraries built, prefer static for tools to avoid conflicts
+if(SYSTEMRDL_BUILD_STATIC)
+    set(SYSTEMRDL_TOOLS_TARGET systemrdl_static)
+else()
+    set(SYSTEMRDL_TOOLS_TARGET ${SYSTEMRDL_MAIN_TARGET})
+endif()
+
 # ==============================================================================
 # Command Line Tools (Optional)
 # ==============================================================================
@@ -295,8 +330,8 @@ add_executable(example
 )
 
     # Link tools to the library
-    target_link_libraries(systemrdl_parser PRIVATE ${SYSTEMRDL_MAIN_TARGET})
-    target_link_libraries(systemrdl_elaborator PRIVATE ${SYSTEMRDL_MAIN_TARGET})
+    target_link_libraries(systemrdl_parser PRIVATE ${SYSTEMRDL_TOOLS_TARGET})
+    target_link_libraries(systemrdl_elaborator PRIVATE ${SYSTEMRDL_TOOLS_TARGET})
     target_link_libraries(example PRIVATE ${SYSTEMRDL_MAIN_TARGET})
 
     # Tools also need direct access to ANTLR4 since they use ANTLR4 classes directly
@@ -304,18 +339,12 @@ add_executable(example
         target_link_libraries(systemrdl_parser PRIVATE ${ANTLR4_LIBRARIES})
         target_link_libraries(systemrdl_elaborator PRIVATE ${ANTLR4_LIBRARIES})
     else()
-        # Link to ANTLR4 shared library if available, otherwise static
-        if(TARGET antlr4_shared)
-            target_link_libraries(systemrdl_parser PRIVATE $<TARGET_FILE:antlr4_shared>)
-            target_link_libraries(systemrdl_elaborator PRIVATE $<TARGET_FILE:antlr4_shared>)
-            add_dependencies(systemrdl_parser antlr4_shared)
-            add_dependencies(systemrdl_elaborator antlr4_shared)
-        else()
-            target_link_libraries(systemrdl_parser PRIVATE $<TARGET_FILE:${ANTLR4_TARGET}>)
-            target_link_libraries(systemrdl_elaborator PRIVATE $<TARGET_FILE:${ANTLR4_TARGET}>)
-            add_dependencies(systemrdl_parser ${ANTLR4_TARGET})
-            add_dependencies(systemrdl_elaborator ${ANTLR4_TARGET})
-        endif()
+        # For downloaded ANTLR4, use the same target as determined for the platform
+        # Don't mix static and shared - use only the target we configured
+        target_link_libraries(systemrdl_parser PRIVATE $<TARGET_LINKER_FILE:${ANTLR4_TARGET}>)
+        target_link_libraries(systemrdl_elaborator PRIVATE $<TARGET_LINKER_FILE:${ANTLR4_TARGET}>)
+        add_dependencies(systemrdl_parser ${ANTLR4_TARGET})
+        add_dependencies(systemrdl_elaborator ${ANTLR4_TARGET})
     endif()
 
     # Add ANTLR4 include directories for tools that need generated headers
@@ -481,17 +510,17 @@ endforeach()
 # Create tests for elaborator
 foreach(rdl_file ${RDL_TEST_FILES})
     get_filename_component(test_name ${rdl_file} NAME_WE)
-    
+
     # Check if this file is expected to fail elaboration
     file(READ ${rdl_file} file_content)
     string(FIND "${file_content}" "EXPECT_ELABORATION_FAILURE" expect_failure_pos)
-    
+
     add_test(
         NAME "elaborator_${test_name}"
         COMMAND systemrdl_elaborator ${rdl_file}
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
-    
+
     # Set test properties
     if(expect_failure_pos GREATER -1)
         # This test is expected to fail (elaborator should return non-zero exit code)
