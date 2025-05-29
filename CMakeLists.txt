@@ -197,7 +197,7 @@ else()
     message(STATUS "Downloading Inja template engine version ${INJA_VERSION}")
 
     # Configure Inja build options before FetchContent - disable all unnecessary components
-    set(INJA_USE_EMBEDDED_JSON ON CACHE BOOL "Use embedded JSON for Inja" FORCE)
+    set(INJA_USE_EMBEDDED_JSON OFF CACHE BOOL "Use embedded JSON for Inja" FORCE)
     set(INJA_INSTALL OFF CACHE BOOL "Install Inja" FORCE)
     set(INJA_INSTALL_SINGLE_HEADER OFF CACHE BOOL "Install Inja single header" FORCE)
     set(INJA_EXPORT OFF CACHE BOOL "Export Inja" FORCE)
@@ -215,6 +215,69 @@ else()
     set(INJA_INCLUDE_DIRS ${inja_SOURCE_DIR}/single_include)
     set(INJA_FOUND TRUE)
     message(STATUS "Using downloaded Inja template engine")
+endif()
+
+# ==============================================================================
+# nlohmann/json Library (Header-only)
+# ==============================================================================
+
+# Option to control nlohmann/json usage
+option(USE_SYSTEM_NLOHMANN_JSON "Use system-installed nlohmann/json library" OFF)
+
+# nlohmann/json version to use when not using system version
+if(NOT NLOHMANN_JSON_VERSION)
+    if(DEFINED ENV{NLOHMANN_JSON_VERSION})
+        set(NLOHMANN_JSON_VERSION $ENV{NLOHMANN_JSON_VERSION})
+        message(STATUS "Using nlohmann/json version from environment variable: ${NLOHMANN_JSON_VERSION}")
+    else()
+        set(NLOHMANN_JSON_VERSION "v3.12.0")
+        message(STATUS "Using default nlohmann/json version: ${NLOHMANN_JSON_VERSION}")
+    endif()
+else()
+    message(STATUS "Using nlohmann/json version from command line: ${NLOHMANN_JSON_VERSION}")
+endif()
+
+if(USE_SYSTEM_NLOHMANN_JSON)
+    # Use system nlohmann/json
+    message(STATUS "Using system nlohmann/json library")
+
+    find_path(NLOHMANN_JSON_INCLUDE_DIR
+        NAMES nlohmann/json.hpp
+        PATHS
+            /usr/include
+            /usr/local/include
+            /opt/nlohmann/include
+    )
+
+    if(NLOHMANN_JSON_INCLUDE_DIR)
+        set(NLOHMANN_JSON_FOUND TRUE)
+        set(NLOHMANN_JSON_INCLUDE_DIRS ${NLOHMANN_JSON_INCLUDE_DIR})
+        message(STATUS "Found system nlohmann/json: ${NLOHMANN_JSON_INCLUDE_DIR}")
+    else()
+        message(FATAL_ERROR "nlohmann/json library not found. Please install nlohmann-json3-dev or similar package, or set USE_SYSTEM_NLOHMANN_JSON=OFF to download automatically.")
+    endif()
+
+else()
+    # Download nlohmann/json using FetchContent
+    message(STATUS "Downloading nlohmann/json library version ${NLOHMANN_JSON_VERSION}")
+
+    # Configure nlohmann/json build options before FetchContent - disable all unnecessary components
+    set(JSON_BuildTests OFF CACHE BOOL "Build nlohmann/json tests" FORCE)
+    set(JSON_Install OFF CACHE BOOL "Install nlohmann/json" FORCE)
+    set(JSON_MultipleHeaders OFF CACHE BOOL "Use non-amalgamated version of nlohmann/json" FORCE)
+
+    FetchContent_Declare(
+        nlohmann_json
+        URL https://github.com/nlohmann/json/archive/refs/tags/${NLOHMANN_JSON_VERSION}.tar.gz
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+
+    FetchContent_MakeAvailable(nlohmann_json)
+
+    # Set variables for downloaded version
+    set(NLOHMANN_JSON_INCLUDE_DIRS ${nlohmann_json_SOURCE_DIR}/single_include)
+    set(NLOHMANN_JSON_FOUND TRUE)
+    message(STATUS "Using downloaded nlohmann/json library")
 endif()
 
 # ==============================================================================
@@ -244,7 +307,6 @@ set(SYSTEMRDL_LIB_PUBLIC_HEADERS
 # Define private header files
 set(SYSTEMRDL_LIB_PRIVATE_HEADERS
     cmdline_parser.h
-    json_output.h
 )
 
 # Create shared library if requested
@@ -266,6 +328,7 @@ if(SYSTEMRDL_BUILD_SHARED)
         PRIVATE
             ${ANTLR4_INCLUDE_DIRS}
             ${INJA_INCLUDE_DIRS}
+            ${NLOHMANN_JSON_INCLUDE_DIRS}
     )
 
     # Link libraries - handle ANTLR4 differently for downloaded vs system
@@ -319,6 +382,7 @@ if(SYSTEMRDL_BUILD_STATIC)
         PRIVATE
             ${ANTLR4_INCLUDE_DIRS}
             ${INJA_INCLUDE_DIRS}
+            ${NLOHMANN_JSON_INCLUDE_DIRS}
     )
 
     # Link libraries
@@ -427,15 +491,18 @@ add_executable(example
 target_include_directories(systemrdl_parser PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${ANTLR4_INCLUDE_DIRS}
+    ${NLOHMANN_JSON_INCLUDE_DIRS}
 )
 target_include_directories(systemrdl_elaborator PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${ANTLR4_INCLUDE_DIRS}
+    ${NLOHMANN_JSON_INCLUDE_DIRS}
 )
 target_include_directories(systemrdl_render PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${ANTLR4_INCLUDE_DIRS}
     ${INJA_INCLUDE_DIRS}
+    ${NLOHMANN_JSON_INCLUDE_DIRS}
 )
 target_include_directories(example PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}

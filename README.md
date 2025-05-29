@@ -1397,7 +1397,6 @@ The project includes 16 comprehensive test files covering various SystemRDL feat
 - `elaborator_main.cpp` - Main program for the SystemRDL elaborator with JSON export capability
 - `elaborator.cpp/.h` - Elaboration engine implementation for semantic analysis
 - `cmdline_parser.h` - Command line argument parsing utilities
-- `json_output.h` - JSON output formatting and export functions
 - `CMakeLists.txt` - CMake build configuration with integrated testing and ANTLR4 management
 
 ### CSV to SystemRDL Converter
@@ -2323,3 +2322,7 @@ make test-json
 - **SystemRDL Standard**: 2.0
 - **ANTLR4 Version**: 4.13.2 (default)
 - **C++ Standard**: C++17
+
+#### Private Headers (Implementation Details)
+
+- `cmdline_parser.h` - Command-line argument parsing utilities
