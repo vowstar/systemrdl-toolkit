@@ -2,7 +2,7 @@
 #include "SystemRDLParser.h"
 #include "antlr4-runtime.h"
 #include "cmdline_parser.h"
-#include "json_output.h"
+#include "systemrdl_api.h"
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -70,6 +70,28 @@ void printAST(tree::ParseTree *tree, SystemRDLParser *parser, int depth = 0)
     }
 }
 
+// Helper function to generate default JSON filename
+std::string get_default_json_filename(const std::string &input_file, const std::string &suffix = "")
+{
+    // Simple basename extraction
+    size_t last_slash = input_file.find_last_of("/\\");
+    size_t last_dot   = input_file.find_last_of('.');
+
+    std::string basename;
+    if (last_slash != std::string::npos) {
+        basename = input_file.substr(last_slash + 1);
+    } else {
+        basename = input_file;
+    }
+
+    if (last_dot != std::string::npos && last_dot > last_slash) {
+        size_t trim_pos = last_dot - (last_slash != std::string::npos ? last_slash + 1 : 0);
+        basename.resize(trim_pos);
+    }
+
+    return basename + suffix + ".json";
+}
+
 int main(int argc, char *argv[])
 {
     // Setup command line parser
@@ -131,17 +153,27 @@ int main(int argc, char *argv[])
         if (cmdline.is_set("json")) {
             std::string output_file = cmdline.get_value("json");
 
-            // If no filename provided, use default
+            // If no filename provided, generate default
             if (output_file.empty()) {
                 output_file = get_default_json_filename(inputFile, "_ast");
             }
 
             std::cout << "\n🔧 Generating JSON output..." << std::endl;
 
-            ASTToJsonConverter converter;
-            std::string        json_content = converter.convert_to_json(tree, &parser);
-
-            if (!write_json_to_file(json_content, output_file)) {
+            // Use unified API for consistent JSON output
+            systemrdl::Result result = systemrdl::file::parse(inputFile);
+            if (result.ok()) {
+                std::ofstream outFile(output_file);
+                if (outFile.is_open()) {
+                    outFile << result.value();
+                    outFile.close();
+                    std::cout << "✅ JSON output written to: " << output_file << std::endl;
+                } else {
+                    std::cerr << "❌ Failed to write JSON output to: " << output_file << std::endl;
+                    return 1;
+                }
+            } else {
+                std::cerr << "❌ Failed to generate JSON: " << result.error() << std::endl;
                 return 1;
             }
         }
