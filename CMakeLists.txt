@@ -153,6 +153,71 @@ else()
 endif()
 
 # ==============================================================================
+# Inja Template Engine (Header-only)
+# ==============================================================================
+
+# Option to control Inja usage
+option(USE_SYSTEM_INJA "Use system-installed Inja template engine" OFF)
+
+# Inja version to use when not using system version
+if(NOT INJA_VERSION)
+    if(DEFINED ENV{INJA_VERSION})
+        set(INJA_VERSION $ENV{INJA_VERSION})
+        message(STATUS "Using Inja version from environment variable: ${INJA_VERSION}")
+    else()
+        set(INJA_VERSION "3c58486e20d26467ae41161237a989a7b9960dd3")
+        message(STATUS "Using default Inja version: ${INJA_VERSION}")
+    endif()
+else()
+    message(STATUS "Using Inja version from command line: ${INJA_VERSION}")
+endif()
+
+if(USE_SYSTEM_INJA)
+    # Use system Inja
+    message(STATUS "Using system Inja template engine")
+
+    find_path(INJA_INCLUDE_DIR
+        NAMES inja.hpp
+        PATHS
+            /usr/include/inja
+            /usr/local/include/inja
+            /opt/inja/single_include/inja
+    )
+
+    if(INJA_INCLUDE_DIR)
+        set(INJA_FOUND TRUE)
+        set(INJA_INCLUDE_DIRS ${INJA_INCLUDE_DIR})
+        message(STATUS "Found system Inja: ${INJA_INCLUDE_DIR}")
+    else()
+        message(FATAL_ERROR "Inja template engine not found. Please install inja or set USE_SYSTEM_INJA=OFF to download automatically.")
+    endif()
+
+else()
+    # Download Inja using FetchContent
+    message(STATUS "Downloading Inja template engine version ${INJA_VERSION}")
+
+    # Configure Inja build options before FetchContent - disable all unnecessary components
+    set(INJA_USE_EMBEDDED_JSON ON CACHE BOOL "Use embedded JSON for Inja" FORCE)
+    set(INJA_INSTALL OFF CACHE BOOL "Install Inja" FORCE)
+    set(INJA_INSTALL_SINGLE_HEADER OFF CACHE BOOL "Install Inja single header" FORCE)
+    set(INJA_EXPORT OFF CACHE BOOL "Export Inja" FORCE)
+    set(INJA_BUILD_TESTS OFF CACHE BOOL "Build Inja tests" FORCE)
+
+    FetchContent_Declare(
+        inja
+        URL https://github.com/vowstar/inja/archive/${INJA_VERSION}.tar.gz
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+
+    FetchContent_MakeAvailable(inja)
+
+    # Set variables for downloaded version
+    set(INJA_INCLUDE_DIRS ${inja_SOURCE_DIR}/single_include)
+    set(INJA_FOUND TRUE)
+    message(STATUS "Using downloaded Inja template engine")
+endif()
+
+# ==============================================================================
 # LibSystemRDL Core Library
 # ==============================================================================
 
@@ -200,6 +265,7 @@ if(SYSTEMRDL_BUILD_SHARED)
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/systemrdl>
         PRIVATE
             ${ANTLR4_INCLUDE_DIRS}
+            ${INJA_INCLUDE_DIRS}
     )
 
     # Link libraries - handle ANTLR4 differently for downloaded vs system
@@ -252,6 +318,7 @@ if(SYSTEMRDL_BUILD_STATIC)
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/systemrdl>
         PRIVATE
             ${ANTLR4_INCLUDE_DIRS}
+            ${INJA_INCLUDE_DIRS}
     )
 
     # Link libraries
@@ -324,6 +391,11 @@ add_executable(systemrdl_csv2rdl
     csv2rdl_main.cpp
 )
 
+# Create template renderer executable
+add_executable(systemrdl_render
+    render_main.cpp
+)
+
 # Create example application
 add_executable(example
     example/example.cpp
@@ -332,19 +404,23 @@ add_executable(example
     # Link tools to the library
     target_link_libraries(systemrdl_parser PRIVATE ${SYSTEMRDL_TOOLS_TARGET})
     target_link_libraries(systemrdl_elaborator PRIVATE ${SYSTEMRDL_TOOLS_TARGET})
+    target_link_libraries(systemrdl_render PRIVATE ${SYSTEMRDL_TOOLS_TARGET})
     target_link_libraries(example PRIVATE ${SYSTEMRDL_MAIN_TARGET})
 
     # Tools also need direct access to ANTLR4 since they use ANTLR4 classes directly
     if(USE_SYSTEM_ANTLR4)
         target_link_libraries(systemrdl_parser PRIVATE ${ANTLR4_LIBRARIES})
         target_link_libraries(systemrdl_elaborator PRIVATE ${ANTLR4_LIBRARIES})
+        target_link_libraries(systemrdl_render PRIVATE ${ANTLR4_LIBRARIES})
     else()
         # For downloaded ANTLR4, use the same target as determined for the platform
         # Don't mix static and shared - use only the target we configured
         target_link_libraries(systemrdl_parser PRIVATE $<TARGET_LINKER_FILE:${ANTLR4_TARGET}>)
         target_link_libraries(systemrdl_elaborator PRIVATE $<TARGET_LINKER_FILE:${ANTLR4_TARGET}>)
+        target_link_libraries(systemrdl_render PRIVATE $<TARGET_LINKER_FILE:${ANTLR4_TARGET}>)
         add_dependencies(systemrdl_parser ${ANTLR4_TARGET})
         add_dependencies(systemrdl_elaborator ${ANTLR4_TARGET})
+        add_dependencies(systemrdl_render ${ANTLR4_TARGET})
     endif()
 
     # Add ANTLR4 include directories for tools that need generated headers
@@ -355,6 +431,11 @@ target_include_directories(systemrdl_parser PRIVATE
 target_include_directories(systemrdl_elaborator PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${ANTLR4_INCLUDE_DIRS}
+)
+target_include_directories(systemrdl_render PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${ANTLR4_INCLUDE_DIRS}
+    ${INJA_INCLUDE_DIRS}
 )
 target_include_directories(example PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -371,6 +452,9 @@ target_include_directories(systemrdl_csv2rdl PRIVATE
             -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
         )
         target_compile_options(systemrdl_elaborator PRIVATE
+            -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
+        )
+        target_compile_options(systemrdl_render PRIVATE
             -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
         )
         target_compile_options(systemrdl_csv2rdl PRIVATE
@@ -436,7 +520,7 @@ endif()
 
 # Install tools if requested
 if(SYSTEMRDL_BUILD_TOOLS)
-    install(TARGETS systemrdl_parser systemrdl_elaborator systemrdl_csv2rdl example
+    install(TARGETS systemrdl_parser systemrdl_elaborator systemrdl_csv2rdl systemrdl_render example
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 endif()
@@ -551,7 +635,7 @@ foreach(csv_file ${CSV_TEST_FILES})
         LABELS "csv2rdl"
     )
 endforeach()
-    endif()
+endif()
 
 # Find Python and markdown linting tools
 if(EXISTS "${CMAKE_SOURCE_DIR}/.venv/bin/python3")
@@ -618,6 +702,18 @@ if(Python3_FOUND)
         DEPENDS "systemrdl_csv2rdl;systemrdl_parser"
     )
 
+    # Template Rendering Validation Test - validates template rendering with various templates
+    add_test(
+        NAME "template_render_validation"
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/template_render_validator.py
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    set_tests_properties("template_render_validation" PROPERTIES
+        LABELS "template;validation;render"
+        TIMEOUT 180
+        DEPENDS "systemrdl_render"
+    )
+
     # Create test groups for convenience
     add_custom_target(test-json
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "json"
@@ -642,6 +738,12 @@ if(Python3_FOUND)
         COMMENT "Running CSV2RDL converter tests"
     )
 
+    add_custom_target(test-template
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "template"
+        DEPENDS systemrdl_render
+        COMMENT "Running template rendering tests"
+    )
+
     # Custom target to run example tests (if example is built)
     if(TARGET example)
         add_custom_target(test-example
@@ -658,15 +760,16 @@ if(Python3_FOUND)
         )
     endif()
 
-    # Custom target to run fast tests (JSON + semantic + CSV2RDL + example)
+    # Custom target to run fast tests (JSON + semantic + CSV2RDL + template + example)
     add_custom_target(test-fast
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L json
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L semantic
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L csv2rdl
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L template
         COMMAND echo "Running example integration test..."
         COMMAND ${CMAKE_COMMAND} --build . --target test-example
-        DEPENDS systemrdl_parser systemrdl_elaborator systemrdl_csv2rdl
-        COMMENT "Running fast tests (JSON + semantic + CSV2RDL + example validation)"
+        DEPENDS systemrdl_parser systemrdl_elaborator systemrdl_csv2rdl systemrdl_render
+        COMMENT "Running fast tests (JSON + semantic + CSV2RDL + template + example validation)"
     )
 else()
     message(WARNING "Python3 not found - JSON and semantic validation tests will be disabled")
@@ -752,6 +855,7 @@ file(GLOB_RECURSE CPP_SOURCE_FILES
     "${CMAKE_SOURCE_DIR}/elaborator_main.cpp"
     "${CMAKE_SOURCE_DIR}/parser_main.cpp"
     "${CMAKE_SOURCE_DIR}/csv2rdl_main.cpp"
+    "${CMAKE_SOURCE_DIR}/render_main.cpp"
     "${CMAKE_SOURCE_DIR}/example/*.cpp"
     "${CMAKE_SOURCE_DIR}/*.h"
 )
@@ -1104,6 +1208,8 @@ message(STATUS "")
 message(STATUS "Dependencies:")
 message(STATUS "  ANTLR4 version: ${ANTLR4_VERSION}")
 message(STATUS "  Use system ANTLR4: ${USE_SYSTEM_ANTLR4}")
+message(STATUS "  Inja version: ${INJA_VERSION}")
+message(STATUS "  Use system Inja: ${USE_SYSTEM_INJA}")
 message(STATUS "  Python3 found: ${Python3_FOUND}")
 if(Python3_FOUND)
     message(STATUS "  Python executable: ${PYTHON_EXECUTABLE}")

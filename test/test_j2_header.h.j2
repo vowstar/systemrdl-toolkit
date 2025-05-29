@@ -1,0 +1,33 @@
+/*
+ * Auto-generated C header file from SystemRDL
+ */
+
+{% set addrmap = model | first -%}
+#ifndef {{ addrmap.inst_name | upper }}_H
+#define {{ addrmap.inst_name | upper }}_H
+
+#include <stdint.h>
+
+/* Address Map: {{ addrmap.inst_name }} */
+#define {{ addrmap.inst_name | upper }}_BASE_ADDR  {{ addrmap.absolute_address }}
+#define {{ addrmap.inst_name | upper }}_SIZE       {{ addrmap.size }}
+
+{% for node in addrmap.children -%}
+{% if node.node_type == "reg" -%}
+/* Register: {{ node.inst_name }} */
+#define {{ addrmap.inst_name | upper }}_{{ node.inst_name | upper }}_OFFSET  {{ node.absolute_address }}
+#define {{ addrmap.inst_name | upper }}_{{ node.inst_name | upper }}_ADDR    {{ node.absolute_address }}
+
+{% for field in node.children -%}
+{% if field.node_type == "field" -%}
+/* Field: {{ node.inst_name }}.{{ field.inst_name }} */
+#define {{ addrmap.inst_name | upper }}_{{ node.inst_name | upper }}_{{ field.inst_name | upper }}_LSB     {{ field.properties.lsb }}
+#define {{ addrmap.inst_name | upper }}_{{ node.inst_name | upper }}_{{ field.inst_name | upper }}_MSB     {{ field.properties.msb }}
+#define {{ addrmap.inst_name | upper }}_{{ node.inst_name | upper }}_{{ field.inst_name | upper }}_WIDTH   {{ field.properties.msb - field.properties.lsb + 1 }}
+{% endif -%}
+{% endfor %}
+
+{% endif -%}
+{% endfor %}
+
+#endif /* {{ addrmap.inst_name | upper }}_H */ 
