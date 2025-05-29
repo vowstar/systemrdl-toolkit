@@ -153,72 +153,7 @@ else()
 endif()
 
 # ==============================================================================
-# Inja Template Engine (Header-only)
-# ==============================================================================
-
-# Option to control Inja usage
-option(USE_SYSTEM_INJA "Use system-installed Inja template engine" OFF)
-
-# Inja version to use when not using system version
-if(NOT INJA_VERSION)
-    if(DEFINED ENV{INJA_VERSION})
-        set(INJA_VERSION $ENV{INJA_VERSION})
-        message(STATUS "Using Inja version from environment variable: ${INJA_VERSION}")
-    else()
-        set(INJA_VERSION "3c58486e20d26467ae41161237a989a7b9960dd3")
-        message(STATUS "Using default Inja version: ${INJA_VERSION}")
-    endif()
-else()
-    message(STATUS "Using Inja version from command line: ${INJA_VERSION}")
-endif()
-
-if(USE_SYSTEM_INJA)
-    # Use system Inja
-    message(STATUS "Using system Inja template engine")
-
-    find_path(INJA_INCLUDE_DIR
-        NAMES inja.hpp
-        PATHS
-            /usr/include/inja
-            /usr/local/include/inja
-            /opt/inja/single_include/inja
-    )
-
-    if(INJA_INCLUDE_DIR)
-        set(INJA_FOUND TRUE)
-        set(INJA_INCLUDE_DIRS ${INJA_INCLUDE_DIR})
-        message(STATUS "Found system Inja: ${INJA_INCLUDE_DIR}")
-    else()
-        message(FATAL_ERROR "Inja template engine not found. Please install inja or set USE_SYSTEM_INJA=OFF to download automatically.")
-    endif()
-
-else()
-    # Download Inja using FetchContent
-    message(STATUS "Downloading Inja template engine version ${INJA_VERSION}")
-
-    # Configure Inja build options before FetchContent - disable all unnecessary components
-    set(INJA_USE_EMBEDDED_JSON OFF CACHE BOOL "Use embedded JSON for Inja" FORCE)
-    set(INJA_INSTALL OFF CACHE BOOL "Install Inja" FORCE)
-    set(INJA_INSTALL_SINGLE_HEADER OFF CACHE BOOL "Install Inja single header" FORCE)
-    set(INJA_EXPORT OFF CACHE BOOL "Export Inja" FORCE)
-    set(INJA_BUILD_TESTS OFF CACHE BOOL "Build Inja tests" FORCE)
-
-    FetchContent_Declare(
-        inja
-        URL https://github.com/vowstar/inja/archive/${INJA_VERSION}.tar.gz
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    )
-
-    FetchContent_MakeAvailable(inja)
-
-    # Set variables for downloaded version
-    set(INJA_INCLUDE_DIRS ${inja_SOURCE_DIR}/single_include)
-    set(INJA_FOUND TRUE)
-    message(STATUS "Using downloaded Inja template engine")
-endif()
-
-# ==============================================================================
-# nlohmann/json Library (Header-only)
+# nlohmann/json Library (Header-only) - Must be configured before Inja
 # ==============================================================================
 
 # Option to control nlohmann/json usage
@@ -277,7 +212,103 @@ else()
     # Set variables for downloaded version
     set(NLOHMANN_JSON_INCLUDE_DIRS ${nlohmann_json_SOURCE_DIR}/single_include)
     set(NLOHMANN_JSON_FOUND TRUE)
+    
+    # Make nlohmann_json target available with proper namespace for Inja
+    if(TARGET nlohmann_json::nlohmann_json)
+        # Target already exists with namespace
+        set(NLOHMANN_JSON_TARGET nlohmann_json::nlohmann_json)
+    elseif(TARGET nlohmann_json)
+        # Create alias for compatibility
+        add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json)
+        set(NLOHMANN_JSON_TARGET nlohmann_json::nlohmann_json)
+    else()
+        # Create interface library if target doesn't exist
+        add_library(nlohmann_json_interface INTERFACE)
+        target_include_directories(nlohmann_json_interface INTERFACE ${NLOHMANN_JSON_INCLUDE_DIRS})
+        add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json_interface)
+        set(NLOHMANN_JSON_TARGET nlohmann_json::nlohmann_json)
+    endif()
+    
     message(STATUS "Using downloaded nlohmann/json library")
+endif()
+
+# ==============================================================================
+# Inja Template Engine (Header-only) - After nlohmann/json
+# ==============================================================================
+
+# Option to control Inja usage
+option(USE_SYSTEM_INJA "Use system-installed Inja template engine" OFF)
+
+# Inja version to use when not using system version
+if(NOT INJA_VERSION)
+    if(DEFINED ENV{INJA_VERSION})
+        set(INJA_VERSION $ENV{INJA_VERSION})
+        message(STATUS "Using Inja version from environment variable: ${INJA_VERSION}")
+    else()
+        set(INJA_VERSION "3c58486e20d26467ae41161237a989a7b9960dd3")
+        message(STATUS "Using default Inja version: ${INJA_VERSION}")
+    endif()
+else()
+    message(STATUS "Using Inja version from command line: ${INJA_VERSION}")
+endif()
+
+if(USE_SYSTEM_INJA)
+    # Use system Inja
+    message(STATUS "Using system Inja template engine")
+
+    find_path(INJA_INCLUDE_DIR
+        NAMES inja.hpp
+        PATHS
+            /usr/include/inja
+            /usr/local/include/inja
+            /opt/inja/single_include/inja
+    )
+
+    if(INJA_INCLUDE_DIR)
+        set(INJA_FOUND TRUE)
+        set(INJA_INCLUDE_DIRS ${INJA_INCLUDE_DIR})
+        message(STATUS "Found system Inja: ${INJA_INCLUDE_DIR}")
+    else()
+        message(FATAL_ERROR "Inja template engine not found. Please install inja or set USE_SYSTEM_INJA=OFF to download automatically.")
+    endif()
+
+else()
+    # Download Inja using FetchContent
+    message(STATUS "Downloading Inja template engine version ${INJA_VERSION}")
+
+    # Configure Inja build options before FetchContent - disable all unnecessary components
+    set(INJA_USE_EMBEDDED_JSON OFF CACHE BOOL "Use embedded JSON for Inja" FORCE)
+    set(INJA_INSTALL OFF CACHE BOOL "Install Inja" FORCE)
+    set(INJA_INSTALL_SINGLE_HEADER OFF CACHE BOOL "Install Inja single header" FORCE)
+    set(INJA_EXPORT OFF CACHE BOOL "Export Inja" FORCE)
+    set(INJA_BUILD_TESTS OFF CACHE BOOL "Build Inja tests" FORCE)
+
+    # Set CMAKE_PREFIX_PATH so Inja can find our nlohmann_json
+    if(NOT USE_SYSTEM_NLOHMANN_JSON)
+        # Add our nlohmann_json to CMAKE_PREFIX_PATH for Inja to find
+        list(APPEND CMAKE_PREFIX_PATH ${nlohmann_json_BINARY_DIR})
+        list(APPEND CMAKE_PREFIX_PATH ${nlohmann_json_SOURCE_DIR})
+        
+        # Set nlohmann_json_DIR explicitly for Inja's find_package call
+        if(EXISTS "${nlohmann_json_BINARY_DIR}/nlohmann_jsonConfig.cmake")
+            set(nlohmann_json_DIR ${nlohmann_json_BINARY_DIR} CACHE PATH "Path to nlohmann_json config")
+        elseif(EXISTS "${nlohmann_json_SOURCE_DIR}/cmake")
+            set(nlohmann_json_DIR ${nlohmann_json_SOURCE_DIR}/cmake CACHE PATH "Path to nlohmann_json config")
+        endif()
+    endif()
+
+    FetchContent_Declare(
+        inja
+        URL https://github.com/vowstar/inja/archive/${INJA_VERSION}.tar.gz
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+
+    FetchContent_MakeAvailable(inja)
+
+    # Set variables for downloaded version
+    set(INJA_INCLUDE_DIRS ${inja_SOURCE_DIR}/single_include)
+    set(INJA_FOUND TRUE)
+    message(STATUS "Using downloaded Inja template engine")
 endif()
 
 # ==============================================================================
