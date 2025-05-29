@@ -2,9 +2,9 @@
 #include "SystemRDLLexer.h"
 #include "SystemRDLParser.h"
 #include "elaborator.h"
-#include "json_output.h"
 #include <antlr4-runtime.h>
 #include <fstream>
+#include <nlohmann/json.hpp>
 #include <sstream>
 
 namespace systemrdl {
@@ -33,6 +33,105 @@ struct ParseContext
     bool hasErrors() const { return parser->getNumberOfSyntaxErrors() > 0; }
 };
 
+// Helper function to convert ANTLR parse tree to JSON using nlohmann/json
+static nlohmann::json convert_ast_to_json(antlr4::tree::ParseTree *tree, SystemRDLParser *parser)
+{
+    if (auto *ruleContext = dynamic_cast<antlr4::ParserRuleContext *>(tree)) {
+        nlohmann::json node;
+
+        std::string ruleName = parser->getRuleNames()[ruleContext->getRuleIndex()];
+        std::string text     = ruleContext->getText();
+
+        node["type"]         = "rule";
+        node["rule_name"]    = ruleName;
+        node["text"]         = text;
+        node["start_line"]   = ruleContext->getStart()->getLine();
+        node["start_column"] = ruleContext->getStart()->getCharPositionInLine();
+        node["stop_line"]    = ruleContext->getStop()->getLine();
+        node["stop_column"]  = ruleContext->getStop()->getCharPositionInLine();
+
+        if (ruleContext->children.size() > 0) {
+            nlohmann::json children = nlohmann::json::array();
+            for (auto *child : ruleContext->children) {
+                children.push_back(convert_ast_to_json(child, parser));
+            }
+            node["children"] = children;
+        }
+
+        return node;
+    } else if (auto *terminal = dynamic_cast<antlr4::tree::TerminalNode *>(tree)) {
+        nlohmann::json node;
+        node["type"]   = "terminal";
+        node["text"]   = terminal->getText();
+        node["line"]   = terminal->getSymbol()->getLine();
+        node["column"] = terminal->getSymbol()->getCharPositionInLine();
+        return node;
+    }
+
+    return nlohmann::json::object();
+}
+
+// Helper function to convert property value to JSON
+static nlohmann::json convert_property_to_json(const systemrdl::PropertyValue &prop)
+{
+    switch (prop.type) {
+    case systemrdl::PropertyValue::STRING:
+        return prop.string_val;
+    case systemrdl::PropertyValue::INTEGER:
+        return prop.int_val;
+    case systemrdl::PropertyValue::BOOLEAN:
+        return prop.bool_val;
+    case systemrdl::PropertyValue::ENUM:
+        return prop.string_val; // Treat enum as string
+    default:
+        return "unknown_type";
+    }
+}
+
+// Helper function to convert elaborated node to JSON using nlohmann/json
+static nlohmann::json convert_elaborated_node_to_json(systemrdl::ElaboratedNode &node)
+{
+    nlohmann::json json_node;
+
+    json_node["node_type"] = node.get_node_type();
+    json_node["inst_name"] = node.inst_name;
+
+    // Format address as hex string
+    std::ostringstream hex_addr;
+    hex_addr << "0x" << std::hex << node.absolute_address;
+    json_node["absolute_address"] = hex_addr.str();
+
+    json_node["size"] = node.size;
+
+    if (!node.array_dimensions.empty()) {
+        nlohmann::json array_dims = nlohmann::json::array();
+        for (size_t dim : node.array_dimensions) {
+            nlohmann::json dim_obj;
+            dim_obj["size"] = dim;
+            array_dims.push_back(dim_obj);
+        }
+        json_node["array_dimensions"] = array_dims;
+    }
+
+    if (!node.properties.empty()) {
+        nlohmann::json props = nlohmann::json::object();
+        for (const auto &prop : node.properties) {
+            props[prop.first] = convert_property_to_json(prop.second);
+        }
+        json_node["properties"] = props;
+    }
+
+    if (node.children.size() > 0) {
+        nlohmann::json children = nlohmann::json::array();
+        for (auto &child : node.children) {
+            children.push_back(convert_elaborated_node_to_json(*child));
+        }
+        json_node["children"] = children;
+    }
+
+    return json_node;
+}
+
 // Main API functions
 Result parse(std::string_view rdl_content)
 {
@@ -44,10 +143,16 @@ Result parse(std::string_view rdl_content)
         }
 
         // Convert AST to JSON
-        ASTToJsonConverter converter;
-        std::string        json_result = converter.convert_to_json(ctx.tree, ctx.parser.get());
+        nlohmann::json ast_result = convert_ast_to_json(ctx.tree, ctx.parser.get());
 
-        return Result::success(std::move(json_result));
+        // Create full JSON structure
+        nlohmann::json json_result;
+        json_result["format"]  = "SystemRDL_AST";
+        json_result["version"] = "1.0";
+        json_result["ast"]     = nlohmann::json::array();
+        json_result["ast"].push_back(ast_result);
+
+        return Result::success(json_result.dump(2)); // Pretty print with 2 spaces
     } catch (const std::exception &e) {
         return Result::error(std::string("Parse error: ") + e.what());
     }
@@ -79,10 +184,16 @@ Result elaborate(std::string_view rdl_content)
         }
 
         // Convert elaborated model to JSON
-        ElaboratedModelToJsonConverter converter;
-        std::string                    json_result = converter.convert_to_json(*elaborated_model);
+        nlohmann::json elaborated_result = convert_elaborated_node_to_json(*elaborated_model);
 
-        return Result::success(std::move(json_result));
+        // Create full JSON structure
+        nlohmann::json json_result;
+        json_result["format"]  = "SystemRDL_ElaboratedModel";
+        json_result["version"] = "1.0";
+        json_result["model"]   = nlohmann::json::array();
+        json_result["model"].push_back(elaborated_result);
+
+        return Result::success(json_result.dump(2)); // Pretty print with 2 spaces
     } catch (const std::exception &e) {
         return Result::error(std::string("Elaboration error: ") + e.what());
     }
