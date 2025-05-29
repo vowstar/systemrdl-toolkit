@@ -1,32 +1,141 @@
 @PACKAGE_INIT@
 
-# SystemRDL CMake configuration file
+# SystemRDL CMake Configuration File
+# This file is designed to be used with find_package() to locate SystemRDL and its dependencies
 
 include(CMakeFindDependencyMacro)
 
-# Find required dependencies
-find_dependency(Threads REQUIRED)
+# ==============================================================================
+# Package Information
+# ==============================================================================
 
-# Define version variables
-set(SYSTEMRDL_VERSION @PROJECT_VERSION@)
-set(SYSTEMRDL_VERSION_MAJOR @PROJECT_VERSION_MAJOR@)
-set(SYSTEMRDL_VERSION_MINOR @PROJECT_VERSION_MINOR@)
-set(SYSTEMRDL_VERSION_PATCH @PROJECT_VERSION_PATCH@)
+set(SystemRDL_VERSION "@PROJECT_VERSION@")
+set(SystemRDL_VERSION_MAJOR @PROJECT_VERSION_MAJOR@)
+set(SystemRDL_VERSION_MINOR @PROJECT_VERSION_MINOR@)
+set(SystemRDL_VERSION_PATCH @PROJECT_VERSION_PATCH@)
 
-# Include target definitions
+# ==============================================================================
+# Dependency Management
+# ==============================================================================
+
+# SystemRDL requires these dependencies to function properly
+# We'll try to find them or provide guidance for users
+
+# 1. ANTLR4 Runtime
+if(@USE_SYSTEM_ANTLR4@)
+    # If SystemRDL was built with system ANTLR4, find it
+    find_dependency(PkgConfig REQUIRED)
+    pkg_check_modules(ANTLR4 REQUIRED antlr4-runtime)
+else()
+    # If SystemRDL was built with downloaded ANTLR4, provide guidance
+    message(STATUS "SystemRDL was built with downloaded ANTLR4 runtime")
+    message(STATUS "If you encounter linking issues, you may need to install antlr4-cpp-runtime-dev")
+endif()
+
+# 2. nlohmann/json
+if(@USE_SYSTEM_NLOHMANN_JSON@)
+    # If SystemRDL was built with system nlohmann/json, find it
+    find_dependency(nlohmann_json REQUIRED)
+else()
+    # If SystemRDL was built with downloaded nlohmann/json, provide the include path
+    set(NLOHMANN_JSON_VERSION "@NLOHMANN_JSON_VERSION@")
+    message(STATUS "SystemRDL was built with downloaded nlohmann/json ${NLOHMANN_JSON_VERSION}")
+
+    # Try to find system nlohmann/json first
+    find_package(nlohmann_json QUIET)
+    if(NOT nlohmann_json_FOUND)
+        message(STATUS "nlohmann/json not found in system. You may want to:")
+        message(STATUS "  1. Install nlohmann-json3-dev package, or")
+        message(STATUS "  2. Set nlohmann_json_DIR to your nlohmann/json installation, or")
+        message(STATUS "  3. Use FetchContent to download nlohmann/json in your project")
+
+        # Provide a helpful code snippet for users
+        message(STATUS "")
+        message(STATUS "Example FetchContent usage in your CMakeLists.txt:")
+        message(STATUS "  include(FetchContent)")
+        message(STATUS "  FetchContent_Declare(nlohmann_json")
+        message(STATUS "    URL https://github.com/nlohmann/json/archive/refs/tags/${NLOHMANN_JSON_VERSION}.tar.gz)")
+        message(STATUS "  FetchContent_MakeAvailable(nlohmann_json)")
+    endif()
+endif()
+
+# 3. Inja (optional, only needed for template rendering features)
+if(@USE_SYSTEM_INJA@)
+    # If SystemRDL was built with system Inja, find it
+    find_path(INJA_INCLUDE_DIR inja.hpp PATHS /usr/include/inja /usr/local/include/inja)
+    if(INJA_INCLUDE_DIR)
+        message(STATUS "Found system Inja: ${INJA_INCLUDE_DIR}")
+    endif()
+else()
+    # If SystemRDL was built with downloaded Inja, provide guidance
+    set(INJA_VERSION "@INJA_VERSION@")
+    message(STATUS "SystemRDL was built with downloaded Inja ${INJA_VERSION}")
+    message(STATUS "If you need template rendering features, you may want to download Inja:")
+    message(STATUS "  FetchContent_Declare(inja")
+    message(STATUS "    URL https://github.com/vowstar/inja/archive/${INJA_VERSION}.tar.gz)")
+    message(STATUS "  FetchContent_MakeAvailable(inja)")
+endif()
+
+# ==============================================================================
+# Build Configuration
+# ==============================================================================
+
+set(SystemRDL_BUILD_SHARED @SYSTEMRDL_BUILD_SHARED@)
+set(SystemRDL_BUILD_STATIC @SYSTEMRDL_BUILD_STATIC@)
+set(SystemRDL_BUILD_TOOLS @SYSTEMRDL_BUILD_TOOLS@)
+
+# ==============================================================================
+# Include Targets
+# ==============================================================================
+
+# Include the targets file which defines SystemRDL::* targets
 include("${CMAKE_CURRENT_LIST_DIR}/SystemRDLTargets.cmake")
 
-# Define variables for backward compatibility
-set(SYSTEMRDL_FOUND TRUE)
-set(SYSTEMRDL_INCLUDE_DIRS "@CMAKE_INSTALL_FULL_INCLUDEDIR@/systemrdl")
-set(SYSTEMRDL_LIBRARIES SystemRDL::systemrdl)
+# ==============================================================================
+# Interface for Consuming Projects
+# ==============================================================================
 
-# Check if all requested components are available
-check_required_components(SystemRDL)
+# Provide helpful variables for projects that use SystemRDL
+get_target_property(SystemRDL_INCLUDE_DIRS SystemRDL::systemrdl INTERFACE_INCLUDE_DIRECTORIES)
 
-# Provide helpful information
-if(SystemRDL_FOUND)
-    get_target_property(SYSTEMRDL_LOCATION SystemRDL::systemrdl LOCATION)
-    message(STATUS "Found SystemRDL: ${SYSTEMRDL_LOCATION} (found version \"${SYSTEMRDL_VERSION}\")")
+# Check that required targets exist
+if(SystemRDL_BUILD_SHARED AND NOT TARGET SystemRDL::systemrdl_shared)
+    message(WARNING "SystemRDL shared library target not found")
 endif()
- 
+
+if(SystemRDL_BUILD_STATIC AND NOT TARGET SystemRDL::systemrdl_static)
+    message(WARNING "SystemRDL static library target not found")
+endif()
+
+if(NOT TARGET SystemRDL::systemrdl)
+    message(FATAL_ERROR "SystemRDL main target not found")
+endif()
+
+# ==============================================================================
+# User Guidance
+# ==============================================================================
+
+message(STATUS "Found SystemRDL: ${SystemRDL_VERSION}")
+if(SystemRDL_BUILD_SHARED)
+    message(STATUS "  Shared library: SystemRDL::systemrdl_shared")
+endif()
+if(SystemRDL_BUILD_STATIC)
+    message(STATUS "  Static library: SystemRDL::systemrdl_static")
+endif()
+message(STATUS "  Generic target: SystemRDL::systemrdl")
+
+# Provide usage instructions
+message(STATUS "")
+message(STATUS "Usage in your CMakeLists.txt:")
+message(STATUS "  find_package(SystemRDL REQUIRED)")
+message(STATUS "  target_link_libraries(your_target PRIVATE SystemRDL::systemrdl)")
+message(STATUS "")
+
+# Check for common configuration issues
+if(CMAKE_CXX_STANDARD LESS 17)
+    message(WARNING "SystemRDL requires C++17 or later. Consider setting:")
+    message(WARNING "  set(CMAKE_CXX_STANDARD 17)")
+    message(WARNING "  set(CMAKE_CXX_STANDARD_REQUIRED ON)")
+endif()
+
+check_required_components(SystemRDL)
