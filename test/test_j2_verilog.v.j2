@@ -1,0 +1,184 @@
+//
+// Auto-generated Verilog RTL from SystemRDL
+// Generator: SystemRDL Template Renderer
+//
+
+{% set addrmap = model | first -%}
+module {{ addrmap.inst_name | lower }}_regs #(
+    parameter ADDR_WIDTH = 32,
+    parameter DATA_WIDTH = 32
+) (
+    // Clock and Reset
+    input  wire                    clk,
+    input  wire                    rst_n,
+
+    // CPU Interface (APB-like)
+    input  wire                    psel,
+    input  wire                    penable,
+    input  wire                    pwrite,
+    input  wire [ADDR_WIDTH-1:0]   paddr,
+    input  wire [DATA_WIDTH-1:0]   pwdata,
+    output reg  [DATA_WIDTH-1:0]   prdata,
+    output wire                    pready,
+    output wire                    pslverr,
+
+    // Hardware Interface
+{% for node in addrmap.children -%}
+{% if node.node_type == "reg" -%}
+{% for field in node.children -%}
+{% if field.node_type == "field" -%}
+{% if field.properties.hw == "w" or field.properties.hw == "rw" -%}
+    input  wire [{{ field.properties.msb }}:{{ field.properties.lsb }}] hw_{{ node.inst_name | replace("[", "_") | replace("]", "_") }}_{{ field.inst_name | replace("[", "_") | replace("]", "_") }}_i,
+{% endif -%}
+{% if field.properties.hw == "r" or field.properties.hw == "rw" -%}
+    output reg  [{{ field.properties.msb }}:{{ field.properties.lsb }}] hw_{{ node.inst_name | replace("[", "_") | replace("]", "_") }}_{{ field.inst_name | replace("[", "_") | replace("]", "_") }}_o,
+{% endif -%}
+{% endif -%}
+{% endfor -%}
+{% endif -%}
+{% endfor -%}
+
+    // Status/Control
+    output wire                    register_error
+);
+
+    // Internal signals
+    wire write_enable;
+    wire read_enable;
+    reg  register_error_reg;
+
+    assign pready = 1'b1;  // Always ready
+    assign pslverr = register_error_reg;
+    assign register_error = register_error_reg;
+
+    assign write_enable = psel & penable & pwrite;
+    assign read_enable = psel & penable & ~pwrite;
+
+    // Register definitions
+{% for node in addrmap.children -%}
+{% if node.node_type == "reg" -%}
+    // {{ node.inst_name | upper | replace("[", "_") | replace("]", "_") }} @ {{ node.absolute_address }}
+{% for field in node.children -%}
+{% if field.node_type == "field" -%}
+    reg [{{ field.properties.msb }}:{{ field.properties.lsb }}] r_{{ node.inst_name | replace("[", "_") | replace("]", "_") }}_{{ field.inst_name | replace("[", "_") | replace("]", "_") }};
+{% endif -%}
+{% endfor -%}
+{% endif -%}
+{% endfor -%}
+
+    // Address decode parameters
+{% for node in addrmap.children -%}
+{% if node.node_type == "reg" -%}
+    localparam ADDR_{{ node.inst_name | upper | replace("[", "_") | replace("]", "_") }} = {{ node.absolute_address }};
+{% endif -%}
+{% endfor -%}
+
+    // Write logic
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            register_error_reg <= 1'b0;
+{% for node in addrmap.children -%}
+{% if node.node_type == "reg" -%}
+{% for field in node.children -%}
+{% if field.node_type == "field" -%}
+{% if field.properties.sw == "rw" or field.properties.sw == "w" -%}
+            r_{{ node.inst_name | replace("[", "_") | replace("]", "_") }}_{{ field.inst_name | replace("[", "_") | replace("]", "_") }} <= {{ field.properties.width }}'h0;
+{% endif -%}
+{% endif -%}
+{% endfor -%}
+{% endif -%}
+{% endfor -%}
+        end else begin
+            register_error_reg <= 1'b0;
+
+            if (write_enable) begin
+                case (paddr)
+{% for node in addrmap.children -%}
+{% if node.node_type == "reg" -%}
+                    ADDR_{{ node.inst_name | upper | replace("[", "_") | replace("]", "_") }}: begin
+{% for field in node.children -%}
+{% if field.node_type == "field" -%}
+{% if field.properties.sw == "rw" or field.properties.sw == "w" -%}
+                        r_{{ node.inst_name | replace("[", "_") | replace("]", "_") }}_{{ field.inst_name | replace("[", "_") | replace("]", "_") }} <= pwdata[{{ field.properties.msb }}:{{ field.properties.lsb }}];
+{% endif -%}
+{% endif -%}
+{% endfor -%}
+                    end
+{% endif -%}
+{% endfor -%}
+                    default: begin
+                        register_error_reg <= 1'b1;
+                    end
+                endcase
+            end
+
+            // Hardware write inputs
+{% for node in addrmap.children -%}
+{% if node.node_type == "reg" -%}
+{% for field in node.children -%}
+{% if field.node_type == "field" -%}
+{% if field.properties.hw == "w" or field.properties.hw == "rw" -%}
+            r_{{ node.inst_name | replace("[", "_") | replace("]", "_") }}_{{ field.inst_name | replace("[", "_") | replace("]", "_") }} <= hw_{{ node.inst_name | replace("[", "_") | replace("]", "_") }}_{{ field.inst_name | replace("[", "_") | replace("]", "_") }}_i;
+{% endif -%}
+{% endif -%}
+{% endfor -%}
+{% endif -%}
+{% endfor -%}
+        end
+    end
+
+    // Read logic
+    always @(*) begin
+        prdata = 32'h0;
+
+        if (read_enable) begin
+            case (paddr)
+{% for node in addrmap.children -%}
+{% if node.node_type == "reg" -%}
+                ADDR_{{ node.inst_name | upper | replace("[", "_") | replace("]", "_") }}: begin
+{% for field in node.children -%}
+{% if field.node_type == "field" -%}
+{% if field.properties.sw == "r" or field.properties.sw == "rw" -%}
+                    prdata[{{ field.properties.msb }}:{{ field.properties.lsb }}] = r_{{ node.inst_name | replace("[", "_") | replace("]", "_") }}_{{ field.inst_name | replace("[", "_") | replace("]", "_") }};
+{% endif -%}
+{% endif -%}
+{% endfor -%}
+                end
+{% endif -%}
+{% endfor -%}
+                default: begin
+                    prdata = 32'h0;
+                end
+            endcase
+        end
+    end
+
+    // Hardware output assignments
+{% for node in addrmap.children -%}
+{% if node.node_type == "reg" -%}
+{% for field in node.children -%}
+{% if field.node_type == "field" -%}
+{% if field.properties.hw == "r" or field.properties.hw == "rw" -%}
+    assign hw_{{ node.inst_name | replace("[", "_") | replace("]", "_") }}_{{ field.inst_name | replace("[", "_") | replace("]", "_") }}_o = r_{{ node.inst_name | replace("[", "_") | replace("]", "_") }}_{{ field.inst_name | replace("[", "_") | replace("]", "_") }};
+{% endif -%}
+{% endif -%}
+{% endfor -%}
+{% endif -%}
+{% endfor -%}
+
+endmodule
+
+//
+// {{ addrmap.inst_name | upper }} Register Map Summary:
+//
+{% for node in addrmap.children -%}
+{% if node.node_type == "reg" -%}
+// {{ node.inst_name | upper | replace("[", "_") | replace("]", "_") }} @ {{ node.absolute_address }} ({{ node.size }} bytes)
+{% for field in node.children -%}
+{% if field.node_type == "field" -%}
+//   [{{ field.properties.msb }}:{{ field.properties.lsb }}] {{ field.inst_name | replace("[", "_") | replace("]", "_") }} - SW:{{ field.properties.sw }}, HW:{{ field.properties.hw }}
+{% endif -%}
+{% endfor -%}
+//
+{% endif -%}
+{% endfor -%}
