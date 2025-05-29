@@ -5,6 +5,29 @@ project(SystemRDL-Toolkit
     LANGUAGES CXX
 )
 
+# ==============================================================================
+# Main Project Detection
+# ==============================================================================
+
+# Determine if SystemRDL-Toolkit is built as a subproject (using add_subdirectory)
+# or if it is the main project.
+if(NOT DEFINED SYSTEMRDL_MAIN_PROJECT)
+    set(SYSTEMRDL_MAIN_PROJECT OFF)
+    if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+        set(SYSTEMRDL_MAIN_PROJECT ON)
+        message(STATUS "SystemRDL-Toolkit is the main project")
+        message(STATUS "CMake version: ${CMAKE_VERSION}")
+    else()
+        message(STATUS "SystemRDL-Toolkit is being built as a subproject")
+    endif()
+endif()
+
+# Protect against in-tree builds.
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+    message(FATAL_ERROR "In-source builds are not supported. You may need to delete "
+                        "'CMakeCache.txt' and 'CMakeFiles/' before building again.")
+endif()
+
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -12,15 +35,31 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Include GNUInstallDirs for standard paths
 include(GNUInstallDirs)
 
+# ==============================================================================
+# Build Options
+# ==============================================================================
+
 # Add options for building components
-option(SYSTEMRDL_BUILD_TOOLS "Build command-line tools" ON)
-option(SYSTEMRDL_BUILD_TESTS "Build tests" ON)
+# When SystemRDL is used as a subproject, disable tools and tests by default to reduce build time
+option(SYSTEMRDL_BUILD_TOOLS "Build command-line tools" ${SYSTEMRDL_MAIN_PROJECT})
+option(SYSTEMRDL_BUILD_TESTS "Build tests" ${SYSTEMRDL_MAIN_PROJECT})
 option(SYSTEMRDL_BUILD_SHARED "Build shared library" ON)
 option(SYSTEMRDL_BUILD_STATIC "Build static library" ON)
 
+# Print configuration information
+if(SYSTEMRDL_MAIN_PROJECT)
+    message(STATUS "SystemRDL-Toolkit main project build configuration:")
+else()
+    message(STATUS "SystemRDL-Toolkit subproject build configuration:")
+endif()
+message(STATUS "  Build shared library: ${SYSTEMRDL_BUILD_SHARED}")
+message(STATUS "  Build static library: ${SYSTEMRDL_BUILD_STATIC}")
+message(STATUS "  Build command-line tools: ${SYSTEMRDL_BUILD_TOOLS}")
+message(STATUS "  Build tests: ${SYSTEMRDL_BUILD_TESTS}")
+
 # Enable testing if requested
 if(SYSTEMRDL_BUILD_TESTS)
-enable_testing()
+    enable_testing()
 endif()
 
 # Include FetchContent module for downloading dependencies
@@ -212,7 +251,7 @@ else()
     # Set variables for downloaded version
     set(NLOHMANN_JSON_INCLUDE_DIRS ${nlohmann_json_SOURCE_DIR}/single_include)
     set(NLOHMANN_JSON_FOUND TRUE)
-    
+
     # Make nlohmann_json target available with proper namespace for Inja
     if(TARGET nlohmann_json::nlohmann_json)
         # Target already exists with namespace
@@ -228,7 +267,7 @@ else()
         add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json_interface)
         set(NLOHMANN_JSON_TARGET nlohmann_json::nlohmann_json)
     endif()
-    
+
     message(STATUS "Using downloaded nlohmann/json library")
 endif()
 
@@ -288,7 +327,7 @@ else()
         # Add our nlohmann_json to CMAKE_PREFIX_PATH for Inja to find
         list(APPEND CMAKE_PREFIX_PATH ${nlohmann_json_BINARY_DIR})
         list(APPEND CMAKE_PREFIX_PATH ${nlohmann_json_SOURCE_DIR})
-        
+
         # Set nlohmann_json_DIR explicitly for Inja's find_package call
         if(EXISTS "${nlohmann_json_BINARY_DIR}/nlohmann_jsonConfig.cmake")
             set(nlohmann_json_DIR ${nlohmann_json_BINARY_DIR} CACHE PATH "Path to nlohmann_json config")
@@ -597,6 +636,9 @@ add_custom_target(generate-antlr4-cpp
 # Installation
 # ==============================================================================
 
+# Only install when SystemRDL is the main project, not when used as subproject
+if(SYSTEMRDL_MAIN_PROJECT)
+
 # Install library targets
 if(SYSTEMRDL_BUILD_SHARED)
     install(TARGETS systemrdl_shared
@@ -666,6 +708,8 @@ configure_file(
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/systemrdl.pc"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
 )
+
+endif() # SYSTEMRDL_MAIN_PROJECT
 
 # ==============================================================================
 # Tests (Optional)
@@ -916,8 +960,12 @@ endforeach()
 endif()
 
 # ==============================================================================
-# Code Quality and Formatting Targets
+# Code Quality and Formatting Targets (Only for main project)
 # ==============================================================================
+
+# Only create code quality targets when SystemRDL is the main project
+# to avoid target name conflicts when used as a subproject
+if(SYSTEMRDL_MAIN_PROJECT)
 
 # Find required tools for code quality checks
 find_program(CLANG_FORMAT_EXECUTABLE
@@ -1286,39 +1334,66 @@ add_custom_target(quality-help
     COMMENT "Showing code quality help"
 )
 
+endif() # SYSTEMRDL_MAIN_PROJECT - Code Quality Targets
+
 # ==============================================================================
 # Build Summary
 # ==============================================================================
 
-# Print configuration summary
-message(STATUS "")
-message(STATUS "SystemRDL-Toolkit Configuration Summary:")
-message(STATUS "  Version: ${PROJECT_VERSION}")
-message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
-message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
-message(STATUS "")
-message(STATUS "Build Options:")
-message(STATUS "  Build shared library: ${SYSTEMRDL_BUILD_SHARED}")
-message(STATUS "  Build static library: ${SYSTEMRDL_BUILD_STATIC}")
-message(STATUS "  Build command-line tools: ${SYSTEMRDL_BUILD_TOOLS}")
-message(STATUS "  Build tests: ${SYSTEMRDL_BUILD_TESTS}")
-message(STATUS "")
-message(STATUS "Dependencies:")
-message(STATUS "  ANTLR4 version: ${ANTLR4_VERSION}")
-message(STATUS "  Use system ANTLR4: ${USE_SYSTEM_ANTLR4}")
-message(STATUS "  Inja version: ${INJA_VERSION}")
-message(STATUS "  Use system Inja: ${USE_SYSTEM_INJA}")
-message(STATUS "  Python3 found: ${Python3_FOUND}")
-if(Python3_FOUND)
-    message(STATUS "  Python executable: ${PYTHON_EXECUTABLE}")
+# Print configuration summary only when SystemRDL is the main project
+if(SYSTEMRDL_MAIN_PROJECT)
+    # Print configuration summary
+    message(STATUS "")
+    message(STATUS "SystemRDL-Toolkit Configuration Summary:")
+    message(STATUS "  Version: ${PROJECT_VERSION}")
+    message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
+    message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
+    message(STATUS "")
+    message(STATUS "Build Options:")
+    message(STATUS "  Build shared library: ${SYSTEMRDL_BUILD_SHARED}")
+    message(STATUS "  Build static library: ${SYSTEMRDL_BUILD_STATIC}")
+    message(STATUS "  Build command-line tools: ${SYSTEMRDL_BUILD_TOOLS}")
+    message(STATUS "  Build tests: ${SYSTEMRDL_BUILD_TESTS}")
+    message(STATUS "")
+    message(STATUS "Dependencies:")
+    message(STATUS "  ANTLR4 version: ${ANTLR4_VERSION}")
+    message(STATUS "  Use system ANTLR4: ${USE_SYSTEM_ANTLR4}")
+    message(STATUS "  Inja version: ${INJA_VERSION}")
+    message(STATUS "  Use system Inja: ${USE_SYSTEM_INJA}")
+    message(STATUS "  Python3 found: ${Python3_FOUND}")
+    if(Python3_FOUND)
+        message(STATUS "  Python executable: ${PYTHON_EXECUTABLE}")
+    endif()
+    message(STATUS "")
+    message(STATUS "Code Quality:")
+    message(STATUS "  Code quality targets available: YES (main project)")
+    message(STATUS "  Run 'make quality-help' for available targets")
+    message(STATUS "")
+    message(STATUS "Install Locations:")
+    message(STATUS "  Prefix: ${CMAKE_INSTALL_PREFIX}")
+    message(STATUS "  Libraries: ${CMAKE_INSTALL_FULL_LIBDIR}")
+    message(STATUS "  Headers: ${CMAKE_INSTALL_FULL_INCLUDEDIR}/systemrdl")
+    message(STATUS "  CMake config: ${CMAKE_INSTALL_FULL_LIBDIR}/cmake/SystemRDL")
+    if(SYSTEMRDL_BUILD_TOOLS)
+        message(STATUS "  Executables: ${CMAKE_INSTALL_FULL_BINDIR}")
+    endif()
+    message(STATUS "")
+else()
+    # Brief summary for subproject builds
+    message(STATUS "SystemRDL-Toolkit ${PROJECT_VERSION} configured as subproject")
+    set(LIBRARY_TYPES "")
+    if(SYSTEMRDL_BUILD_SHARED)
+        set(LIBRARY_TYPES "${LIBRARY_TYPES}shared ")
+    endif()
+    if(SYSTEMRDL_BUILD_STATIC)
+        set(LIBRARY_TYPES "${LIBRARY_TYPES}static")
+    endif()
+    message(STATUS "  Libraries: ${LIBRARY_TYPES}")
+    if(SYSTEMRDL_BUILD_TOOLS)
+        message(STATUS "  Tools enabled")
+    endif()
+    if(SYSTEMRDL_BUILD_TESTS)
+        message(STATUS "  Tests enabled")
+    endif()
+    message(STATUS "  Code quality targets: DISABLED (subproject - avoids target conflicts)")
 endif()
-message(STATUS "")
-message(STATUS "Install Locations:")
-message(STATUS "  Prefix: ${CMAKE_INSTALL_PREFIX}")
-message(STATUS "  Libraries: ${CMAKE_INSTALL_FULL_LIBDIR}")
-message(STATUS "  Headers: ${CMAKE_INSTALL_FULL_INCLUDEDIR}/systemrdl")
-message(STATUS "  CMake config: ${CMAKE_INSTALL_FULL_LIBDIR}/cmake/SystemRDL")
-if(SYSTEMRDL_BUILD_TOOLS)
-    message(STATUS "  Executables: ${CMAKE_INSTALL_FULL_BINDIR}")
-endif()
-message(STATUS "")
