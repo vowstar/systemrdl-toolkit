@@ -8,7 +8,7 @@ namespace systemrdl {
 
 /**
  * @brief Result type for SystemRDL API operations
- * 
+ *
  * A simple result type that can hold either a successful value or an error message.
  * Similar to std::expected but simpler and more focused.
  */
