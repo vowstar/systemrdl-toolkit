@@ -1,0 +1,7 @@
+addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,description
+0x0000,MIX_MAP,,,,,,,,,,Address map for testing
+,,0x0000,MIXED_REG,32,,,,,,,Control register
+,,,,,QUOTED1,0,0,1,rw,rw,"Double quoted field"
+,,,,,QUOTED2,1,1,0,rw,rw,'Single quoted field'
+,,,,,COMMA1,2,2,0,rw,rw,"Field with, comma inside"
+,,,,,COMMA2,3,3,0,rw,rw,'Field with, comma inside'

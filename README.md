@@ -347,6 +347,66 @@ columns (header names are case-insensitive with fuzzy matching support):
 | `hw_access` | Yes | Hardware access type | `RW`/`RO`/`WO` |
 | `description` | Optional | Field/register description | `Enable control bit` |
 
+### CSV Structure Specification
+
+⚠️ **Important: CSV files must follow a strict logical row structure**
+
+The CSV parser validates the structure according to these rules:
+
+#### Row Type Definitions
+
+1. **Header Row** (Line 1): Column names defining the structure
+2. **Addrmap Row**: Contains `addrmap_offset` and `addrmap_name`, all other fields should be empty
+3. **Register Row**: Contains `reg_offset`, `reg_name`, and `reg_width`, may include `description`
+4. **Field Row**: Contains `field_name`, `field_lsb`, `field_msb`, `reset_value`, `sw_access`, `hw_access`, and
+  optionally `description`
+
+#### Structural Rules
+
+1. **First data row** (Line 2) **MUST** be an addrmap row
+2. **After an addrmap row**, the next row **MUST** be a register row
+3. **After a register row**, subsequent rows **MUST** be field rows until a new register or addrmap is encountered
+4. **Mixed row types are forbidden**: Each row can only contain one type of information (addrmap, register, or field)
+5. **Logical vs Physical rows**: Multi-line CSV cells (quoted with newlines) count as single logical rows
+
+#### Validation Examples
+
+✅ **Correct Structure:**
+
+```csv
+addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,description
+0x0000,DEMO,,,,,,,,,,                           # Line 2: Addrmap row
+,,0x0000,CTRL,32,,,,,,,Control register         # Line 3: Register row  
+,,,,,ENABLE,0,0,0,RW,RW,Enable control bit      # Line 4: Field row
+,,,,,MODE,1,2,0,RW,RW,Operation mode            # Line 5: Field row
+,,0x0004,STATUS,32,,,,,,,Status register        # Line 6: New register row
+,,,,,READY,0,0,0,RO,RO,Ready status             # Line 7: Field row
+```
+
+❌ **Invalid Structures:**
+
+```csv
+# ERROR: Mixed row types (addrmap + register info in same row)
+0x0000,DEMO,0x0000,CTRL,32,,,,,,,
+
+# ERROR: Field row before register definition
+0x0000,DEMO,,,,,,,,,,
+,,,,,ENABLE,0,0,0,RW,RW,Enable control bit
+
+# ERROR: Register row before addrmap definition
+,,0x0000,CTRL,32,,,,,,,
+```
+
+#### Error Reporting
+
+The parser provides specific error messages with logical line numbers:
+
+- `Error: Line 3 contains mixed information types: addrmap register`
+- `Error: Line 4 defines a field but no register was defined for this addrmap`
+- `Error: Line 2 defines a register but no addrmap was defined first`
+
+**Note**: Logical line numbers account for multi-line quoted cells as single rows.
+
 ### CSV Format Example
 
 See the complete example: [`test/test_csv_basic_example.csv`](test/test_csv_basic_example.csv)

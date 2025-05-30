@@ -1,0 +1,8 @@
+addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,description
+'0x0000','TEST_MAP',,,,,,,,,,Address map for testing
+,,'0x0000','CTRL_REG','32',,,,,,,Control register
+,,,,,'ENABLE','0','0','1','rw','rw','Simple description'
+,,,,,'DEBUG','1','1','0','rw','rw','Single quoted with, comma inside'
+,,,,,'STATUS','2','3','0','ro','rw','Multi-line description
+with single quotes and, commas'
+,,,,,'MODE','4','7','0','rw','rw','Mixed quotes: "double" and ''escaped single''' 

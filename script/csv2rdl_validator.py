@@ -4,6 +4,7 @@ CSV to SystemRDL Converter Validation Suite
 
 This test suite validates the functionality of the systemrdl_csv2rdl converter
 by testing various CSV input scenarios and verifying the generated SystemRDL output.
+Supports both expected success and expected failure test cases.
 """
 
 import glob
@@ -114,9 +115,21 @@ class CSV2RDLValidator:
         except Exception as e:
             return False, ["Error reading file: {}".format(e)]
 
-    def test_csv_file(self, csv_file: Path, test_name: str, expected_patterns: List[str] = None) -> bool:
+    def is_expected_failure_test(self, csv_file: Path) -> bool:
         """
-        Test a single CSV file conversion.
+        Check if a CSV file is an expected failure test.
+
+        Args:
+            csv_file: CSV file to check
+
+        Returns:
+            True if this is an expected failure test
+        """
+        return csv_file.stem.endswith("_fail")
+
+    def test_csv_file_success(self, csv_file: Path, test_name: str, expected_patterns: List[str] = None) -> bool:
+        """
+        Test a CSV file conversion that is expected to succeed.
 
         Args:
             csv_file: CSV file to test
@@ -126,7 +139,7 @@ class CSV2RDLValidator:
         Returns:
             True if test passed, False otherwise
         """
-        print("\n🧪 Testing: {}".format(test_name))
+        print("\n🧪 Testing: {} (Expected: ✅ SUCCESS)".format(test_name))
         print("   Input: {}".format(csv_file.name))
 
         # Generate output file path in temp directory
@@ -135,7 +148,7 @@ class CSV2RDLValidator:
         # Step 1: Run CSV2RDL converter
         success, stdout, stderr = self.run_csv2rdl(csv_file, output_file)
         if not success:
-            print("   ❌ CSV2RDL conversion failed")
+            print("   ❌ CSV2RDL conversion failed (unexpected)")
             print("      stdout: {}".format(stdout))
             print("      stderr: {}".format(stderr))
             self.results["errors"].append("{}: CSV2RDL conversion failed - {}".format(test_name, stderr))
@@ -177,6 +190,72 @@ class CSV2RDLValidator:
         print("   🎉 {} PASSED".format(test_name))
         return True
 
+    def test_csv_file_failure(self, csv_file: Path, test_name: str, expected_error_patterns: List[str] = None) -> bool:
+        """
+        Test a CSV file conversion that is expected to fail.
+
+        Args:
+            csv_file: CSV file to test
+            test_name: Name of the test for reporting
+            expected_error_patterns: Optional regex patterns that should be found in error output
+
+        Returns:
+            True if test passed (failed as expected), False otherwise
+        """
+        print("\n🧪 Testing: {} (Expected: ❌ FAILURE)".format(test_name))
+        print("   Input: {}".format(csv_file.name))
+
+        # Generate output file path in temp directory
+        output_file = self.temp_dir / "{}.rdl".format(csv_file.stem)
+
+        # Step 1: Run CSV2RDL converter - should fail
+        success, stdout, stderr = self.run_csv2rdl(csv_file, output_file)
+        if success:
+            print("   ❌ CSV2RDL conversion succeeded (unexpected)")
+            print("      Expected failure but got success")
+            self.results["errors"].append("{}: Expected failure but conversion succeeded".format(test_name))
+            return False
+
+        print("   ✅ CSV2RDL conversion failed as expected")
+        print("   Error: {}".format(stderr.strip() if stderr else stdout.strip()))
+
+        # Step 2: Validate error patterns if provided
+        if expected_error_patterns:
+            error_output = stderr + stdout  # Check both stderr and stdout
+            for pattern in expected_error_patterns:
+                if re.search(pattern, error_output, re.MULTILINE | re.IGNORECASE):
+                    print("   ✅ Found expected error pattern: {}".format(pattern))
+                else:
+                    print("   ❌ Missing expected error pattern: {}".format(pattern))
+                    self.results["errors"].append("{}: Missing expected error pattern: {}".format(test_name, pattern))
+                    return False
+
+        print("   🎉 {} PASSED (failed as expected)".format(test_name))
+        return True
+
+    def test_csv_file(self, csv_file: Path, test_name: str, expected_patterns: List[str] = None) -> bool:
+        """
+        Test a single CSV file conversion (auto-detects expected success/failure).
+
+        Args:
+            csv_file: CSV file to test
+            test_name: Name of the test for reporting
+            expected_patterns: Optional patterns (content patterns for success, error patterns for failure)
+
+        Returns:
+            True if test passed, False otherwise
+        """
+        if self.is_expected_failure_test(csv_file):
+            # For failure tests, expected_patterns are error patterns
+            expected_error_patterns = expected_patterns or [
+                r"error|Error|ERROR",  # Generic error indicators
+                r"failed|Failed|FAILED",  # Generic failure indicators
+            ]
+            return self.test_csv_file_failure(csv_file, test_name, expected_error_patterns)
+        else:
+            # For success tests, expected_patterns are content patterns
+            return self.test_csv_file_success(csv_file, test_name, expected_patterns)
+
     def run_basic_example_test(self):
         """Test basic example CSV file."""
         csv_file = self.test_dir / "test_csv_basic_example.csv"
@@ -192,6 +271,32 @@ class CSV2RDLValidator:
         ]
 
         return self.test_csv_file(csv_file, "Basic Example Test", expected_patterns)
+
+    def run_failure_tests(self):
+        """Test expected failure cases."""
+        test_files = [
+            (
+                "test_csv_mixed_types_fail.csv",
+                "Mixed Types Failure Test",
+                [r"mixed information types", r"Line 2 contains mixed information types"],
+            ),
+            (
+                "test_csv_field_before_reg_fail.csv",
+                "Field Before Register Failure Test",
+                [r"field.*but no register", r"Line 3 defines a field but no register was defined"],
+            ),
+        ]
+
+        results = []
+        for csv_name, test_name, expected_error_patterns in test_files:
+            csv_file = self.test_dir / csv_name
+            if csv_file.exists():
+                result = self.test_csv_file(csv_file, test_name, expected_error_patterns)
+                results.append(result)
+            else:
+                print("   ⚠️  Skipping {}: file not found".format(test_name))
+
+        return all(results) if results else False
 
     def run_multiline_tests(self):
         """Test various multiline scenarios."""
@@ -238,6 +343,31 @@ class CSV2RDLValidator:
 
         return self.test_csv_file(csv_file, "Fuzzy Header Matching Test", expected_patterns)
 
+    def run_quote_handling_tests(self):
+        """Test quote handling scenarios."""
+        test_files = [
+            ("test_csv_quotes_mixed.csv", "Mixed Quotes Test"),
+            ("test_csv_quotes_single_only.csv", "Single Quotes Only Test"),
+            ("test_csv_quotes_boundaries.csv", "Quote Boundaries Test"),
+        ]
+
+        results = []
+        for csv_name, test_name in test_files:
+            csv_file = self.test_dir / csv_name
+            if csv_file.exists():
+                # For quote tests, verify basic structure
+                expected_patterns = [
+                    r"addrmap \w+ \{",
+                    r'name = "[^"]+"',
+                    r"field \{",
+                ]
+                result = self.test_csv_file(csv_file, test_name, expected_patterns)
+                results.append(result)
+            else:
+                print("   ⚠️  Skipping {}: file not found".format(test_name))
+
+        return all(results) if results else False
+
     def discover_csv_test_files(self):
         """Discover all CSV test files in test directory."""
         pattern = str(self.test_dir / "test_csv_*.csv")
@@ -253,16 +383,36 @@ class CSV2RDLValidator:
 
         print("🔍 Found {} CSV test files".format(len(csv_files)))
 
+        # Separate success and failure tests
+        success_files = [f for f in csv_files if not self.is_expected_failure_test(f)]
+        failure_files = [f for f in csv_files if self.is_expected_failure_test(f)]
+
+        print("   📗 Success test files: {}".format(len(success_files)))
+        print("   📕 Failure test files: {}".format(len(failure_files)))
+
         results = []
-        for csv_file in csv_files:
-            test_name = "Auto-discovered: {}".format(csv_file.stem)
-            # Basic validation patterns for all CSV files
+
+        # Test success cases
+        for csv_file in success_files:
+            test_name = "Auto-discovered Success: {}".format(csv_file.stem)
+            # Basic validation patterns for success CSV files
             expected_patterns = [
                 r"addrmap \w+ \{",  # Should have addrmap
                 r'name = "[^"]+"',  # Should have name attributes
                 r"\};\s*$",  # Should end properly
             ]
             result = self.test_csv_file(csv_file, test_name, expected_patterns)
+            results.append(result)
+
+        # Test failure cases
+        for csv_file in failure_files:
+            test_name = "Auto-discovered Failure: {}".format(csv_file.stem)
+            # Generic error patterns for failure CSV files
+            expected_error_patterns = [
+                r"error|Error|ERROR",  # Should contain error
+                r"Line \d+",  # Should report line numbers
+            ]
+            result = self.test_csv_file(csv_file, test_name, expected_error_patterns)
             results.append(result)
 
         return all(results)
@@ -282,7 +432,9 @@ class CSV2RDLValidator:
             # Run targeted test suites
             test_suites = [
                 ("Basic Example", self.run_basic_example_test),
+                ("Expected Failures", self.run_failure_tests),
                 ("Multiline Processing", self.run_multiline_tests),
+                ("Quote Handling", self.run_quote_handling_tests),
                 ("Semicolon Delimiter", self.run_delimiter_test),
                 ("Fuzzy Header Matching", self.run_fuzzy_matching_test),
                 ("All Discovered CSV Files", self.run_all_discovered_tests),
