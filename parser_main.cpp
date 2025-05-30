@@ -3,6 +3,7 @@
 #include "antlr4-runtime.h"
 #include "cmdline_parser.h"
 #include "systemrdl_api.h"
+#include "systemrdl_version.h"
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -96,13 +97,17 @@ int main(int argc, char *argv[])
 {
     // Setup command line parser
     CmdLineParser cmdline("SystemRDL Parser - Parse SystemRDL files and display AST");
+    cmdline.set_version(systemrdl::get_detailed_version());
     cmdline.add_option_with_optional_value(
         "j", "json", "Enable JSON output, optionally specify filename");
     cmdline.add_option("h", "help", "Show this help message");
 
     if (!cmdline.parse(argc, argv)) {
-        return argc == 2 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") ? 0
-                                                                                               : 1;
+        return argc == 2
+                       && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h"
+                           || std::string(argv[1]) == "--version" || std::string(argv[1]) == "-v")
+                   ? 0
+                   : 1;
     }
 
     const auto &args = cmdline.get_positional_args();

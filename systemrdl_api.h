@@ -1,5 +1,6 @@
 #pragma once
 
+#include "systemrdl_version.h"
 #include <optional>
 #include <string>
 #include <string_view>

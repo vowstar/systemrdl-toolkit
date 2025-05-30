@@ -1,4 +1,5 @@
 #include "cmdline_parser.h"
+#include "systemrdl_version.h"
 #include <algorithm>
 #include <cctype>
 #include <fstream>
@@ -521,12 +522,16 @@ int main(int argc, char *argv[])
     // Setup command line parser
     CmdLineParser cmdline(
         "CSV to SystemRDL Converter - Convert CSV register definitions to SystemRDL format");
+    cmdline.set_version(systemrdl::get_detailed_version());
     cmdline.add_option_with_optional_value("o", "output", "Output RDL file (default: <input>.rdl)");
     cmdline.add_option("h", "help", "Show this help message");
 
     if (!cmdline.parse(argc, argv)) {
-        return argc == 2 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") ? 0
-                                                                                               : 1;
+        return argc == 2
+                       && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h"
+                           || std::string(argv[1]) == "--version" || std::string(argv[1]) == "-v")
+                   ? 0
+                   : 1;
     }
 
     const auto &args = cmdline.get_positional_args();

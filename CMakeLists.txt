@@ -1,9 +1,72 @@
 cmake_minimum_required(VERSION 3.16)
+
+# ==============================================================================
+# Version Management
+# ==============================================================================
+
+# Extract version from header file
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/systemrdl_version.h" VERSION_H_CONTENT)
+string(REGEX MATCH "#define SYSTEMRDL_VERSION_MAJOR ([0-9]+)" _ ${VERSION_H_CONTENT})
+set(SYSTEMRDL_VERSION_MAJOR ${CMAKE_MATCH_1})
+string(REGEX MATCH "#define SYSTEMRDL_VERSION_MINOR ([0-9]+)" _ ${VERSION_H_CONTENT})
+set(SYSTEMRDL_VERSION_MINOR ${CMAKE_MATCH_1})
+string(REGEX MATCH "#define SYSTEMRDL_VERSION_PATCH ([0-9]+)" _ ${VERSION_H_CONTENT})
+set(SYSTEMRDL_VERSION_PATCH ${CMAKE_MATCH_1})
+
+set(SYSTEMRDL_VERSION "${SYSTEMRDL_VERSION_MAJOR}.${SYSTEMRDL_VERSION_MINOR}.${SYSTEMRDL_VERSION_PATCH}")
+message(STATUS "Extracted version from header: ${SYSTEMRDL_VERSION}")
+
+# Set up project with extracted version
 project(SystemRDL-Toolkit
-    VERSION 0.1.0
+    VERSION ${SYSTEMRDL_VERSION}
     DESCRIPTION "SystemRDL parsing and elaboration toolkit library"
     LANGUAGES CXX
 )
+
+# ==============================================================================
+# Git Information
+# ==============================================================================
+
+# Find Git (optional)
+find_package(Git QUIET)
+
+if(GIT_FOUND)
+    # Get current commit hash
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_COMMIT_HASH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+
+    # Get current branch name
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_BRANCH_NAME
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+
+    # Check if working directory is clean
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} diff-index --quiet HEAD --
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        RESULT_VARIABLE GIT_IS_DIRTY
+        ERROR_QUIET
+    )
+
+    if(GIT_IS_DIRTY)
+        set(GIT_COMMIT_HASH "${GIT_COMMIT_HASH}-dirty")
+    endif()
+
+    message(STATUS "Git information: ${GIT_BRANCH_NAME}@${GIT_COMMIT_HASH}")
+else()
+    set(GIT_COMMIT_HASH "unknown")
+    set(GIT_BRANCH_NAME "unknown")
+    message(STATUS "Git not found - using default git information")
+endif()
 
 # ==============================================================================
 # Main Project Detection
@@ -486,6 +549,28 @@ if(SYSTEMRDL_BUILD_STATIC)
     add_library(SystemRDL::systemrdl_static ALIAS systemrdl_static)
 endif()
 
+# ==============================================================================
+# Version and Git Information Compile Definitions
+# ==============================================================================
+
+# Function to add version definitions to a target
+function(add_version_definitions TARGET_NAME)
+    target_compile_definitions(${TARGET_NAME} PRIVATE
+        SYSTEMRDL_GIT_COMMIT="${GIT_COMMIT_HASH}"
+        SYSTEMRDL_GIT_BRANCH="${GIT_BRANCH_NAME}"
+        SYSTEMRDL_BUILD_DATE="${CMAKE_CURRENT_TIMESTAMP}"
+    )
+endfunction()
+
+# Add version definitions to libraries
+if(SYSTEMRDL_BUILD_SHARED)
+    add_version_definitions(systemrdl_shared)
+endif()
+
+if(SYSTEMRDL_BUILD_STATIC)
+    add_version_definitions(systemrdl_static)
+endif()
+
 # Create a generic alias that points to shared library if available, otherwise static
 if(SYSTEMRDL_BUILD_SHARED)
     add_library(SystemRDL::systemrdl ALIAS systemrdl_shared)
@@ -601,6 +686,13 @@ target_include_directories(systemrdl_csv2rdl PRIVATE
             -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
         )
     endif()
+
+    # Add version definitions to tools
+    add_version_definitions(systemrdl_parser)
+    add_version_definitions(systemrdl_elaborator)
+    add_version_definitions(systemrdl_render)
+    add_version_definitions(systemrdl_csv2rdl)
+    add_version_definitions(example)
 endif()
 
 # ==============================================================================
