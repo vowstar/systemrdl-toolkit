@@ -835,9 +835,23 @@ endforeach()
 foreach(rdl_file ${RDL_TEST_FILES})
     get_filename_component(test_name ${rdl_file} NAME_WE)
 
-    # Check if this file is expected to fail elaboration
-    file(READ ${rdl_file} file_content)
-    string(FIND "${file_content}" "EXPECT_ELABORATION_FAILURE" expect_failure_pos)
+    # Check if this is an expected failure test - support both methods:
+    # 1. New method: filename contains "_fail" suffix
+    # 2. Legacy method: file content contains "EXPECT_ELABORATION_FAILURE"
+    string(FIND "${test_name}" "_fail" is_failure_test_by_name)
+    
+    set(expect_failure FALSE)
+    if(is_failure_test_by_name GREATER -1)
+        # New naming convention: test_xxx_fail.rdl
+        set(expect_failure TRUE)
+    else()
+        # Legacy method: check file content for EXPECT_ELABORATION_FAILURE
+        file(READ ${rdl_file} file_content)
+        string(FIND "${file_content}" "EXPECT_ELABORATION_FAILURE" expect_failure_pos)
+        if(expect_failure_pos GREATER -1)
+            set(expect_failure TRUE)
+        endif()
+    endif()
 
     add_test(
         NAME "elaborator_${test_name}"
@@ -846,7 +860,7 @@ foreach(rdl_file ${RDL_TEST_FILES})
     )
 
     # Set test properties
-    if(expect_failure_pos GREATER -1)
+    if(expect_failure)
         # This test is expected to fail (elaborator should return non-zero exit code)
         set_tests_properties("elaborator_${test_name}" PROPERTIES
             LABELS "elaborator;expected_failure"
@@ -917,20 +931,39 @@ if(Python3_FOUND)
     foreach(rdl_file ${RDL_TEST_FILES})
         get_filename_component(test_name ${rdl_file} NAME_WE)
 
-        # JSON test using unified Python script (replaces bash script)
-        add_test(
-            NAME "json_test_${test_name}"
-            COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/json_output_validator.py
-                    --test
-                    --parser ${CMAKE_BINARY_DIR}/systemrdl_parser
-                    --elaborator ${CMAKE_BINARY_DIR}/systemrdl_elaborator
-                    --rdl ${rdl_file}
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        )
-        set_tests_properties("json_test_${test_name}" PROPERTIES
-            LABELS "json;test"
-            DEPENDS "systemrdl_parser;systemrdl_elaborator"
-        )
+        # Skip failure tests for JSON output since they are expected to fail elaboration
+        string(FIND "${test_name}" "_fail" is_failure_test_by_name)
+        
+        set(is_failure_test FALSE)
+        if(is_failure_test_by_name GREATER -1)
+            # New naming convention: test_xxx_fail.rdl
+            set(is_failure_test TRUE)
+        else()
+            # Legacy method: check file content for EXPECT_ELABORATION_FAILURE
+            file(READ ${rdl_file} file_content)
+            string(FIND "${file_content}" "EXPECT_ELABORATION_FAILURE" expect_failure_pos)
+            if(expect_failure_pos GREATER -1)
+                set(is_failure_test TRUE)
+            endif()
+        endif()
+
+        # Only create JSON tests for success tests
+        if(NOT is_failure_test)
+            # JSON test using unified Python script (replaces bash script)
+            add_test(
+                NAME "json_test_${test_name}"
+                COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/json_output_validator.py
+                        --test
+                        --parser ${CMAKE_BINARY_DIR}/systemrdl_parser
+                        --elaborator ${CMAKE_BINARY_DIR}/systemrdl_elaborator
+                        --rdl ${rdl_file}
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            )
+            set_tests_properties("json_test_${test_name}" PROPERTIES
+                LABELS "json;test"
+                DEPENDS "systemrdl_parser;systemrdl_elaborator"
+            )
+        endif()
     endforeach()
 
     # RDL Semantic Validation Test - validates all RDL files with Python SystemRDL compiler

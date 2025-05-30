@@ -14,6 +14,13 @@ from systemrdl import RDLCompileError, RDLCompiler
 def check_expect_elaboration_failure(rdl_file):
     """Check if RDL file is marked as expecting elaboration failure"""
     try:
+        # Method 1: Check filename for _fail suffix (new naming convention)
+        file_basename = os.path.basename(rdl_file)
+        file_stem = os.path.splitext(file_basename)[0]  # Remove .rdl extension
+        if file_stem.endswith("_fail"):
+            return True
+
+        # Method 2: Check file content for EXPECT_ELABORATION_FAILURE marker (legacy method)
         with open(rdl_file, "r", encoding="utf-8") as f:
             # Check first few lines for EXPECT_ELABORATION_FAILURE marker
             for i, line in enumerate(f):
