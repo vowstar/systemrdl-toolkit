@@ -3,6 +3,7 @@
 #include "cmdline_parser.h"
 #include "systemrdl_api.h"
 #include "systemrdl_version.h"
+#include <algorithm>
 #include <fstream>
 #include <inja/inja.hpp>
 #include <iostream>
@@ -10,6 +11,19 @@
 
 using json = nlohmann::json;
 using namespace antlr4;
+
+// Helper function to get file extension
+std::string get_file_extension(const std::string &filename)
+{
+    size_t dot_pos = filename.find_last_of('.');
+    if (dot_pos == std::string::npos) {
+        return "";
+    }
+    std::string ext = filename.substr(dot_pos + 1);
+    // Convert to lowercase for case-insensitive comparison
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    return ext;
+}
 
 int main(int argc, char *argv[])
 {
@@ -20,20 +34,22 @@ int main(int argc, char *argv[])
     cmdline.add_option("t", "template", "Jinja2 template file (.j2)", true);
     cmdline
         .add_option_with_optional_value("o", "output", "Output file (default: auto-generated name)");
-    cmdline.add_option("v", "verbose", "Enable verbose output");
+    cmdline.add_option("", "verbose", "Enable verbose output");
     cmdline.add_option("h", "help", "Show this help message");
 
     if (!cmdline.parse(argc, argv)) {
         return argc == 2
                        && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h"
-                           || std::string(argv[1]) == "--version")
+                           || std::string(argv[1]) == "--version" || std::string(argv[1]) == "-v")
                    ? 0
                    : 1;
     }
 
     const auto &args = cmdline.get_positional_args();
     if (args.empty()) {
-        std::cerr << "Error: No input RDL file specified" << std::endl;
+        std::cerr << "Error: No input file specified" << std::endl;
+        std::cerr << "Supported formats: .rdl (SystemRDL) and .csv (CSV register definitions)"
+                  << std::endl;
         cmdline.print_help();
         return 1;
     }
@@ -44,18 +60,58 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    std::string rdl_file      = args[0];
+    std::string input_file    = args[0];
     std::string template_file = cmdline.get_value("template");
     bool        verbose       = cmdline.is_set("verbose");
 
+    // Detect input file type
+    std::string file_ext = get_file_extension(input_file);
+    bool        is_csv   = (file_ext == "csv");
+    bool        is_rdl   = (file_ext == "rdl");
+
+    if (!is_csv && !is_rdl) {
+        std::cerr << "Error: Unsupported file format '" << file_ext << "'" << std::endl;
+        std::cerr << "Supported formats: .rdl (SystemRDL) and .csv (CSV register definitions)"
+                  << std::endl;
+        return 1;
+    }
+
     if (verbose) {
-        std::cout << "Processing RDL file: " << rdl_file << std::endl;
+        std::cout << "Processing " << (is_csv ? "CSV" : "RDL") << " file: " << input_file
+                  << std::endl;
         std::cout << "Using template: " << template_file << std::endl;
     }
 
     try {
-        // Use systemrdl_api.h to elaborate the RDL file and get JSON
-        auto elaborate_result = systemrdl::file::elaborate(rdl_file);
+        // Get elaborated JSON - different path for CSV vs RDL
+        auto elaborate_result = systemrdl::Result::success("");
+
+        if (is_csv) {
+            // CSV -> RDL -> Elaborate
+            if (verbose) {
+                std::cout << "Converting CSV to SystemRDL..." << std::endl;
+            }
+
+            auto csv_to_rdl_result = systemrdl::file::csv_to_rdl(input_file);
+            if (!csv_to_rdl_result.ok()) {
+                std::cerr << "CSV to RDL conversion failed: " << csv_to_rdl_result.error()
+                          << std::endl;
+                return 1;
+            }
+
+            if (verbose) {
+                std::cout << "Successfully converted CSV to SystemRDL" << std::endl;
+                std::cout << "SystemRDL preview:" << std::endl;
+                std::cout << csv_to_rdl_result.value().substr(0, 300) << "..." << std::endl;
+            }
+
+            // Now elaborate the generated RDL content
+            elaborate_result = systemrdl::elaborate(csv_to_rdl_result.value());
+        } else {
+            // Direct RDL -> Elaborate
+            elaborate_result = systemrdl::file::elaborate(input_file);
+        }
+
         if (!elaborate_result.ok()) {
             std::cerr << "Elaboration failed: " << elaborate_result.error() << std::endl;
             return 1;
@@ -93,10 +149,10 @@ int main(int argc, char *argv[])
         // Generate output filename if not specified
         std::string output_file = cmdline.get_value("output");
         if (output_file.empty()) {
-            std::string rdl_basename = rdl_file.substr(rdl_file.find_last_of("/\\") + 1);
-            size_t      dot_pos      = rdl_basename.find_last_of('.');
+            std::string input_basename = input_file.substr(input_file.find_last_of("/\\") + 1);
+            size_t      dot_pos        = input_basename.find_last_of('.');
             if (dot_pos != std::string::npos) {
-                rdl_basename.resize(dot_pos);
+                input_basename.resize(dot_pos);
             }
 
             std::string template_basename = template_file.substr(
@@ -109,12 +165,12 @@ int main(int argc, char *argv[])
                 size_t end   = template_basename.find(".j2");
                 if (end != std::string::npos) {
                     std::string purpose_and_ext = template_basename.substr(start, end - start);
-                    output_file                 = rdl_basename + "_" + purpose_and_ext;
+                    output_file                 = input_basename + "_" + purpose_and_ext;
                 }
             }
 
             if (output_file.empty()) {
-                output_file = rdl_basename + "_rendered.txt";
+                output_file = input_basename + "_rendered.txt";
             }
         }
 

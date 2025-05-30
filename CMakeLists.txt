@@ -623,6 +623,7 @@ add_executable(example
     # Link tools to the library
     target_link_libraries(systemrdl_parser PRIVATE ${SYSTEMRDL_TOOLS_TARGET})
     target_link_libraries(systemrdl_elaborator PRIVATE ${SYSTEMRDL_TOOLS_TARGET})
+    target_link_libraries(systemrdl_csv2rdl PRIVATE ${SYSTEMRDL_TOOLS_TARGET})
     target_link_libraries(systemrdl_render PRIVATE ${SYSTEMRDL_TOOLS_TARGET})
     target_link_libraries(example PRIVATE ${SYSTEMRDL_MAIN_TARGET})
 
@@ -630,15 +631,18 @@ add_executable(example
     if(USE_SYSTEM_ANTLR4)
         target_link_libraries(systemrdl_parser PRIVATE ${ANTLR4_LIBRARIES})
         target_link_libraries(systemrdl_elaborator PRIVATE ${ANTLR4_LIBRARIES})
+        target_link_libraries(systemrdl_csv2rdl PRIVATE ${ANTLR4_LIBRARIES})
         target_link_libraries(systemrdl_render PRIVATE ${ANTLR4_LIBRARIES})
     else()
         # For downloaded ANTLR4, use the same target as determined for the platform
         # Don't mix static and shared - use only the target we configured
         target_link_libraries(systemrdl_parser PRIVATE $<TARGET_LINKER_FILE:${ANTLR4_TARGET}>)
         target_link_libraries(systemrdl_elaborator PRIVATE $<TARGET_LINKER_FILE:${ANTLR4_TARGET}>)
+        target_link_libraries(systemrdl_csv2rdl PRIVATE $<TARGET_LINKER_FILE:${ANTLR4_TARGET}>)
         target_link_libraries(systemrdl_render PRIVATE $<TARGET_LINKER_FILE:${ANTLR4_TARGET}>)
         add_dependencies(systemrdl_parser ${ANTLR4_TARGET})
         add_dependencies(systemrdl_elaborator ${ANTLR4_TARGET})
+        add_dependencies(systemrdl_csv2rdl ${ANTLR4_TARGET})
         add_dependencies(systemrdl_render ${ANTLR4_TARGET})
     endif()
 
@@ -663,9 +667,11 @@ target_include_directories(example PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-    # CSV converter doesn't need the full library, just basic includes
+    # CSV converter now needs the full library includes since it uses the API
 target_include_directories(systemrdl_csv2rdl PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${ANTLR4_INCLUDE_DIRS}
+    ${NLOHMANN_JSON_INCLUDE_DIRS}
 )
 
     # Set compiler warnings for tools
@@ -860,14 +866,28 @@ file(GLOB CSV_TEST_FILES "${CMAKE_SOURCE_DIR}/test/test_csv_*.csv")
 # Create tests for CSV converter
 foreach(csv_file ${CSV_TEST_FILES})
     get_filename_component(test_name ${csv_file} NAME_WE)
+    
+    # Check if this is an expected failure test
+    string(FIND "${test_name}" "_fail" is_failure_test)
+    
     add_test(
         NAME "csv2rdl_${test_name}"
         COMMAND systemrdl_csv2rdl ${csv_file} -o ${test_name}.rdl
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
-    set_tests_properties("csv2rdl_${test_name}" PROPERTIES
-        LABELS "csv2rdl"
-    )
+    
+    if(is_failure_test GREATER -1)
+        # This test is expected to fail (CSV2RDL should return non-zero exit code)
+        set_tests_properties("csv2rdl_${test_name}" PROPERTIES
+            LABELS "csv2rdl;expected_failure"
+            WILL_FAIL TRUE
+        )
+    else()
+        # This test is expected to succeed
+        set_tests_properties("csv2rdl_${test_name}" PROPERTIES
+            LABELS "csv2rdl"
+        )
+    endif()
 endforeach()
 endif()
 
@@ -1113,7 +1133,7 @@ list(FILTER PYTHON_SOURCE_FILES EXCLUDE REGEX ".*/(build|\.git|\.venv|__pycache_
 # Collect Markdown files for linting
 file(GLOB_RECURSE MARKDOWN_FILES
     "${CMAKE_SOURCE_DIR}/*.md"
-    "${CMAKE_SOURCE_DIR}/docs/*.md"
+    "${CMAKE_SOURCE_DIR}/doc/*.md"
 )
 
 # Filter out unwanted markdown files - exclude build artifacts, git files,

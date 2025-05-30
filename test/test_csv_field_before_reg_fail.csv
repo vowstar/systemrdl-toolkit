@@ -1,0 +1,3 @@
+addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,description
+0x0000,TEST_MAP,,,,,,,,,,
+,,,,,ENABLE,0,0,1,rw,rw,Field without register definition 
