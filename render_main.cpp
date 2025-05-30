@@ -2,6 +2,7 @@
 #include "SystemRDLParser.h"
 #include "cmdline_parser.h"
 #include "systemrdl_api.h"
+#include "systemrdl_version.h"
 #include <fstream>
 #include <inja/inja.hpp>
 #include <iostream>
@@ -15,6 +16,7 @@ int main(int argc, char *argv[])
     // Setup command line parser
     CmdLineParser cmdline(
         "SystemRDL Template Renderer - Render SystemRDL designs using Jinja2 templates");
+    cmdline.set_version(systemrdl::get_detailed_version());
     cmdline.add_option("t", "template", "Jinja2 template file (.j2)", true);
     cmdline
         .add_option_with_optional_value("o", "output", "Output file (default: auto-generated name)");
@@ -22,8 +24,11 @@ int main(int argc, char *argv[])
     cmdline.add_option("h", "help", "Show this help message");
 
     if (!cmdline.parse(argc, argv)) {
-        return argc == 2 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") ? 0
-                                                                                               : 1;
+        return argc == 2
+                       && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h"
+                           || std::string(argv[1]) == "--version")
+                   ? 0
+                   : 1;
     }
 
     const auto &args = cmdline.get_positional_args();

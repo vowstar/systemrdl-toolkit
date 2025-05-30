@@ -11,7 +11,10 @@ class CmdLineParser
 public:
     explicit CmdLineParser(const std::string &description = "")
         : description_(description)
+        , version_string_("")
     {}
+
+    void set_version(const std::string &version) { version_string_ = version; }
 
     void add_option(
         const std::string &short_opt,
@@ -57,6 +60,11 @@ public:
 
             if (arg == "--help" || arg == "-h") {
                 print_help();
+                return false;
+            }
+
+            if (arg == "--version" || arg == "-v") {
+                print_version();
                 return false;
             }
 
@@ -164,6 +172,21 @@ public:
         }
     }
 
+    void print_version() const
+    {
+        if (!version_string_.empty()) {
+            std::cout << version_string_ << std::endl;
+        } else {
+            // Extract program name from path
+            std::string prog_name  = program_name_;
+            size_t      last_slash = prog_name.find_last_of("/\\");
+            if (last_slash != std::string::npos) {
+                prog_name = prog_name.substr(last_slash + 1);
+            }
+            std::cout << prog_name << " version information not available" << std::endl;
+        }
+    }
+
 private:
     struct Option
     {
@@ -179,6 +202,7 @@ private:
 
     std::string              description_;
     std::string              program_name_;
+    std::string              version_string_;
     std::vector<Option>      options_;
     std::vector<std::string> positional_args_;
 };

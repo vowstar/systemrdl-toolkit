@@ -1,11 +1,76 @@
 # SystemRDL Toolkit
 
-This is a comprehensive SystemRDL toolkit based on ANTLR4 that provides parsing and elaboration capabilities for
+This is a SystemRDL toolkit based on ANTLR4 that provides parsing and elaboration capabilities for
 SystemRDL files. The toolkit includes:
 
 - **Parser**: Parses SystemRDL files and generates Abstract Syntax Trees (AST)
 - **Elaborator**: Processes and elaborates the parsed SystemRDL descriptions for further analysis and code generation
 - **Library**: Use SystemRDL functionality as a library in your C++ projects
+
+## Version Management
+
+The project uses a unified version management system with the following features:
+
+### Version Information
+
+- **Current Version**: 0.1.0
+- **Version Definition**: Single source in `systemrdl_version.h`
+- **CMake Integration**: Automatic version extraction from header file
+- **Git Information**: Includes branch, commit hash, and build status
+
+### Viewing Version Information
+
+All command-line tools support version display:
+
+```bash
+# Show version information (long form)
+./systemrdl_parser --version
+./systemrdl_elaborator --version
+./systemrdl_render --version
+./systemrdl_csv2rdl --version
+
+# Show version information (short form)
+./systemrdl_parser -v
+./systemrdl_elaborator -v
+./systemrdl_render -v
+./systemrdl_csv2rdl -v
+```
+
+Example output:
+
+```bash
+SystemRDL Toolkit 0.1.0 [main@ad085ad-dirty] (built )
+```
+
+The version string includes:
+
+- **Toolkit name and version**: SystemRDL Toolkit 0.1.0
+- **Git information**: [branch@commit] format
+- **Build status**: "dirty" indicates uncommitted changes
+- **Build timestamp**: When the binary was compiled
+
+### Version Definition
+
+Version information is centrally defined in `systemrdl_version.h`:
+
+```cpp
+#define SYSTEMRDL_VERSION_MAJOR 0
+#define SYSTEMRDL_VERSION_MINOR 1
+#define SYSTEMRDL_VERSION_PATCH 0
+```
+
+### Updating Versions
+
+To update the project version:
+
+1. Edit the version macros in `systemrdl_version.h`
+2. Rebuild the project - CMake automatically extracts the new version
+3. All tools and libraries will use the updated version information
+
+The version follows semantic versioning (MAJOR.MINOR.PATCH):
+- **MAJOR**: Incremented for incompatible API changes
+- **MINOR**: Incremented for backward-compatible functionality additions
+- **PATCH**: Incremented for backward-compatible bug fixes
 
 ## Dependencies
 
@@ -217,7 +282,7 @@ make -j$(nproc)
 
 ### Build with Tests
 
-The project includes comprehensive testing capabilities through CMake's CTest framework:
+The project includes testing capabilities through CMake's CTest framework:
 
 ```bash
 mkdir build
@@ -246,8 +311,8 @@ The following files are generated from `SystemRDL.g4`:
 
 ## CSV to SystemRDL Converter Usage
 
-The toolkit includes a professional CSV to SystemRDL converter (`systemrdl_csv2rdl`) with advanced parsing capabilities
-and comprehensive validation.
+The toolkit includes a CSV to SystemRDL converter (`systemrdl_csv2rdl`) with parsing capabilities
+and validation features.
 
 ### Basic Usage
 
@@ -293,9 +358,9 @@ This example demonstrates:
 - Empty fields to indicate hierarchy relationships
 - Various access types (RW/RO) for software and hardware
 
-### Advanced Features
+### Features
 
-#### Intelligent Header Matching
+#### Header Matching
 
 - **Case-insensitive**: `AddrmapOffset` → `addrmap_offset`
 - **Fuzzy matching**: Handles typos with Levenshtein distance ≤3
@@ -331,7 +396,7 @@ Automatically detects and supports:
 
 #### Automated Validation Suite
 
-Run comprehensive validation from any directory:
+Run validation from any directory:
 
 ```bash
 # Run complete validation suite
@@ -345,7 +410,7 @@ python3 script/csv2rdl_validator.py
 
 #### Test Coverage
 
-The validation suite includes 8 comprehensive test scenarios:
+The validation suite includes 8 test scenarios:
 
 - **Basic Example**: Standard CSV conversion
 - **Multiline Processing**: Various multi-line field scenarios
@@ -417,7 +482,7 @@ addrmap DEMO {
 
 ## SystemRDL Template Rendering
 
-The SystemRDL Toolkit includes a powerful template rendering tool that can generate various output formats
+The SystemRDL Toolkit includes a template rendering tool that can generate various output formats
 from SystemRDL designs using Jinja2 templates.
 
 ### Overview
@@ -468,7 +533,7 @@ The tool provides the following JSON data structure to templates:
       "absolute_address": "0x0",
       "children": [
         {
-          "absolute_address": "0x0", 
+          "absolute_address": "0x0",
           "children": [
             {
               "absolute_address": "0x0",
@@ -535,7 +600,7 @@ Generates C header files with register and field definitions:
 
 #### Markdown Documentation Template (`test/test_j2_doc.md.j2`)
 
-Generates comprehensive register documentation with rich formatting:
+Generates register documentation with formatting:
 
 **Usage:**
 
@@ -697,7 +762,7 @@ Template rendering error: [inja.exception.render_error] variable 'missing_var' n
 ./systemrdl_render design.rdl -t template.j2 -v
 ```
 
-### Advanced Template Usage
+### Template Usage
 
 #### Multiple Output Generation
 
@@ -720,7 +785,7 @@ done
 
 ## Code Quality and Development Tools
 
-The project includes comprehensive code quality checking and automatic formatting tools integrated into the CMake build
+The project includes code quality checking and automatic formatting tools integrated into the CMake build
 system. These tools ensure consistent code style and help maintain high code quality across both C++ and Python
 components.
 
@@ -821,7 +886,7 @@ This target runs the same checks that CI will perform:
 #### Complete Quality Analysis
 
 ```bash
-make quality-all            # Run comprehensive analysis with verbose output
+make quality-all            # Run analysis with verbose output
 ```
 
 ### Code Quality Configuration
@@ -936,7 +1001,7 @@ make format
 make test-fast
 ```
 
-#### Advanced Analysis
+#### Analysis
 
 ```bash
 # Comprehensive quality analysis
@@ -1202,7 +1267,7 @@ Address     Size    Name      Path
 
 ## Testing
 
-The project includes comprehensive testing capabilities with both C++ tools and Python validation scripts:
+The project includes testing capabilities with both C++ tools and Python validation scripts:
 
 ### Setup Requirements
 
@@ -1305,7 +1370,7 @@ python3 script/json_output_validator.py --test --parser build/systemrdl_parser -
   - Comprehensive test coverage: basic, multiline, delimiters, fuzzy matching
   - Professional validation framework with detailed reporting and exit codes
 
-### Comprehensive Testing
+### Testing
 
 ```bash
 # Run all tests (parser + elaborator + JSON + semantic)
@@ -1317,7 +1382,7 @@ make test
 # Verbose output with details
 ctest --output-on-failure --verbose
 
-# Custom target for comprehensive testing
+# Custom target for testing
 make run-tests
 ```
 
@@ -1364,7 +1429,7 @@ ctest -R "rdl_semantic_validation" --output-on-failure
 
 ### Test Files
 
-The project includes 16 comprehensive test files covering various SystemRDL features:
+The project includes 16 test files covering various SystemRDL features:
 
 - `test_minimal.rdl` - Basic SystemRDL structure
 - `test_basic_chip.rdl` - Simple chip layout
@@ -1401,7 +1466,7 @@ The project includes 16 comprehensive test files covering various SystemRDL feat
 
 ### CSV to SystemRDL Converter
 
-- `csv2rdl_main.cpp` - CSV to SystemRDL converter with intelligent header matching and multi-line support
+- `csv2rdl_main.cpp` - CSV to SystemRDL converter with header matching and multi-line support
 - `script/csv2rdl_validator.py` - Comprehensive validation suite for CSV converter testing
 - `test/test_csv_*.csv` - CSV test files covering various scenarios (basic, multiline, delimiters, fuzzy matching)
 - `test/TEST_CSV_README.md` - CSV test documentation and validation procedures
@@ -1472,44 +1537,43 @@ The project includes 16 comprehensive test files covering various SystemRDL feat
   - Support for `--json` (default filename) and `--json=custom.json` formats
   - Short options (`-j`) and long options (`--json`) support
   - Future-ready for multiple output formats (e.g., `--yaml`, `--xml`)
-- **Comprehensive Error Reporting**: Detailed error detection and reporting with line/column information
+- **Error Reporting**: Detailed error detection and reporting with line/column information
 - **Address Map Generation**: Automatic generation of memory address maps from elaborated models
-- **CSV to SystemRDL Converter**: Professional-grade CSV to SystemRDL conversion tool
-  - **Intelligent Header Matching**: Case-insensitive, fuzzy matching with Levenshtein distance (≤3)
+- **CSV to SystemRDL Converter**: CSV to SystemRDL conversion tool
+  - **Header Matching**: Case-insensitive, fuzzy matching with Levenshtein distance (≤3)
   - **Multi-line CSV Support**: Handles quoted multi-line cells with proper field processing
   - **Flexible Delimiters**: Automatic detection of comma and semicolon separators
   - **Three-layer Structure**: Complete addrmap → reg → field hierarchy support
   - **Access Control Mapping**: Separate software/hardware access permissions (RW/RO/WO)
-  - **Smart String Processing**: Field-specific newline and whitespace handling
-  - **Validation Framework**: Three-tier validation with comprehensive test coverage
+  - **String Processing**: Field-specific newline and whitespace handling
+  - **Validation Framework**: Three-tier validation with test coverage
   - **Cross-directory Execution**: Path-agnostic script execution from any directory
-- **Python Validation Framework**: Comprehensive validation using official SystemRDL tools
+- **Python Validation Framework**: Validation using official SystemRDL tools
   - **Semantic Validation**: Uses official `systemrdl-compiler` for specification compliance
   - **JSON Schema Validation**: Validates output format and structure
   - **End-to-End Testing**: Automated testing pipeline for complete workflow validation
   - **Batch Processing**: Support for validating multiple files simultaneously
 - **Extensible Architecture**: Modular design for easy extension and customization
-- **Integrated Testing**: CMake-based testing framework with comprehensive test coverage
+- **Integrated Testing**: CMake-based testing framework with test coverage
   - JSON output validation tests
   - Semantic validation using Python SystemRDL compiler
   - Fast test targets for rapid development
-  - 16 comprehensive test files covering all major SystemRDL features
+  - 16 test files covering all major SystemRDL features
 - **Cross-platform Support**: Compatible with Linux, macOS, and Windows
-- **Unicode Emoji Interface**: User-friendly console output with emoji indicators
-- **Property Analysis**: Complete property inheritance and evaluation system
-- **Automatic Gap Detection and Reserved Field Generation**: Intelligent field gap analysis
-  - **Gap Detection**: Automatically detects unspecified bit ranges in register definitions
-  - **Reserved Field Generation**: Creates appropriately named reserved fields for detected gaps
-  - **Scientific Naming**: Uses systematic naming convention `RESERVED_<msb>_<lsb>` for clarity
-  - **Register Width Support**: Works with registers of any width (8-bit, 16-bit, 32-bit, 64-bit, custom widths)
-  - **Smart Coverage Validation**: Validates field coverage and fills missing bit ranges
-  - **Zero-overhead**: Only activates when gaps are detected, preserving performance
-- **Comprehensive Field Validation**: Advanced field integrity checking
-  - **Field Overlap Detection**: Identifies and reports overlapping bit ranges between fields in the same register
+- **Console Output**: User-friendly console output with emoji indicators
+- **Property Analysis**: Property inheritance and evaluation system
+- **Gap Detection and Reserved Field Generation**: Automatic field gap analysis
+  - **Gap Detection**: Detects unspecified bit ranges in register definitions
+  - **Reserved Field Generation**: Creates named reserved fields for detected gaps
+  - **Naming Convention**: Uses systematic naming convention `RESERVED_<msb>_<lsb>`
+  - **Register Width Support**: Works with registers of various widths (8-bit, 16-bit, 32-bit, 64-bit, custom)
+  - **Coverage Validation**: Validates field coverage and fills missing bit ranges
+- **Field Validation**: Field integrity checking
+  - **Field Overlap Detection**: Identifies overlapping bit ranges between fields in the same register
   - **Field Boundary Validation**: Ensures fields do not exceed register width boundaries
-  - **Intelligent Error Reporting**: Provides precise error messages with specific bit ranges and field names
+  - **Error Reporting**: Provides error messages with specific bit ranges and field names
   - **Multi-level Validation**: Validates fields before gap detection to ensure data integrity
-- **Virtual Environment Integration**: Isolated Python dependencies for reliable testing
+- **Virtual Environment Integration**: Isolated Python dependencies for testing
 
 ## Troubleshooting
 
@@ -2158,7 +2222,7 @@ make
 
 #### Example Output
 
-The example produces comprehensive output demonstrating all modern API features:
+The example produces output demonstrating all modern API features:
 
 ```text
 🚀 SystemRDL Modern API Example
@@ -2213,7 +2277,7 @@ The example produces comprehensive output demonstrating all modern API features:
 - **clang-format** (for code formatting)
 - **cppcheck** (for static analysis)
 
-### Advanced Library Configuration
+### Library Configuration
 
 #### Custom ANTLR4 Version
 
