@@ -1,12 +1,14 @@
-#include "systemrdl_api.h"
+#include <cstdio>
+#include <fstream>
+#include <sstream>
+
+#include <antlr4-runtime.h>
+#include <nlohmann/json.hpp>
+
 #include "SystemRDLLexer.h"
 #include "SystemRDLParser.h"
 #include "elaborator.h"
-#include <antlr4-runtime.h>
-#include <fstream>
-#include <nlohmann/json.hpp>
-#include <sstream>
-
+#include "systemrdl_api.h"
 namespace systemrdl {
 
 // Helper structure to keep ANTLR objects alive
