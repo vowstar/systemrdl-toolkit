@@ -553,12 +553,62 @@ endif()
 # Version and Git Information Compile Definitions
 # ==============================================================================
 
+# Option to include build timestamp (can break reproducible builds)
+# Default to ON for main project, OFF for subprojects to avoid parent build issues
+option(SYSTEMRDL_INCLUDE_BUILD_TIMESTAMP "Include build timestamp in version info" ${SYSTEMRDL_MAIN_PROJECT})
+
+# Determine build timestamp for reproducible builds
+set(SYSTEMRDL_BUILD_TIMESTAMP "unknown")
+if(SYSTEMRDL_INCLUDE_BUILD_TIMESTAMP)
+    # First priority: SOURCE_DATE_EPOCH for reproducible builds
+    if(DEFINED ENV{SOURCE_DATE_EPOCH})
+        # Convert SOURCE_DATE_EPOCH (Unix timestamp) to readable format
+        execute_process(
+            COMMAND date -u -d @$ENV{SOURCE_DATE_EPOCH} "+%Y-%m-%d %H:%M:%S UTC"
+            OUTPUT_VARIABLE SYSTEMRDL_BUILD_TIMESTAMP
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+        )
+        if(NOT SYSTEMRDL_BUILD_TIMESTAMP)
+            # Fallback if date command fails
+            set(SYSTEMRDL_BUILD_TIMESTAMP "$ENV{SOURCE_DATE_EPOCH}")
+        endif()
+        message(STATUS "Using SOURCE_DATE_EPOCH for build timestamp: ${SYSTEMRDL_BUILD_TIMESTAMP}")
+    elseif(GIT_FOUND)
+        # Second priority: Git commit timestamp (deterministic)
+        execute_process(
+            COMMAND ${GIT_EXECUTABLE} log -1 --format=%ci HEAD
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            OUTPUT_VARIABLE GIT_COMMIT_TIMESTAMP
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+        )
+        if(GIT_COMMIT_TIMESTAMP)
+            set(SYSTEMRDL_BUILD_TIMESTAMP "${GIT_COMMIT_TIMESTAMP}")
+            message(STATUS "Using git commit timestamp for build date: ${SYSTEMRDL_BUILD_TIMESTAMP}")
+        else()
+            set(SYSTEMRDL_BUILD_TIMESTAMP "unknown")
+            message(STATUS "Git commit timestamp unavailable, using 'unknown'")
+        endif()
+    else()
+        set(SYSTEMRDL_BUILD_TIMESTAMP "unknown")
+        message(STATUS "Build timestamp disabled (no git), using 'unknown'")
+    endif()
+else()
+    set(SYSTEMRDL_BUILD_TIMESTAMP "disabled")
+    if(SYSTEMRDL_MAIN_PROJECT)
+        message(STATUS "Build timestamp disabled by option")
+    else()
+        message(STATUS "Build timestamp disabled (subproject mode)")
+    endif()
+endif()
+
 # Function to add version definitions to a target
 function(add_version_definitions TARGET_NAME)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         SYSTEMRDL_GIT_COMMIT="${GIT_COMMIT_HASH}"
         SYSTEMRDL_GIT_BRANCH="${GIT_BRANCH_NAME}"
-        SYSTEMRDL_BUILD_DATE="${CMAKE_CURRENT_TIMESTAMP}"
+        SYSTEMRDL_BUILD_DATE="${SYSTEMRDL_BUILD_TIMESTAMP}"
     )
 endfunction()
 
@@ -839,7 +889,7 @@ foreach(rdl_file ${RDL_TEST_FILES})
     # 1. New method: filename contains "_fail" suffix
     # 2. Legacy method: file content contains "EXPECT_ELABORATION_FAILURE"
     string(FIND "${test_name}" "_fail" is_failure_test_by_name)
-    
+
     set(expect_failure FALSE)
     if(is_failure_test_by_name GREATER -1)
         # New naming convention: test_xxx_fail.rdl
@@ -880,16 +930,16 @@ file(GLOB CSV_TEST_FILES "${CMAKE_SOURCE_DIR}/test/test_csv_*.csv")
 # Create tests for CSV converter
 foreach(csv_file ${CSV_TEST_FILES})
     get_filename_component(test_name ${csv_file} NAME_WE)
-    
+
     # Check if this is an expected failure test
     string(FIND "${test_name}" "_fail" is_failure_test)
-    
+
     add_test(
         NAME "csv2rdl_${test_name}"
         COMMAND systemrdl_csv2rdl ${csv_file} -o ${test_name}.rdl
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
-    
+
     if(is_failure_test GREATER -1)
         # This test is expected to fail (CSV2RDL should return non-zero exit code)
         set_tests_properties("csv2rdl_${test_name}" PROPERTIES
@@ -933,7 +983,7 @@ if(Python3_FOUND)
 
         # Skip failure tests for JSON output since they are expected to fail elaboration
         string(FIND "${test_name}" "_fail" is_failure_test_by_name)
-        
+
         set(is_failure_test FALSE)
         if(is_failure_test_by_name GREATER -1)
             # New naming convention: test_xxx_fail.rdl
