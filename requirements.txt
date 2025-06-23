@@ -3,6 +3,6 @@ systemrdl-compiler==1.29.3
 
 # Code formatting for documentation quality
 black==25.1.0
-flake8==7.2.0
+flake8==7.3.0
 isort==6.0.1
 pymarkdownlnt==0.9.30
