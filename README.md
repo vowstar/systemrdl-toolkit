@@ -7,18 +7,18 @@
 A comprehensive SystemRDL 2.0 toolkit based on ANTLR4 that provides parsing,
 elaboration, and conversion capabilitiesfor SystemRDL register description files.
 
-## ✨ Features
+## Features
 
-- **🚀 SystemRDL 2.0 Support**: Implementation of SystemRDL 2.0 specification
-- **📊 AST & Elaboration**: Parse and elaborate SystemRDL designs with semantic analysis
-- **🔄 JSON Export**: Export AST and elaborated models to JSON format
-- **📋 CSV Conversion**: Convert CSV specifications to SystemRDL format
-- **🎨 Template Rendering**: Documentation generation using Jinja2 templates
-- **🧪 Validation Testing**: Integration with Python SystemRDL compiler
-- **🔧 C++ API**: Library interface without ANTLR4 header dependencies
-- **⚡ Build Flexibility**: Support for multiple ANTLR4 versions
+- **SystemRDL 2.0 Support**: Implementation of SystemRDL 2.0 specification
+- **AST & Elaboration**: Parse and elaborate SystemRDL designs with semantic analysis
+- **JSON Export**: Export AST and elaborated models to JSON format
+- **CSV Conversion**: Convert CSV specifications to SystemRDL format
+- **Template Rendering**: Documentation generation using Jinja2 templates
+- **Validation Testing**: Integration with Python SystemRDL compiler
+- **C++ API**: Library interface without ANTLR4 header dependencies
+- **Build Flexibility**: Support for multiple ANTLR4 versions
 
-## 🛠️ Tools Included
+## Tools Included
 
 |          Tool          |                       Description                        |
 | ---------------------- | -------------------------------------------------------- |
@@ -27,7 +27,7 @@ elaboration, and conversion capabilitiesfor SystemRDL register description files
 | `systemrdl_csv2rdl`    | Convert CSV register specifications to SystemRDL         |
 | `systemrdl_render`     | Generate documentation using Jinja2 templates            |
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -73,7 +73,7 @@ make test-fast
 ./systemrdl_render design.rdl -t template.j2 -o output.html
 ```
 
-## 📚 Documentation
+## Documentation
 
 |                   Document                   |                 Description                  |
 | -------------------------------------------- | -------------------------------------------- |
@@ -85,7 +85,7 @@ make test-fast
 | [TROUBLESHOOTING.md](doc/TROUBLESHOOTING.md) | Common issues and solutions                  |
 | [ARCHITECTURE.md](doc/ARCHITECTURE.md)       | Project structure and components             |
 
-## 🏗️ Library Usage
+## Library Usage
 
 The toolkit provides a modern C++ library for integrating SystemRDL functionality:
 
@@ -107,7 +107,7 @@ if (elab_result.success) {
 
 See [API.md](doc/API.md) for complete library documentation.
 
-## 🧪 Testing
+## Testing
 
 The project includes comprehensive validation using both C++ and Python SystemRDL tools:
 
@@ -122,7 +122,7 @@ make test-fast
 make test-parser test-elaborator test-csv2rdl
 ```
 
-## 📦 Installation
+## Installation
 
 ```bash
 # Install to system
@@ -133,7 +133,7 @@ find_package(SystemRDL REQUIRED)
 target_link_libraries(your_target SystemRDL::systemrdl)
 ```
 
-## 🔧 Configuration
+## Configuration
 
 ### ANTLR4 Version Control
 
@@ -158,7 +158,7 @@ cmake .. -DSYSTEMRDL_BUILD_TOOLS=ON -DSYSTEMRDL_BUILD_TESTS=ON
 cmake .. -DSYSTEMRDL_BUILD_SHARED=ON -DSYSTEMRDL_BUILD_STATIC=ON
 ```
 
-## 📋 Version Information
+## Version Information
 
 - **Version**: 0.1.0
 - **SystemRDL Standard**: 2.0
@@ -167,20 +167,20 @@ cmake .. -DSYSTEMRDL_BUILD_SHARED=ON -DSYSTEMRDL_BUILD_STATIC=ON
 
 All tools support `--version` flag for detailed version information including Git commit and build status.
 
-## 🤝 Acknowledgments
+## Acknowledgments
 
 The SystemRDL grammar file (`SystemRDL.g4`) is derived from the
 [SystemRDL Compiler](https://github.com/SystemRDL/systemrdl-compiler) project.
 We express our sincere gratitude to the SystemRDL organization and contributors
 for providing the comprehensiveSystemRDL 2.0 specification and grammar implementation.
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🐛 Issues & Support
+## Issues & Support
 
-- 📖 **Documentation**: Check the [doc/](doc/) directory for detailed guides
-- 🐛 **Bug Reports**: [Use the issue tracker](https://github.com/vowstar/systemrdl-toolkit/issues)
-- 💬 **Questions**: See [TROUBLESHOOTING.md](doc/TROUBLESHOOTING.md) for common issues
-- 🤝 **Contributing**: Read [DEVELOPMENT.md](doc/DEVELOPMENT.md) for contribution guidelines
+- **Documentation**: Check the [doc/](doc/) directory for detailed guides
+- **Bug Reports**: [Use the issue tracker](https://github.com/vowstar/systemrdl-toolkit/issues)
+- **Questions**: See [TROUBLESHOOTING.md](doc/TROUBLESHOOTING.md) for common issues
+- **Contributing**: Read [DEVELOPMENT.md](doc/DEVELOPMENT.md) for contribution guidelines

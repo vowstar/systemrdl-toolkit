@@ -1,4 +1,3 @@
-
 # Code Quality and Development Tools
 
 The project includes code quality checking and automatic formatting tools integrated into the CMake build
@@ -29,7 +28,7 @@ cd build
 make quality-help
 ```
 
-## 🔍 Code Checking Targets
+## Code Checking Targets
 
 ### Check All Code Quality
 
@@ -62,7 +61,7 @@ make markdown-fix           # Auto-fix Markdown issues with PyMarkdown
 make markdown-rules         # Show available markdown linting rules
 ```
 
-## 🔧 Code Fixing Targets
+## Code Fixing Targets
 
 ### Auto-format All Code
 
@@ -84,7 +83,7 @@ make python-format          # Auto-format Python code with black and isort
 make markdown-fix           # Auto-fix Markdown issues with PyMarkdown
 ```
 
-## 🚀 Development Workflow Targets
+## Development Workflow Targets
 
 ### Pre-commit Checks
 

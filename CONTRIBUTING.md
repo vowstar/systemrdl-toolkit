@@ -3,7 +3,7 @@
 Thank you for your interest in contributing to the SystemRDL Toolkit!
 This document provides guidelines and information for contributors.
 
-## 🎯 Project Overview
+## Project Overview
 
 The SystemRDL Toolkit is a C++ implementation of a SystemRDL 2.0 compiler that provides:
 
@@ -12,7 +12,7 @@ The SystemRDL Toolkit is a C++ implementation of a SystemRDL 2.0 compiler that p
 - Advanced validation features including instance address overlap detection
 - JSON output for integration with other tools
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -61,7 +61,7 @@ The SystemRDL Toolkit is a C++ implementation of a SystemRDL 2.0 compiler that p
    python compare_implementations.py
    ```
 
-## 📋 How to Contribute
+## How to Contribute
 
 ### Reporting Issues
 
@@ -74,9 +74,9 @@ When reporting issues, please include:
 
 Use our issue templates for:
 
-- 🐛 Bug Reports
-- ✨ Feature Requests
-- 📚 Documentation Improvements
+- Bug Reports
+- Feature Requests
+- Documentation Improvements
 
 ### Submitting Pull Requests
 
@@ -207,7 +207,7 @@ python json_output_validator.py
 - **API documentation**: Document all public interfaces
 - **Examples**: Include usage examples for new features
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```bash
 systemrdl-toolkit/
@@ -226,7 +226,7 @@ systemrdl-toolkit/
 └── docs/                     # Additional documentation
 ```
 
-## 🔧 Development Workflow
+## Development Workflow
 
 ### Making Changes
 
@@ -271,32 +271,32 @@ systemrdl-toolkit/
 - **Profile critical paths**: Use profiling tools for optimization
 - **Benchmark against Python**: Ensure C++ implementation maintains performance advantage
 
-## 🎯 Contribution Areas
+## Contribution Areas
 
 We welcome contributions in these areas:
 
 ### High Priority
 
-- 🐛 **Bug fixes**: Address reported issues
-- ✅ **Test coverage**: Add more test cases
-- 📚 **Documentation**: Improve code and user documentation
-- 🔧 **Build system**: Improve CMake configuration
+- Bug fixes: Address reported issues
+- Test coverage: Add more test cases
+- Documentation: Improve code and user documentation
+- Build system: Improve CMake configuration
 
 ### Medium Priority
 
-- ⚡ **Performance optimizations**: Make the elaborator faster
-- 🆕 **New SystemRDL features**: Implement additional language features
-- 🔍 **Enhanced validation**: Add more semantic checks
-- 🎨 **Error messages**: Improve error reporting
+- Performance optimizations: Make the elaborator faster
+- New SystemRDL features: Implement additional language features
+- Enhanced validation: Add more semantic checks
+- Error messages: Improve error reporting
 
 ### Nice to Have
 
-- 🌐 **Platform support**: Windows/macOS improvements
-- 🔌 **Tool integration**: IDE plugins, language servers
-- 📊 **Analytics**: Code metrics and reporting
-- 🎯 **Examples**: More comprehensive examples
+- Platform support: Windows/macOS improvements
+- Tool integration: IDE plugins, language servers
+- Analytics: Code metrics and reporting
+- Examples: More comprehensive examples
 
-## 🤝 Community Guidelines
+## Community Guidelines
 
 - **Be respectful**: Treat all contributors with respect
 - **Be constructive**: Provide helpful feedback and suggestions
@@ -304,13 +304,13 @@ We welcome contributions in these areas:
 - **Ask questions**: Don't hesitate to ask for clarification
 - **Share knowledge**: Help others learn and contribute
 
-## 📞 Getting Help
+## Getting Help
 
 - **GitHub Issues**: For bug reports and feature requests
 - **GitHub Discussions**: For questions and general discussion
 - **Email**: For security issues or private concerns
 
-## 🏆 Recognition
+## Recognition
 
 Contributors are recognized in:
 
@@ -318,4 +318,4 @@ Contributors are recognized in:
 - **Release notes**: Major contributions highlighted
 - **GitHub contributors graph**: Automatic recognition
 
-Thank you for contributing to the SystemRDL Toolkit! 🎉
+Thank you for contributing to the SystemRDL Toolkit!

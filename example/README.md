@@ -32,41 +32,41 @@ make
 
 The example showcases all major features of the modern SystemRDL API:
 
-- **🚀 String-based Operations**: Parse and elaborate SystemRDL content directly from strings
-- **📁 File Operations**: Read SystemRDL files using convenient file wrappers
-- **🌊 Stream Processing**: Input/output using standard C++ streams
-- **📊 CSV Integration**: Convert CSV register data to SystemRDL format
-- **🛡️ Error Handling**: Robust error management with Result types
-- **🏗️ Advanced Elaboration**: Complex SystemRDL designs with arrays and hierarchies
-- **⚡ Modern C++**: Clean API without ANTLR4 header exposure
+- **String-based Operations**: Parse and elaborate SystemRDL content directly from strings
+- **File Operations**: Read SystemRDL files using convenient file wrappers
+- **Stream Processing**: Input/output using standard C++ streams
+- **CSV Integration**: Convert CSV register data to SystemRDL format
+- **Error Handling**: Robust error management with Result types
+- **Advanced Elaboration**: Complex SystemRDL designs with arrays and hierarchies
+- **Modern C++**: Clean API without ANTLR4 header exposure
 
 ## Expected Output
 
 When you run the example, you should see output like:
 
 ```text
-🚀 SystemRDL Modern API Example
+SystemRDL Modern API Example
 
-📋 Example 1: Parse SystemRDL content
-✅ Parse successful!
+Example 1: Parse SystemRDL content
+Parse successful!
 
-🚀 Example 2: Simple Elaboration
-✅ Elaboration successful!
+Example 2: Simple Elaboration
+Elaboration successful!
 
-🎯 Example 3: Advanced Elaboration (Arrays & Complex Features)
-✅ Advanced elaboration successful!
+Example 3: Advanced Elaboration (Arrays & Complex Features)
+Advanced elaboration successful!
 
-📊 Example 4: Convert CSV to SystemRDL
-✅ CSV conversion successful!
+Example 4: Convert CSV to SystemRDL
+CSV conversion successful!
 
-📁 Example 5: File-based operations
-✅ File parse successful!
+Example 5: File-based operations
+File parse successful!
 
-🌊 Example 6: Stream operations
-✅ Stream processing successful!
+Example 6: Stream operations
+Stream processing successful!
 
-❗ Example 7: Error handling
-✅ Error handling working correctly!
+Example 7: Error handling
+Error handling working correctly!
 ```
 
 ## Files

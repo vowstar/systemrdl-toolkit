@@ -119,21 +119,21 @@ addrmap test_auto_reserved_fields {
 **Elaborator output with automatic reserved fields**:
 
 ```bash
-🔧 reg: test_reg (size: 4 bytes)
-  🔧 field: ctrl [0:0]
-    📝 width: 1, lsb: 0, msb: 0, sw: "rw"
-  🔧 field: RESERVED_3_1 [3:1]    # Automatically generated
-    📝 width: 3, lsb: 1, msb: 3, sw: "r"
-  🔧 field: status [7:4]
-    📝 width: 4, lsb: 4, msb: 7, sw: "rw"
-  🔧 field: RESERVED_15_8 [15:8]  # Automatically generated
-    📝 width: 8, lsb: 8, msb: 15, sw: "r"
-  🔧 field: data [23:16]
-    📝 width: 8, lsb: 16, msb: 23, sw: "rw"
-  🔧 field: RESERVED_30_24 [30:24] # Automatically generated
-    📝 width: 7, lsb: 24, msb: 30, sw: "r"
-  🔧 field: enable [31:31]
-    📝 width: 1, lsb: 31, msb: 31, sw: "rw"
+reg: test_reg (size: 4 bytes)
+  field: ctrl [0:0]
+    width: 1, lsb: 0, msb: 0, sw: "rw"
+  field: RESERVED_3_1 [3:1]    # Automatically generated
+    width: 3, lsb: 1, msb: 3, sw: "r"
+  field: status [7:4]
+    width: 4, lsb: 4, msb: 7, sw: "rw"
+  field: RESERVED_15_8 [15:8]  # Automatically generated
+    width: 8, lsb: 8, msb: 15, sw: "r"
+  field: data [23:16]
+    width: 8, lsb: 16, msb: 23, sw: "rw"
+  field: RESERVED_30_24 [30:24] # Automatically generated
+    width: 7, lsb: 24, msb: 30, sw: "r"
+  field: enable [31:31]
+    width: 1, lsb: 31, msb: 31, sw: "rw"
 ```
 
 **Features of automatic gap detection**:
@@ -190,7 +190,7 @@ The converter supports a three-layer structure: **addrmap → reg → field**. C
 
 ### CSV2RDL Structure Specification
 
-⚠️ **Important: CSV files must follow a strict logical row structure**
+**Important: CSV files must follow a strict logical row structure**
 
 #### Row Type Definitions
 
@@ -209,7 +209,7 @@ The converter supports a three-layer structure: **addrmap → reg → field**. C
 
 ### CSV2RDL Example Structure
 
-✅ **Correct Structure:**
+**Correct Structure:**
 
 ```csv
 addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,description
@@ -483,46 +483,46 @@ addrmap simple_chip {
 ### Parser Output
 
 ```bash
-✅ Parsing successful!
+Parsing successful!
 
 === Abstract Syntax Tree ===
-📦 Component Definition
-    🔧 Type: addrmap
-        🔧 Type: reg
-            🔧 Type: field
-              ⚙️ Property: sw=rw
-          📋 Instance: data[31:0]
-            📏 Range: [31:0]
-      📋 Instance: reg1@0x0
-        📍 Address: @0x0
+Component Definition
+    Type: addrmap
+        Type: reg
+            Type: field
+              Property: sw=rw
+          Instance: data[31:0]
+            Range: [31:0]
+      Instance: reg1@0x0
+        Address: @0x0
         ...
 ```
 
 ### Elaborator Output
 
 ```bash
-🔧 Parsing SystemRDL file: example.rdl
-✅ Parsing successful!
+Parsing SystemRDL file: example.rdl
+Parsing successful!
 
-🚀 Starting elaboration...
-✅ Elaboration successful!
+Starting elaboration...
+Elaboration successful!
 
 === Elaborated SystemRDL Model ===
-📦 addrmap: simple_chip @ 0x0
-  🔧 reg: reg1 (size: 4 bytes)
-    🔧 field: data [31:0]
-      📝 width: 32
-      📝 lsb: 0
-      📝 sw: "rw"
-      📝 msb: 31
-  🔧 reg: reg2 @ 0x4 (size: 4 bytes)
-    🔧 field: status @ 0x4 [7:0]
-      📝 width: 8
-      📝 lsb: 0
-      📝 sw: "rw"
-      📝 msb: 7
+addrmap: simple_chip @ 0x0
+  reg: reg1 (size: 4 bytes)
+    field: data [31:0]
+      width: 32
+      lsb: 0
+      sw: "rw"
+      msb: 31
+  reg: reg2 @ 0x4 (size: 4 bytes)
+    field: status @ 0x4 [7:0]
+      width: 8
+      lsb: 0
+      sw: "rw"
+      msb: 7
 
-📊 Address Map:
+Address Map:
 Address     Size    Name      Path
 ------------------------------------
 0x00000000  4       reg1      simple_chip.reg1

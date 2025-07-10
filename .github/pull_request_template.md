@@ -8,14 +8,14 @@ Fixes # (issue number)
 
 Please mark the relevant option:
 
-- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
-- [ ] ✨ New feature (non-breaking change which adds functionality)
-- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] 📚 Documentation update
-- [ ] 🔧 Build/CI improvements
-- [ ] ♻️ Code refactoring (no functional changes)
-- [ ] ⚡ Performance improvement
-- [ ] 🧪 Test improvements
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] Documentation update
+- [ ] Build/CI improvements
+- [ ] Code refactoring (no functional changes)
+- [ ] Performance improvement
+- [ ] Test improvements
 
 ## Changes Made
 
