@@ -1,4 +1,3 @@
-
 # Library Usage
 
 This toolkit has been refactored to provide both a standalone library (`libsystemrdl`) and command-line tools.
@@ -6,11 +5,11 @@ The library enables easy integration of SystemRDL parsing and elaboration capabi
 
 ## Library Features
 
-- **📚 Library Support**: Use SystemRDL functionality as a library in your C++ projects
-- **🔧 Command-line Tools**: Traditional command-line tools for parsing and elaboration
-- **🏗️ Flexible Build**: Choose between shared/static libraries and optional components
-- **📦 Modern CMake**: Full CMake package support with `find_package()` integration
-- **🔍 Code Quality**: Comprehensive testing and code quality tools
+- **Library Support**: Use SystemRDL functionality as a library in your C++ projects
+- **Command-line Tools**: Traditional command-line tools for parsing and elaboration
+- **Flexible Build**: Choose between shared/static libraries and optional components
+- **Modern CMake**: Full CMake package support with `find_package()` integration
+- **Code Quality**: Comprehensive testing and code quality tools
 
 ## Build Options
 
@@ -124,20 +123,20 @@ int main() {
     // Parse to AST JSON
     auto parse_result = systemrdl::parse(rdl_content);
     if (parse_result.ok()) {
-        std::cout << "✅ Parse successful!" << std::endl;
-        std::cout << "📄 AST JSON: " << parse_result.value() << std::endl;
+        std::cout << "Parse successful!" << std::endl;
+        std::cout << "AST JSON: " << parse_result.value() << std::endl;
     } else {
-        std::cerr << "❌ Parse failed: " << parse_result.error() << std::endl;
+        std::cerr << "Parse failed: " << parse_result.error() << std::endl;
         return 1;
     }
 
     // Elaborate SystemRDL design
     auto elaborate_result = systemrdl::elaborate(rdl_content);
     if (elaborate_result.ok()) {
-        std::cout << "✅ Elaboration successful!" << std::endl;
-        std::cout << "🏗️ Elaborated JSON: " << elaborate_result.value() << std::endl;
+        std::cout << "Elaboration successful!" << std::endl;
+        std::cout << "Elaborated JSON: " << elaborate_result.value() << std::endl;
     } else {
-        std::cerr << "❌ Elaboration failed: " << elaborate_result.error() << std::endl;
+        std::cerr << "Elaboration failed: " << elaborate_result.error() << std::endl;
         return 1;
     }
 
@@ -237,14 +236,14 @@ if (result.has_error()) {
 
 #### API Features
 
-- **🧹 Clean Interface**: No ANTLR4 headers exposed to user code
-- **📝 String-based**: Work with `std::string` and `std::string_view`
-- **📁 File Support**: Direct file input/output operations
-- **🌊 Stream Support**: Standard C++ stream processing
-- **⚡ Performance**: Uses modern C++17 features like `string_view`
-- **🛡️ Type Safety**: Strong typing with Result pattern
-- **🔄 Flexible Input**: Multiple ways to provide SystemRDL content
-- **📊 CSV Integration**: Built-in CSV to SystemRDL conversion
+- **Clean Interface**: No ANTLR4 headers exposed to user code
+- **String-based**: Work with `std::string` and `std::string_view`
+- **File Support**: Direct file input/output operations
+- **Stream Support**: Standard C++ stream processing
+- **Performance**: Uses modern C++17 features like `string_view`
+- **Type Safety**: Strong typing with Result pattern
+- **Flexible Input**: Multiple ways to provide SystemRDL content
+- **CSV Integration**: Built-in CSV to SystemRDL conversion
 
 ### Traditional API (Advanced Users)
 
@@ -438,9 +437,9 @@ void process_rdl_directory(const std::string& input_dir, const std::string& outp
             if (result.ok()) {
                 std::ofstream output(output_file);
                 output << result.value();
-                std::cout << "✅ Processed: " << input_file << std::endl;
+                std::cout << "Processed: " << input_file << std::endl;
             } else {
-                std::cerr << "❌ Failed to process " << input_file
+                std::cerr << "Failed to process " << input_file
                          << ": " << result.error() << std::endl;
             }
         }
@@ -494,13 +493,13 @@ ANTLR4 complexity.
 
 ### What the Example Demonstrates
 
-- **🚀 Modern API Usage**: Complete demonstration of string-based operations
-- **📁 File Operations**: Reading SystemRDL files using convenient wrappers
-- **🌊 Stream Processing**: Input/output using standard C++ streams
-- **📊 CSV Integration**: Converting CSV data to SystemRDL format
-- **🛡️ Error Handling**: Robust error management with Result types
-- **🏗️ Elaboration**: Advanced SystemRDL design processing with arrays and hierarchies
-- **⚡ Performance**: Modern C++17 patterns with `string_view`
+- **Modern API Usage**: Complete demonstration of string-based operations
+- **File Operations**: Reading SystemRDL files using convenient wrappers
+- **Stream Processing**: Input/output using standard C++ streams
+- **CSV Integration**: Converting CSV data to SystemRDL format
+- **Error Handling**: Robust error management with Result types
+- **Elaboration**: Advanced SystemRDL design processing with arrays and hierarchies
+- **Performance**: Modern C++17 patterns with `string_view`
 
 To build and run the example:
 
@@ -526,36 +525,36 @@ make
 The example produces output demonstrating all modern API features:
 
 ```text
-🚀 SystemRDL Modern API Example
+SystemRDL Modern API Example
 
-📋 Example 1: Parse SystemRDL content
-✅ Parse successful!
+Example 1: Parse SystemRDL content
+Parse successful!
 
-🚀 Example 2: Simple Elaboration
-✅ Elaboration successful!
+Example 2: Simple Elaboration
+Elaboration successful!
 
-🎯 Example 3: Advanced Elaboration (Arrays & Complex Features)
-✅ Advanced elaboration successful!
-📊 This demonstrates:
+Example 3: Advanced Elaboration (Arrays & Complex Features)
+Advanced elaboration successful!
+This demonstrates:
    • Array instantiation (mem_ctrl[4])
    • Complex address mapping with strides
    • Hierarchical regfile structures
    • Automatic gap filling and validation
 
-📊 Example 4: Convert CSV to SystemRDL
-✅ CSV conversion successful!
+Example 4: Convert CSV to SystemRDL
+CSV conversion successful!
 
-📁 Example 5: File-based operations
-✅ File parse successful!
-✅ File elaboration successful!
+Example 5: File-based operations
+File parse successful!
+File elaboration successful!
 
-🌊 Example 6: Stream operations
-✅ Stream processing successful!
+Example 6: Stream operations
+Stream processing successful!
 
-❗ Example 7: Error handling
-✅ Error handling working correctly!
+Example 7: Error handling
+Error handling working correctly!
 
-💡 Key features demonstrated:
+Key features demonstrated:
    • Clean interface without ANTLR4 header exposure
    • String-based input/output for ease of use
    • Consistent error handling pattern
