@@ -623,10 +623,10 @@ Elaboration successful!
 Example 3: Advanced Elaboration (Arrays & Complex Features)
 Advanced elaboration successful!
 This demonstrates:
-   • Array instantiation (mem_ctrl[4])
-   • Complex address mapping with strides
-   • Hierarchical regfile structures
-   • Automatic gap filling and validation
+   - Array instantiation (mem_ctrl[4])
+   - Complex address mapping with strides
+   - Hierarchical regfile structures
+   - Automatic gap filling and validation
 
 Example 4: Convert CSV to SystemRDL
 CSV conversion successful!
@@ -642,11 +642,11 @@ Example 7: Error handling
 Error handling working correctly!
 
 Key features demonstrated:
-   • Clean interface without ANTLR4 header exposure
-   • String-based input/output for ease of use
-   • Consistent error handling pattern
-   • Multiple input/output methods supported
-   • Modern C++ design patterns
+   - Clean interface without ANTLR4 header exposure
+   - String-based input/output for ease of use
+   - Consistent error handling pattern
+   - Multiple input/output methods supported
+   - Modern C++ design patterns
 ```
 
 ## Library Dependencies

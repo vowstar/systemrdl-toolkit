@@ -180,9 +180,13 @@ The toolkit includes a CSV to SystemRDL converter with parsing capabilities and 
 - `-o, --output <filename>` - Specify output SystemRDL filename
 - `-h, --help` - Show help message
 
-### CSV2RDL Format Requirements
+### CSV2RDL Format Requirements (RCSV Specification)
 
-The converter supports a three-layer structure: **addrmap → reg → field**. CSV files should contain the following columns (header names are case-insensitive with fuzzy matching support):
+The converter supports CSV files following the **RCSV (Register-CSV) specification** - a standardized format for register map interchange. RCSV uses a three-layer structure: **addrmap -> reg -> field**.
+
+> [INFO] **Complete Specification**: See [RCSV.md](RCSV.md) for the full RCSV specification
+
+CSV files should contain the following columns (header names are case-insensitive with fuzzy matching support):
 
 | Column | Required | Description | Example |
 |--------|----------|-------------|---------|
@@ -199,46 +203,74 @@ The converter supports a three-layer structure: **addrmap → reg → field**. C
 | `hw_access` | Yes | Hardware access type | `RW`/`RO`/`WO` |
 | `description` | Optional | Field/register description | `Enable control bit` |
 
-### CSV2RDL Structure Specification
+### RCSV Structure Rules
 
-> Important: CSV files must follow a strict logical row structure
+> [WARN] **Important**: CSV files must comply with RCSV structural requirements for successful conversion
 
-#### Row Type Definitions
+#### Row Hierarchy Definition
 
 1. **Header Row** (Line 1): Column names defining the structure
-2. **Addrmap Row**: Contains `addrmap_offset` and `addrmap_name`, all other fields should be empty
+2. **Address Map Row**: Contains `addrmap_offset` and `addrmap_name`, all other fields empty
 3. **Register Row**: Contains `reg_offset`, `reg_name`, and `reg_width`, may include `description`
 4. **Field Row**: Contains `field_name`, `field_lsb`, `field_msb`, `reset_value`, `sw_access`, `hw_access`, and optionally `description`
 
-#### Structural Rules
+#### RCSV Compliance Rules
 
-1. **First data row** (Line 2) **MUST** be an addrmap row
-2. **After an addrmap row**, the next row **MUST** be a register row
-3. **After a register row**, subsequent rows **MUST** be field rows until a new register or addrmap is encountered
-4. **Mixed row types are forbidden**: Each row can only contain one type of information (addrmap, register, or field)
-5. **Logical vs Physical rows**: Multi-line CSV cells (quoted with newlines) count as single logical rows
+1. **Sequential Processing**: Address map -> Register -> Fields sequence must be maintained
+2. **Complete Hierarchy**: Every field must have a parent register
+3. **Required Columns**: All 11 mandatory RCSV columns must be present
+4. **Valid Values**: Access control must use RW/RO/WO/NA values
+5. **Bit Range Validation**: Field ranges must not overlap within registers
+6. **Address Alignment**: Registers should align to natural boundaries
 
-### CSV2RDL Example Structure
+#### Multi-line and Quoting Support
 
-**Correct Structure:**
+- **Multi-line descriptions**: Supported with proper CSV double-quote escaping
+- **Special characters**: Commas, quotes, newlines handled per RFC 4180
+- **Logical vs Physical rows**: Multi-line CSV cells count as single logical rows
+
+### CSV2RDL Example (RCSV-Compliant)
+
+**Correct RCSV Structure:**
 
 ```csv
 addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,description
-0x0000,DEMO,,,,,,,,,,                           # Line 2: Addrmap row
-,,0x0000,CTRL,32,,,,,,,Control register         # Line 3: Register row  
-,,,,,ENABLE,0,0,0,RW,RW,Enable control bit      # Line 4: Field row
-,,,,,MODE,1,2,0,RW,RW,Operation mode            # Line 5: Field row
-,,0x0004,STATUS,32,,,,,,,Status register        # Line 6: New register row
-,,,,,READY,0,0,0,RO,RO,Ready status             # Line 7: Field row
+0x0000,DEMO,,,,,,,,,,Demo chip address map
+,,0x0000,CTRL,32,,,,,,,Control register
+,,,,,ENABLE,0,0,0,RW,RW,Enable control bit
+,,,,,MODE,1,2,0,RW,RW,"Operation mode
+- 0: Disabled
+- 1: Normal  
+- 2: Debug"
+,,0x0004,STATUS,32,,,,,,,Status register
+,,,,,READY,0,0,0,RO,WO,System ready flag
+,,,,,ERROR,1,1,0,RO,WO,Error status
 ```
 
-### CSV2RDL Features
+**Key RCSV Features Shown:**
+
+- All 11 required columns present
+- Proper three-tier hierarchy (addrmap -> register -> field)  
+- Multi-line description with CSV quoting
+- Mixed access patterns (RW/RO/WO combinations)
+- Complete field coverage within register width
+
+### CSV2RDL Features (RCSV Implementation)
+
+#### RCSV Validation
+
+- **Comprehensive Checking**: Validates all RCSV compliance rules
+- **Field Range Validation**: Detects overlapping fields and range errors
+- **Access Control Validation**: Ensures RW/RO/WO/NA values only
+- **Address Alignment**: Warns about unaligned register addresses
+- **Bit Coverage**: Identifies gaps in register field definitions
 
 #### Header Matching
 
-- **Case-insensitive**: `AddrmapOffset` → `addrmap_offset`
-- **Fuzzy matching**: Handles typos with Levenshtein distance ≤3
-- **Abbreviation support**: `sw_acc` → `sw_access`, `hw_acc` → `hw_access`
+- **Case-insensitive**: `AddrmapOffset` -> `addrmap_offset` 
+- **Fuzzy matching**: Handles typos with Levenshtein distance <=3
+- **Abbreviation support**: `sw_acc` -> `sw_access`, `hw_acc` -> `hw_access`
+- **RCSV Standard Names**: Recognizes all 11 required RCSV column names
 
 #### Multi-line Field Support
 
@@ -585,26 +617,41 @@ Address     Size    Name      Path
 
 ## Validation and Testing
 
-### CSV2RDL Validation
+### CSV2RDL Validation (RCSV Compliance)
 
-Run validation from any directory:
+The validation suite ensures full RCSV specification compliance:
 
 ```bash
-# Run complete validation suite
+# Run complete RCSV validation suite
 python3 script/csv2rdl_validator.py
 
-# The validator performs three levels of testing:
-# 1. CSV2RDL conversion success
-# 2. SystemRDL syntax validation (using parser)
-# 3. Content pattern validation
+# The validator performs comprehensive RCSV testing:
+# 1. RCSV format compliance checking
+# 2. CSV2RDL conversion with validation
+# 3. SystemRDL syntax validation (using parser)  
+# 4. Generated content verification
+# 5. Field range and access pattern validation
 ```
 
-### Manual Testing
+#### RCSV Validation Levels
+
+1. **Format Validation**: Column presence, naming, and structure
+2. **Data Validation**: Field ranges, access values, reset values
+3. **Semantic Validation**: Address alignment, bit coverage, hierarchy
+4. **SystemRDL Generation**: Successful conversion to valid SystemRDL
+5. **Round-trip Testing**: Consistency between CSV input and SystemRDL output
+
+### Manual RCSV Testing
 
 ```bash
-# Convert and validate manually
+# Convert RCSV-compliant CSV file to SystemRDL
 ./build/systemrdl_csv2rdl test/test_csv_basic_example.csv
+
+# Validate generated SystemRDL syntax  
 ./build/systemrdl_parser test/test_csv_basic_example.rdl
+
+# Check RCSV compliance of your CSV files
+python3 script/csv2rdl_validator.py --check your_file.csv
 ```
 
 ### General Testing
