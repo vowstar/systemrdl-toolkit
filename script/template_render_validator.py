@@ -126,8 +126,8 @@ def test_template_with_rdl(template_file, rdl_file, temp_dir):
 
     print(f"  [CPP] Testing {template_name} with {rdl_name}")
 
-    # Run template rendering
-    success, output = run_template_render(rdl_file, template_file, output_file)
+    # Run template rendering - use AST format for existing templates that expect 'model' variable
+    success, output = run_template_render(rdl_file, template_file, output_file, use_ast=True)
 
     if not success:
         print(f"    [FAIL] Template rendering failed: {output}")
@@ -239,7 +239,7 @@ def test_template_rendering():
                 template_file = template_files[0]
                 rdl_file = test_rdl_files[0]
 
-                success, output = run_template_render(str(rdl_file), str(template_file))
+                success, output = run_template_render(str(rdl_file), str(template_file), use_ast=True)
                 if success:
                     print("  [OK] Auto-generated filename test passed")
                     success_count += 1
