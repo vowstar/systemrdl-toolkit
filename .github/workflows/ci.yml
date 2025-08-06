@@ -115,7 +115,7 @@ jobs:
         # Test example application (library integration test)
         echo "Running example application..."
         ./build/example
-        echo "✅ Example application completed successfully"
+        echo "[OK] Example application completed successfully"
 
     - name: Basic functionality test - Windows MSYS2
       if: matrix.os == 'windows-latest'
@@ -125,9 +125,9 @@ jobs:
         echo "=== Copying ANTLR4 runtime DLL ==="
         if [ -f "build/_deps/antlr4_runtime-build/runtime/libantlr4-runtime.dll" ]; then
           cp build/_deps/antlr4_runtime-build/runtime/libantlr4-runtime.dll build/
-          echo "✅ ANTLR4 DLL copied successfully"
+          echo "[OK] ANTLR4 DLL copied successfully"
         else
-          echo "❌ ANTLR4 DLL not found in expected location"
+          echo "[ERR] ANTLR4 DLL not found in expected location"
           find build/_deps -name "*antlr*.dll" -type f
         fi
 
@@ -154,7 +154,7 @@ jobs:
         echo "=== Running example application ==="
         echo "Running example application..."
         ./build/example.exe
-        echo "✅ Example application completed successfully"
+        echo "[OK] Example application completed successfully"
 
     - name: Run comparison tests (Ubuntu only)
       if: matrix.os == 'ubuntu-latest'
@@ -220,11 +220,11 @@ jobs:
 
         # Check if there are any actual warnings or errors (not just information)
         if grep -E "(warning|error|style):" cppcheck.log > /dev/null; then
-          echo "❌ cppcheck found issues:"
+          echo "[ERR] cppcheck found issues:"
           grep -E "(warning|error|style):" cppcheck.log
           exit 1
         else
-          echo "✅ cppcheck passed - no warnings or errors found"
+          echo "[OK] cppcheck passed - no warnings or errors found"
         fi
 
     - name: C++ code formatting check
@@ -247,11 +247,11 @@ jobs:
       run: |
         # Check if pymarkdown is available (same logic as CMake)
         if python -c "import pymarkdown" 2>/dev/null; then
-          echo "✅ PyMarkdown available - running markdown linting..."
+          echo "[OK] PyMarkdown available - running markdown linting..."
           python -m pymarkdown --config .pymarkdown.json scan README.md CONTRIBUTING.md CONTRIBUTORS.md
-          echo "✅ Markdown linting passed"
+          echo "[OK] Markdown linting passed"
         else
-          echo "❌ PyMarkdown not found! Please install it to lint Markdown files."
+          echo "[ERR] PyMarkdown not found! Please install it to lint Markdown files."
           exit 1
         fi
 
@@ -283,13 +283,13 @@ jobs:
       run: |
         # Check if pymarkdown is available (same logic as CMake)
         if python -c "import pymarkdown" 2>/dev/null; then
-          echo "✅ PyMarkdown available - running markdown linting..."
+          echo "[OK] PyMarkdown available - running markdown linting..."
           echo "Running markdown linting..."
           # Lint main markdown files (same as CMake target)
           python -m pymarkdown --config .pymarkdown.json scan README.md CONTRIBUTING.md CONTRIBUTORS.md
-          echo "✅ Markdown linting completed successfully"
+          echo "[OK] Markdown linting completed successfully"
         else
-          echo "❌ PyMarkdown not found! Please install it to lint Markdown files."
+          echo "[ERR] PyMarkdown not found! Please install it to lint Markdown files."
           echo "   Install with: pip install pymarkdown"
           echo "   Or use requirements.txt: pip install -r requirements.txt"
           exit 1
@@ -339,10 +339,10 @@ jobs:
     - name: Generate test report
       run: |
         echo "## Test Results Summary" > test_report.md
-        echo "- Build: ✅ Success" >> test_report.md
-        echo "- SystemRDL Compatibility: ✅ Verified" >> test_report.md
-        echo "- JSON Output Validation: ✅ Passed" >> test_report.md
-        echo "- CSV2RDL Converter Validation: ✅ Passed" >> test_report.md
+        echo "- Build: [OK] Success" >> test_report.md
+        echo "- SystemRDL Compatibility: [OK] Verified" >> test_report.md
+        echo "- JSON Output Validation: [OK] Passed" >> test_report.md
+        echo "- CSV2RDL Converter Validation: [OK] Passed" >> test_report.md
         echo "- Generated on: $(date)" >> test_report.md
         cat test_report.md
 
