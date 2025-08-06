@@ -11,7 +11,7 @@ elaboration, and conversion capabilitiesfor SystemRDL register description files
 
 - **SystemRDL 2.0 Support**: Implementation of SystemRDL 2.0 specification
 - **AST & Elaboration**: Parse and elaborate SystemRDL designs with semantic analysis
-- **JSON Export**: Export AST and elaborated models to JSON format
+- **AST Export**: Export AST and elaborated models to JSON format
 - **CSV Conversion**: Convert CSV specifications to SystemRDL format
 - **Template Rendering**: Documentation generation using Jinja2 templates
 - **Validation Testing**: Integration with Python SystemRDL compiler

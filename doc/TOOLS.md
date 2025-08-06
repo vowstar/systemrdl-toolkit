@@ -15,55 +15,55 @@ After successful build, the executables are located in the `build/` directory. T
 
 ## Parser
 
-The parser can display the Abstract Syntax Tree (AST) and optionally export it to JSON format:
+The parser can display the Abstract Syntax Tree (AST) and optionally export it to AST JSON format:
 
 ```bash
 # Parse and print AST to console
 ./build/systemrdl_parser input.rdl
 
-# Parse and generate JSON output with default filename (input_ast.json)
-./build/systemrdl_parser input.rdl --json
+# Parse and generate AST JSON output with default filename (input_ast.json)
+./build/systemrdl_parser input.rdl --ast
 
-# Parse and generate JSON output with custom filename
-./build/systemrdl_parser input.rdl --json=my_ast.json
+# Parse and generate AST JSON output with custom filename
+./build/systemrdl_parser input.rdl --ast=my_ast.json
 
 # Short option variant
-./build/systemrdl_parser input.rdl -j=output.json
+./build/systemrdl_parser input.rdl -a=output.json
 ```
 
 ### Parser Command Line Options
 
-- `-j, --json[=<filename>]` - Enable JSON output, optionally specify custom filename
+- `-a, --ast[=<filename>]` - Enable AST JSON output, optionally specify custom filename
 - `-h, --help` - Show help message
 
-If no filename is specified with `--json`, the tool automatically generates: `<input_basename>_ast.json`
+If no filename is specified with `--ast`, the tool automatically generates: `<input_basename>_ast.json`
 
 ---
 
 ## Elaborator
 
-The elaborator processes SystemRDL files through semantic analysis and can export the elaborated model to JSON:
+The elaborator processes SystemRDL files through semantic analysis and can export the elaborated model to AST JSON format:
 
 ```bash
 # Elaborate SystemRDL file and display to console
 ./build/systemrdl_elaborator input.rdl
 
-# Elaborate and generate JSON output with default filename (input_elaborated.json)
-./build/systemrdl_elaborator input.rdl --json
+# Elaborate and generate AST JSON output with default filename (input_ast_elaborated.json)
+./build/systemrdl_elaborator input.rdl --ast
 
-# Elaborate and generate JSON output with custom filename
-./build/systemrdl_elaborator input.rdl --json=my_model.json
+# Elaborate and generate AST JSON output with custom filename
+./build/systemrdl_elaborator input.rdl --ast=my_model.json
 
 # Short option variant
-./build/systemrdl_elaborator input.rdl -j=output.json
+./build/systemrdl_elaborator input.rdl -a=output.json
 ```
 
 ### Elaborator Command Line Options
 
-- `-j, --json[=<filename>]` - Enable JSON output, optionally specify custom filename
+- `-a, --ast[=<filename>]` - Enable AST JSON output, optionally specify custom filename
 - `-h, --help` - Show help message
 
-If no filename is specified with `--json`, the tool automatically generates: `<input_basename>_elaborated.json`
+If no filename is specified with `--ast`, the tool automatically generates: `<input_basename>_ast_elaborated.json`
 
 ### Elaborator Gap Detection
 

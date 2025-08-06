@@ -346,7 +346,7 @@ class JsonTester:
             if self.verbose:
                 print("  📝 Testing parser JSON output...")
             ast_json = temp_path / f"{test_name}_ast.json"
-            parser_cmd = [parser_exe, rdl_file, f"--json={ast_json}"]
+            parser_cmd = [parser_exe, rdl_file, f"--ast={ast_json}"]
 
             if not self.run_command(parser_cmd):
                 self.validator.log_error("Parser failed to generate JSON")
@@ -367,7 +367,7 @@ class JsonTester:
             if self.verbose:
                 print("  🚀 Testing elaborator JSON output...")
             elaborated_json = temp_path / f"{test_name}_elaborated.json"
-            elaborator_cmd = [elaborator_exe, rdl_file, f"--json={elaborated_json}"]
+            elaborator_cmd = [elaborator_exe, rdl_file, f"--ast={elaborated_json}"]
 
             elaborator_success = self.run_command(elaborator_cmd)
 
@@ -404,9 +404,9 @@ class JsonTester:
                     print("  🎯 Testing default filename generation...")
 
                 # Test parser default filename
-                parser_default_cmd = [parser_exe, rdl_file, "--json"]
+                parser_default_cmd = [parser_exe, rdl_file, "--ast"]
                 if not self.run_command(parser_default_cmd, cwd=temp_dir):
-                    self.validator.log_error("Parser failed with default JSON filename")
+                    self.validator.log_error("Parser failed with default AST filename")
                     return False
 
                 default_ast = temp_path / f"{test_name}_ast.json"
@@ -417,12 +417,12 @@ class JsonTester:
                     return False
 
                 # Test elaborator default filename
-                elaborator_default_cmd = [elaborator_exe, rdl_file, "--json"]
+                elaborator_default_cmd = [elaborator_exe, rdl_file, "--ast"]
                 if not self.run_command(elaborator_default_cmd, cwd=temp_dir):
-                    self.validator.log_error("Elaborator failed with default JSON filename")
+                    self.validator.log_error("Elaborator failed with default AST filename")
                     return False
 
-                default_elaborated = temp_path / f"{test_name}_elaborated.json"
+                default_elaborated = temp_path / f"{test_name}_ast_elaborated.json"
                 if default_elaborated.exists():
                     self.validator.log_success("Default elaborated filename generated correctly")
                 else:

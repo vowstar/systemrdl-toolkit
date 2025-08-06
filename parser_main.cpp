@@ -72,7 +72,7 @@ void printAST(tree::ParseTree *tree, SystemRDLParser *parser, int depth = 0)
 }
 
 // Helper function to generate default JSON filename
-std::string get_default_json_filename(const std::string &input_file, const std::string &suffix = "")
+std::string get_default_ast_filename(const std::string &input_file, const std::string &suffix = "")
 {
     // Simple basename extraction
     size_t last_slash = input_file.find_last_of("/\\");
@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
     CmdLineParser cmdline("SystemRDL Parser - Parse SystemRDL files and display AST");
     cmdline.set_version(systemrdl::get_detailed_version());
     cmdline.add_option_with_optional_value(
-        "j", "json", "Enable JSON output, optionally specify filename");
+        "a", "ast", "Enable AST JSON output, optionally specify filename");
     cmdline.add_option("h", "help", "Show this help message");
 
     if (!cmdline.parse(argc, argv)) {
@@ -154,16 +154,16 @@ int main(int argc, char *argv[])
         std::cout << "\n=== Abstract Syntax Tree ===" << std::endl;
         printAST(tree, &parser);
 
-        // Generate JSON output if requested
-        if (cmdline.is_set("json")) {
-            std::string output_file = cmdline.get_value("json");
+        // Generate AST JSON output if requested
+        if (cmdline.is_set("ast")) {
+            std::string output_file = cmdline.get_value("ast");
 
             // If no filename provided, generate default
             if (output_file.empty()) {
-                output_file = get_default_json_filename(inputFile, "_ast");
+                output_file = get_default_ast_filename(inputFile, "_ast");
             }
 
-            std::cout << "\n🔧 Generating JSON output..." << std::endl;
+            std::cout << "\nGenerating AST JSON output..." << std::endl;
 
             // Use unified API for consistent JSON output
             systemrdl::Result result = systemrdl::file::parse(inputFile);
@@ -172,13 +172,13 @@ int main(int argc, char *argv[])
                 if (outFile.is_open()) {
                     outFile << result.value();
                     outFile.close();
-                    std::cout << "✅ JSON output written to: " << output_file << std::endl;
+                    std::cout << "AST JSON output written to: " << output_file << std::endl;
                 } else {
-                    std::cerr << "❌ Failed to write JSON output to: " << output_file << std::endl;
+                    std::cerr << "Failed to write AST JSON output to: " << output_file << std::endl;
                     return 1;
                 }
             } else {
-                std::cerr << "❌ Failed to generate JSON: " << result.error() << std::endl;
+                std::cerr << "Failed to generate AST JSON: " << result.error() << std::endl;
                 return 1;
             }
         }
