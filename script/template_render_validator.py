@@ -38,7 +38,7 @@ def find_tool_executable(tool_name):
     return None
 
 
-def run_template_render(rdl_file, template_file, output_file=None, verbose=False, simplified=False):
+def run_template_render(rdl_file, template_file, output_file=None, verbose=False, use_ast=False):
     """Run systemrdl_render tool with specified parameters"""
     tool_path = find_tool_executable("systemrdl_render")
     if not tool_path:
@@ -48,8 +48,8 @@ def run_template_render(rdl_file, template_file, output_file=None, verbose=False
     cmd = [tool_path, rdl_file, "-t", template_file]
     if output_file:
         cmd.extend(["-o", output_file])
-    if simplified:
-        cmd.append("--simplified")
+    if use_ast:
+        cmd.append("--ast")  # Use full AST JSON instead of simplified (default)
     if verbose:
         cmd.append("--verbose")
 

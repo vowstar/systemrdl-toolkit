@@ -34,7 +34,8 @@ int main(int argc, char *argv[])
     cmdline.add_option("t", "template", "Jinja2 template file (.j2)", true);
     cmdline
         .add_option_with_optional_value("o", "output", "Output file (default: auto-generated name)");
-    cmdline.add_option("", "simplified", "Use simplified JSON format for templates");
+    cmdline.add_option(
+        "", "ast", "Use full AST JSON format instead of simplified JSON (default: simplified)");
     cmdline.add_option("", "verbose", "Enable verbose output");
     cmdline.add_option("h", "help", "Show this help message");
 
@@ -61,10 +62,10 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    std::string input_file     = args[0];
-    std::string template_file  = cmdline.get_value("template");
-    bool        verbose        = cmdline.is_set("verbose");
-    bool        use_simplified = cmdline.is_set("simplified");
+    std::string input_file    = args[0];
+    std::string template_file = cmdline.get_value("template");
+    bool        verbose       = cmdline.is_set("verbose");
+    bool use_ast = cmdline.is_set("ast"); // Default to simplified JSON unless --ast is specified
 
     // Detect input file type
     std::string file_ext = get_file_extension(input_file);
@@ -82,7 +83,7 @@ int main(int argc, char *argv[])
         std::cout << "Processing " << (is_csv ? "CSV" : "RDL") << " file: " << input_file
                   << std::endl;
         std::cout << "Using template: " << template_file << std::endl;
-        std::cout << "Output format: " << (use_simplified ? "Simplified JSON" : "Full JSON")
+        std::cout << "Output format: " << (use_ast ? "Full AST JSON" : "Simplified JSON (default)")
                   << std::endl;
     }
 
@@ -110,17 +111,17 @@ int main(int argc, char *argv[])
             }
 
             // Now elaborate the generated RDL content
-            if (use_simplified) {
-                elaborate_result = systemrdl::elaborate_simplified(csv_to_rdl_result.value());
-            } else {
+            if (use_ast) {
                 elaborate_result = systemrdl::elaborate(csv_to_rdl_result.value());
+            } else {
+                elaborate_result = systemrdl::elaborate_simplified(csv_to_rdl_result.value());
             }
         } else {
             // Direct RDL -> Elaborate
-            if (use_simplified) {
-                elaborate_result = systemrdl::file::elaborate_simplified(input_file);
-            } else {
+            if (use_ast) {
                 elaborate_result = systemrdl::file::elaborate(input_file);
+            } else {
+                elaborate_result = systemrdl::file::elaborate_simplified(input_file);
             }
         }
 
@@ -131,7 +132,7 @@ int main(int argc, char *argv[])
 
         if (verbose) {
             std::cout << "Successfully elaborated SystemRDL design" << std::endl;
-            std::cout << "Using " << (use_simplified ? "simplified" : "full") << " JSON format"
+            std::cout << "Using " << (use_ast ? "full AST" : "simplified") << " JSON format"
                       << std::endl;
         }
 
