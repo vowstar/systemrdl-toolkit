@@ -234,7 +234,8 @@ static void extract_registers_simplified(
                     for (const auto &prop : child->properties) {
                         if (prop.first == "lsb" || prop.first == "msb" || prop.first == "width"
                             || prop.first == "sw" || prop.first == "hw" || prop.first == "reserved"
-                            || prop.first == "reset" || prop.first == "onwrite") {
+                            || prop.first == "reset" || prop.first == "onwrite"
+                            || prop.first == "onread") {
                             field_obj[prop.first] = convert_property_to_json(prop.second);
                         }
                     }
