@@ -164,7 +164,8 @@ jobs:
     - name: Run validation tests
       if: matrix.os == 'ubuntu-latest'
       run: |
-        python script/json_output_validator.py --test --parser ./build/systemrdl_parser --elaborator ./build/systemrdl_elaborator --rdl test/test_minimal.rdl
+        python script/ast_output_validator.py --test --parser ./build/systemrdl_parser --elaborator ./build/systemrdl_elaborator --rdl test/test_minimal.rdl
+        python script/json_output_validator.py --test --elaborator ./build/systemrdl_elaborator --rdl test/test_minimal.rdl
         # Run CSV2RDL validation suite
         python script/csv2rdl_validator.py
 
@@ -331,8 +332,10 @@ jobs:
       run: |
         echo "Running SystemRDL compatibility comparison..."
         python script/compare_implementations.py
+        echo "Testing AST output validation..."
+        python script/ast_output_validator.py --test --parser ./build/systemrdl_parser --elaborator ./build/systemrdl_elaborator --rdl test/test_minimal.rdl
         echo "Testing JSON output validation..."
-        python script/json_output_validator.py --test --parser ./build/systemrdl_parser --elaborator ./build/systemrdl_elaborator --rdl test/test_minimal.rdl
+        python script/json_output_validator.py --test --elaborator ./build/systemrdl_elaborator --rdl test/test_minimal.rdl
         echo "Testing CSV2RDL converter validation..."
         python script/csv2rdl_validator.py
 
