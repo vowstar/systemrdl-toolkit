@@ -336,6 +336,8 @@ struct CSVRow
     std::string reset_value;
     std::string sw_access;
     std::string hw_access;
+    std::string onread;     // New: onread behavior (rclr, rset, ruser)
+    std::string onwrite;    // New: onwrite behavior (woclr, woset, wot, etc.)
     std::string description;
 };
 
@@ -356,6 +358,8 @@ private:
            "reset_value",
            "sw_access",
            "hw_access",
+           "onread",
+           "onwrite",
            "description"};
 
     // Trim whitespace
@@ -469,6 +473,14 @@ private:
     {
         std::string result = str;
         std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+        return result;
+    }
+
+    // Convert to uppercase
+    std::string to_upper(const std::string &str)
+    {
+        std::string result = str;
+        std::transform(result.begin(), result.end(), result.begin(), ::toupper);
         return result;
     }
 
@@ -660,6 +672,12 @@ private:
                 row.hw_access = process_field_with_quotes(value);
                 break;
             case 11:
+                row.onread = process_field_with_quotes(value);
+                break;
+            case 12:
+                row.onwrite = process_field_with_quotes(value);
+                break;
+            case 13:
                 row.description = process_field_with_quotes(value, true);
                 break;
             }
@@ -783,6 +801,47 @@ public:
             logical_line++;
         }
 
+        // Validate field properties values
+        for (const auto &row : rows) {
+            if (!row.field_name.empty()) {
+                // Validate access values
+                if (!row.sw_access.empty()) {
+                    std::string sw_upper = to_upper(row.sw_access);
+                    if (sw_upper != "RW" && sw_upper != "RO" && sw_upper != "WO" && sw_upper != "NA") {
+                        return "Error: Invalid sw_access value '" + row.sw_access 
+                               + "' (use RW/RO/WO/NA)";
+                    }
+                }
+                if (!row.hw_access.empty()) {
+                    std::string hw_upper = to_upper(row.hw_access);
+                    if (hw_upper != "RW" && hw_upper != "RO" && hw_upper != "WO" && hw_upper != "NA") {
+                        return "Error: Invalid hw_access value '" + row.hw_access 
+                               + "' (use RW/RO/WO/NA)";
+                    }
+                }
+                
+                // Validate onread values
+                if (!row.onread.empty()) {
+                    std::string onread_upper = to_upper(row.onread);
+                    if (onread_upper != "RCLR" && onread_upper != "RSET" && onread_upper != "RUSER") {
+                        return "Error: Invalid onread value '" + row.onread 
+                               + "' (use rclr/rset/ruser)";
+                    }
+                }
+                
+                // Validate onwrite values  
+                if (!row.onwrite.empty()) {
+                    std::string onwrite_upper = to_upper(row.onwrite);
+                    if (onwrite_upper != "WOCLR" && onwrite_upper != "WOSET" && onwrite_upper != "WOT" &&
+                        onwrite_upper != "WZS" && onwrite_upper != "WZC" && onwrite_upper != "WZT" &&
+                        onwrite_upper != "WCLR" && onwrite_upper != "WSET" && onwrite_upper != "WUSER") {
+                        return "Error: Invalid onwrite value '" + row.onwrite 
+                               + "' (use woclr/woset/wot/wzs/wzc/wzt/wclr/wset/wuser)";
+                    }
+                }
+            }
+        }
+
         return ""; // Empty string means validation passed
     }
 
@@ -877,6 +936,18 @@ private:
         return result;
     }
 
+    // Helper function to map CSV access values to SystemRDL access values
+    std::string map_access_to_systemrdl(const std::string& csv_access) {
+        std::string upper_access;
+        std::transform(csv_access.begin(), csv_access.end(), std::back_inserter(upper_access), ::toupper);
+        
+        if (upper_access == "RW") return "rw";
+        if (upper_access == "RO") return "r";
+        if (upper_access == "WO") return "w";
+        if (upper_access == "NA") return "na";
+        return csv_access; // fallback to original if unknown
+    }
+
 public:
     std::string generate(const std::vector<CSVRow> &rows)
     {
@@ -939,10 +1010,18 @@ public:
 
                 // Add access properties
                 if (!row.sw_access.empty()) {
-                    rdl << "            sw = " << to_lower(row.sw_access) << ";\n";
+                    rdl << "            sw = " << map_access_to_systemrdl(row.sw_access) << ";\n";
                 }
                 if (!row.hw_access.empty()) {
-                    rdl << "            hw = " << to_lower(row.hw_access) << ";\n";
+                    rdl << "            hw = " << map_access_to_systemrdl(row.hw_access) << ";\n";
+                }
+
+                // Add onread/onwrite properties
+                if (!row.onread.empty()) {
+                    rdl << "            onread = " << to_lower(row.onread) << ";\n";
+                }
+                if (!row.onwrite.empty()) {
+                    rdl << "            onwrite = " << to_lower(row.onwrite) << ";\n";
                 }
 
                 rdl << "        } " << row.field_name;
