@@ -158,7 +158,11 @@ public:
         std::cout << "\nOptions:" << std::endl;
 
         for (const auto &opt : options_) {
-            std::cout << "  -" << opt.short_opt << ", --" << opt.long_opt;
+            if (opt.short_opt.empty()) {
+                std::cout << "      --" << opt.long_opt;
+            } else {
+                std::cout << "  -" << opt.short_opt << ", --" << opt.long_opt;
+            }
             if (opt.has_value && !opt.has_optional_value) {
                 std::cout << " <value>";
             } else if (opt.has_optional_value) {
