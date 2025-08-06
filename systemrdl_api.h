@@ -124,6 +124,24 @@ Result parse(const std::string &filename);
 Result elaborate(const std::string &filename);
 
 /**
+ * @brief Parse and elaborate SystemRDL file, generate simplified JSON model
+ *
+ * @param filename Path to the SystemRDL file
+ * @return Result containing simplified JSON model on success, or error message on failure
+ *
+ * @example
+ * ```cpp
+ * auto result = systemrdl::file::elaborate_simplified("example.rdl");
+ * if (result.ok()) {
+ *     std::cout << "Simplified JSON: " << result.value() << std::endl;
+ * } else {
+ *     std::cerr << "Error: " << result.error() << std::endl;
+ * }
+ * ```
+ */
+Result elaborate_simplified(const std::string &filename);
+
+/**
  * @brief Convert CSV file to SystemRDL format
  *
  * @param filename Path to the CSV file

@@ -54,16 +54,27 @@ The elaborator processes SystemRDL files through semantic analysis and can expor
 # Elaborate and generate AST JSON output with custom filename
 ./build/systemrdl_elaborator input.rdl --ast=my_model.json
 
-# Short option variant
-./build/systemrdl_elaborator input.rdl -a=output.json
+# Elaborate and generate simplified JSON output with default filename (input_simplified.json)
+./build/systemrdl_elaborator input.rdl --json
+
+# Elaborate and generate simplified JSON output with custom filename
+./build/systemrdl_elaborator input.rdl --json=my_simplified.json
+
+# Short option variants
+./build/systemrdl_elaborator input.rdl -a=ast_output.json
+./build/systemrdl_elaborator input.rdl -j=json_output.json
 ```
 
 ### Elaborator Command Line Options
 
 - `-a, --ast[=<filename>]` - Enable AST JSON output, optionally specify custom filename
+- `-j, --json[=<filename>]` - Enable simplified JSON output, optionally specify custom filename
 - `-h, --help` - Show help message
 
-If no filename is specified with `--ast`, the tool automatically generates: `<input_basename>_ast_elaborated.json`
+If no filename is specified:
+
+- `--ast` generates: `<input_basename>_ast_elaborated.json`
+- `--json` generates: `<input_basename>_simplified.json`
 
 ### Elaborator Gap Detection
 
@@ -190,7 +201,7 @@ The converter supports a three-layer structure: **addrmap → reg → field**. C
 
 ### CSV2RDL Structure Specification
 
-**Important: CSV files must follow a strict logical row structure**
+> Important: CSV files must follow a strict logical row structure
 
 #### Row Type Definitions
 
