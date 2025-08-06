@@ -25,20 +25,20 @@ class JsonValidator:
     def log_error(self, msg: str):
         self.errors.append(msg)
         if self.verbose:
-            print(f"❌ ERROR: {msg}")
+            print(f"[ERROR] {msg}")
 
     def log_warning(self, msg: str):
         self.warnings.append(msg)
         if self.verbose:
-            print(f"⚠️  WARNING: {msg}")
+            print(f"[WARNING] {msg}")
 
     def log_success(self, msg: str):
         if self.verbose:
-            print(f"✅ {msg}")
+            print(f"[OK] {msg}")
 
     def log_info(self, msg: str):
         if self.verbose:
-            print(f"🔍 {msg}")
+            print(f"[INFO] {msg}")
 
     def validate_json_file(self, file_path: str) -> Optional[Dict[str, Any]]:
         """Validate that file exists and contains valid JSON"""
@@ -333,10 +333,10 @@ class JsonTester:
 
         if expect_failure:
             if self.verbose:
-                print(f"🧪 Testing validation for: {test_name} (expecting elaboration failure)")
+                print(f"[TEST] Testing validation for: {test_name} (expecting elaboration failure)")
         else:
             if self.verbose:
-                print(f"🧪 Testing JSON output for: {test_name}")
+                print(f"[TEST] Testing JSON output for: {test_name}")
 
         # Create temporary directory
         with tempfile.TemporaryDirectory(prefix="json_test_") as temp_dir:
@@ -344,7 +344,7 @@ class JsonTester:
 
             # Test parser JSON output with custom filename
             if self.verbose:
-                print("  📝 Testing parser JSON output...")
+                print("   [INFO] Testing parser JSON output...")
             ast_json = temp_path / f"{test_name}_ast.json"
             parser_cmd = [parser_exe, rdl_file, f"--ast={ast_json}"]
 
@@ -365,7 +365,7 @@ class JsonTester:
 
             # Test elaborator - different handling for expected failure vs success
             if self.verbose:
-                print("  🚀 Testing elaborator JSON output...")
+                print("   [INFO] Testing elaborator JSON output...")
             elaborated_json = temp_path / f"{test_name}_elaborated.json"
             elaborator_cmd = [elaborator_exe, rdl_file, f"--ast={elaborated_json}"]
 
@@ -380,7 +380,7 @@ class JsonTester:
                     self.validator.log_success("Elaboration failed as expected (validation test passed)")
                     # For expected failures, we can't test JSON generation, so we're done
                     if self.verbose:
-                        print(f"✅ Validation test completed successfully for: {test_name}")
+                        print(f"[OK] Validation test completed successfully for: {test_name}")
                     return True
             else:
                 # For normal tests, we expect elaboration to succeed
@@ -401,7 +401,7 @@ class JsonTester:
 
                 # Test default filename generation for normal tests only
                 if self.verbose:
-                    print("  🎯 Testing default filename generation...")
+                    print("  [VAL] Testing default filename generation...")
 
                 # Test parser default filename
                 parser_default_cmd = [parser_exe, rdl_file, "--ast"]
@@ -497,7 +497,7 @@ def main():
     if args.test:
         # End-to-end test mode
         if not all([args.parser, args.elaborator, args.rdl]):
-            print("❌ ERROR: Test mode requires --parser, --elaborator, and --rdl arguments")
+            print("[ERROR]: Test mode requires --parser, --elaborator, and --rdl arguments")
             # Provide usage examples
             print("Example usage:")
             print(
@@ -518,18 +518,18 @@ def main():
         success = tester.run_end_to_end_test(args.parser, args.elaborator, args.rdl)
 
         if not success or tester.validator.errors:
-            print("\n❌ Test FAILED")
+            print("\n[FAIL] Test FAILED")
             sys.exit(1)
         elif tester.validator.warnings and args.strict:
-            print("\n⚠️  Test FAILED (strict mode, warnings treated as errors)")
+            print("\n[WARNING]  Test FAILED (strict mode, warnings treated as errors)")
             sys.exit(1)
         else:
-            print("\n✅ Test PASSED")
+            print("\n[OK] Test PASSED")
             sys.exit(0)
     else:
         # Validation mode
         if not args.ast and not args.elaborated:
-            print("❌ ERROR: Must specify at least one of --ast or --elaborated, or use --test mode")
+            print("[ERROR]: Must specify at least one of --ast or --elaborated, or use --test mode")
             sys.exit(1)
 
         validator = JsonValidator(verbose=not args.quiet)
@@ -539,7 +539,7 @@ def main():
         # Validate AST JSON
         if args.ast:
             if not args.quiet:
-                print(f"🔍 Validating AST JSON: {args.ast}")
+                print(f"[INFO] Validating AST JSON: {args.ast}")
             ast_data = validator.validate_json_file(args.ast)
             if ast_data:
                 validator.validate_ast_json(ast_data)
@@ -547,7 +547,7 @@ def main():
         # Validate elaborated JSON
         if args.elaborated:
             if not args.quiet:
-                print(f"🔍 Validating elaborated JSON: {args.elaborated}")
+                print(f"[INFO] Validating elaborated JSON: {args.elaborated}")
             elaborated_data = validator.validate_json_file(args.elaborated)
             if elaborated_data:
                 validator.validate_elaborated_json(elaborated_data)
@@ -555,23 +555,23 @@ def main():
         # Cross-validate if both files are provided
         if ast_data and elaborated_data and args.rdl:
             if not args.quiet:
-                print("🔍 Cross-validating content consistency")
+                print("[INFO] Cross-validating content consistency")
             validator.validate_content_match(ast_data, elaborated_data, args.rdl)
 
         # Summary
         if not args.quiet:
-            print("\n📊 Validation Summary:")
+            print("\n[SUMMARY] Validation Summary:")
             print(f"   Errors: {len(validator.errors)}")
             print(f"   Warnings: {len(validator.warnings)}")
 
         if validator.errors:
-            print("\n❌ Validation FAILED")
+            print("\n[FAIL] Validation FAILED")
             sys.exit(1)
         elif validator.warnings and args.strict:
-            print("\n⚠️  Validation FAILED (strict mode, warnings treated as errors)")
+            print("\n[WARNING]  Validation FAILED (strict mode, warnings treated as errors)")
             sys.exit(1)
         else:
-            print("\n✅ Validation PASSED")
+            print("\n[OK] Validation PASSED")
             sys.exit(0)
 
 

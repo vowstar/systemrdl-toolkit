@@ -42,7 +42,7 @@ def run_template_render(rdl_file, template_file, output_file=None, verbose=False
     """Run systemrdl_render tool with specified parameters"""
     tool_path = find_tool_executable("systemrdl_render")
     if not tool_path:
-        print("❌ systemrdl_render tool not found")
+        print("[FAIL] systemrdl_render tool not found")
         return False, ""
 
     cmd = [tool_path, rdl_file, "-t", template_file]
@@ -122,18 +122,18 @@ def test_template_with_rdl(template_file, rdl_file, temp_dir):
     else:
         output_file = os.path.join(temp_dir, f"{rdl_name}_{template_name}.txt")
 
-    print(f"  🔧 Testing {template_name} with {rdl_name}")
+    print(f"  [CPP] Testing {template_name} with {rdl_name}")
 
     # Run template rendering
     success, output = run_template_render(rdl_file, template_file, output_file)
 
     if not success:
-        print(f"    ❌ Template rendering failed: {output}")
+        print(f"    [FAIL] Template rendering failed: {output}")
         return False
 
     # Validate output exists and has content
     if not os.path.exists(output_file):
-        print(f"    ❌ Output file not created: {output_file}")
+        print(f"    [FAIL] Output file not created: {output_file}")
         return False
 
     try:
@@ -143,20 +143,20 @@ def test_template_with_rdl(template_file, rdl_file, temp_dir):
         # Validate content based on characteristics
         is_valid, validation_msg = validate_output_content(content, template_name)
         if not is_valid:
-            print(f"    ❌ Content validation failed: {validation_msg}")
-            print(f"    📄 Content preview: {content[:200]}...")
+            print(f"    [FAIL] Content validation failed: {validation_msg}")
+            print(f"    [FILE] Content preview: {content[:200]}...")
             return False
 
-        print(f"    ✅ Success: {validation_msg} ({len(content)} chars)")
+        print(f"    [OK] Success: {validation_msg} ({len(content)} chars)")
         return True
     except Exception as e:
-        print(f"    ❌ Failed to read output: {e}")
+        print(f"    [FAIL] Failed to read output: {e}")
         return False
 
 
 def test_template_rendering():
     """Test template rendering with various combinations"""
-    print("🚀 SystemRDL Template Rendering Validator")
+    print("[START] SystemRDL Template Rendering Validator")
     print("=" * 60)
 
     # Find test files
@@ -167,24 +167,24 @@ def test_template_rendering():
     # Find RDL files
     rdl_files = list(test_dir.glob("*.rdl"))
     if not rdl_files:
-        print("❌ No RDL test files found")
+        print("[FAIL] No RDL test files found")
         return False
 
     # Find template files
     template_files = list(test_dir.glob("test_j2_*.j2"))
     if not template_files:
-        print("❌ No template files found")
+        print("[FAIL] No template files found")
         return False
 
     # Check if tool exists
     tool_path = find_tool_executable("systemrdl_render")
     if not tool_path:
-        print("❌ systemrdl_render tool not found. Please build the project first.")
+        print("[FAIL] systemrdl_render tool not found. Please build the project first.")
         return False
 
-    print(f"🔧 Found tool: {tool_path}")
-    print(f"📁 Found {len(rdl_files)} RDL files")
-    print(f"📄 Found {len(template_files)} template files")
+    print(f"[CPP] Found tool: {tool_path}")
+    print(f"[FOLDER] Found {len(rdl_files)} RDL files")
+    print(f"[FILE] Found {len(template_files)} template files")
     print()
 
     success_count = 0
@@ -192,7 +192,7 @@ def test_template_rendering():
 
     # Create temporary directory for outputs
     with tempfile.TemporaryDirectory() as temp_dir:
-        print(f"💾 Using temporary directory: {temp_dir}")
+        print(f"[TEMP] Using temporary directory: {temp_dir}")
         print()
 
         # Test each template with a representative RDL file
@@ -208,7 +208,7 @@ def test_template_rendering():
 
         for template_file in sorted(template_files):
             template_name = template_file.stem
-            print(f"📋 Testing template: {template_name}")
+            print(f"[LIST] Testing template: {template_name}")
 
             template_success = 0
             template_total = 0
@@ -221,11 +221,11 @@ def test_template_rendering():
                     success_count += 1
                     template_success += 1
 
-            print(f"  📊 Template results: {template_success}/{template_total}")
+            print(f"  [SUMMARY] Template results: {template_success}/{template_total}")
             print()
 
     # Test auto-generated filename functionality
-    print("🔧 Testing auto-generated filenames...")
+    print("[CPP] Testing auto-generated filenames...")
     with tempfile.TemporaryDirectory() as temp_dir:
         # Change to temp directory to test auto-generated names
         original_cwd = os.getcwd()
@@ -239,35 +239,35 @@ def test_template_rendering():
 
                 success, output = run_template_render(str(rdl_file), str(template_file))
                 if success:
-                    print("  ✅ Auto-generated filename test passed")
+                    print("  [OK] Auto-generated filename test passed")
                     success_count += 1
                 else:
-                    print(f"  ❌ Auto-generated filename test failed: {output}")
+                    print(f"  [FAIL] Auto-generated filename test failed: {output}")
                 total_tests += 1
         finally:
             os.chdir(original_cwd)
 
     print("=" * 60)
-    print("🏁 Template Rendering Validation Complete!")
-    print(f"✅ Success: {success_count}/{total_tests}")
-    print(f"❌ Failed: {total_tests - success_count}/{total_tests}")
+    print("[EXIT] Template Rendering Validation Complete!")
+    print(f"[OK] Success: {success_count}/{total_tests}")
+    print(f"[FAIL] Failed: {total_tests - success_count}/{total_tests}")
 
     if success_count == total_tests:
-        print("🎉 All template rendering tests passed!")
+        print("[OK] All template rendering tests passed!")
         return True
     else:
-        print("💥 Some template rendering tests failed!")
+        print("[FATAL] Some template rendering tests failed!")
         return False
 
 
 def test_error_conditions():
     """Test error conditions and edge cases"""
-    print("\n🚨 Testing Error Conditions")
+    print("\n[ERROR] Testing Error Conditions")
     print("-" * 40)
 
     tool_path = find_tool_executable("systemrdl_render")
     if not tool_path:
-        print("❌ Tool not found, skipping error condition tests")
+        print("[FAIL] Tool not found, skipping error condition tests")
         return True
 
     error_tests_passed = 0
@@ -280,12 +280,12 @@ def test_error_conditions():
             [tool_path, "nonexistent.rdl", "-t", "nonexistent.j2"], capture_output=True, text=True, timeout=10
         )
         if result.returncode != 0:
-            print("  ✅ Missing template file properly handled")
+            print("  [OK] Missing template file properly handled")
             error_tests_passed += 1
         else:
-            print("  ❌ Missing template file should have failed")
+            print("  [FAIL] Missing template file should have failed")
     except Exception as e:
-        print(f"  ❌ Error testing missing template: {e}")
+        print(f"  [FAIL] Error testing missing template: {e}")
 
     # Test 2: Missing RDL file
     total_error_tests += 1
@@ -300,16 +300,16 @@ def test_error_conditions():
                 [tool_path, "nonexistent.rdl", "-t", temp_template], capture_output=True, text=True, timeout=10
             )
             if result.returncode != 0:
-                print("  ✅ Missing RDL file properly handled")
+                print("  [OK] Missing RDL file properly handled")
                 error_tests_passed += 1
             else:
-                print("  ❌ Missing RDL file should have failed")
+                print("  [FAIL] Missing RDL file should have failed")
         finally:
             os.unlink(temp_template)
     except Exception as e:
-        print(f"  ❌ Error testing missing RDL file: {e}")
+        print(f"  [FAIL] Error testing missing RDL file: {e}")
 
-    print(f"📊 Error condition tests: {error_tests_passed}/{total_error_tests}")
+    print(f"[SUMMARY] Error condition tests: {error_tests_passed}/{total_error_tests}")
     return error_tests_passed == total_error_tests
 
 
@@ -335,10 +335,10 @@ def main():
 
     print("\n" + "=" * 80)
     if success:
-        print("🎉 All template rendering validation tests passed!")
+        print("[OK] All template rendering validation tests passed!")
         sys.exit(0)
     else:
-        print("💥 Some template rendering validation tests failed!")
+        print("[FATAL] Some template rendering validation tests failed!")
         sys.exit(1)
 
 

@@ -166,28 +166,28 @@ class CSV2RDLValidator:
         # Step 2: Validate RDL syntax with parser
         parse_success, parse_stdout, parse_stderr = self.run_parser(output_file)
         if not parse_success:
-            print("   ❌ RDL syntax validation failed")
+            print("   [FAIL] RDL syntax validation failed")
             print("      stdout: {}".format(parse_stdout))
             print("      stderr: {}".format(parse_stderr))
             self.results["errors"].append("{}: RDL syntax validation failed - {}".format(test_name, parse_stderr))
             return False
 
-        print("   ✅ RDL syntax validation passed")
+        print("   [OK] RDL syntax validation passed")
 
         # Step 3: Validate content patterns if provided
         if expected_patterns:
             content_valid, missing = self.validate_rdl_content(output_file, expected_patterns)
             if not content_valid:
-                print("   ❌ Content validation failed")
+                print("   [FAIL] Content validation failed")
                 print("      Missing patterns: {}".format(missing))
                 self.results["errors"].append(
                     "{}: Content validation failed - missing patterns: {}".format(test_name, missing)
                 )
                 return False
 
-            print("   ✅ Content validation passed")
+            print("   [OK] Content validation passed")
 
-        print("   🎉 {} PASSED".format(test_name))
+        print("   [OK] {} PASSED".format(test_name))
         return True
 
     def test_csv_file_failure(self, csv_file: Path, test_name: str, expected_error_patterns: List[str] = None) -> bool:
@@ -211,12 +211,12 @@ class CSV2RDLValidator:
         # Step 1: Run CSV2RDL converter - should fail
         success, stdout, stderr = self.run_csv2rdl(csv_file, output_file)
         if success:
-            print("   ❌ CSV2RDL conversion succeeded (unexpected)")
+            print("   [FAIL] CSV2RDL conversion succeeded (unexpected)")
             print("      Expected failure but got success")
             self.results["errors"].append("{}: Expected failure but conversion succeeded".format(test_name))
             return False
 
-        print("   ✅ CSV2RDL conversion failed as expected")
+        print("   [OK] CSV2RDL conversion failed as expected")
         print("   Error: {}".format(stderr.strip() if stderr else stdout.strip()))
 
         # Step 2: Validate error patterns if provided
@@ -224,13 +224,13 @@ class CSV2RDLValidator:
             error_output = stderr + stdout  # Check both stderr and stdout
             for pattern in expected_error_patterns:
                 if re.search(pattern, error_output, re.MULTILINE | re.IGNORECASE):
-                    print("   ✅ Found expected error pattern: {}".format(pattern))
+                    print("   [OK] Found expected error pattern: {}".format(pattern))
                 else:
-                    print("   ❌ Missing expected error pattern: {}".format(pattern))
+                    print("   [FAIL] Missing expected error pattern: {}".format(pattern))
                     self.results["errors"].append("{}: Missing expected error pattern: {}".format(test_name, pattern))
                     return False
 
-        print("   🎉 {} PASSED (failed as expected)".format(test_name))
+        print("   [OK] {} PASSED (failed as expected)".format(test_name))
         return True
 
     def test_csv_file(self, csv_file: Path, test_name: str, expected_patterns: List[str] = None) -> bool:
@@ -294,7 +294,7 @@ class CSV2RDLValidator:
                 result = self.test_csv_file(csv_file, test_name, expected_error_patterns)
                 results.append(result)
             else:
-                print("   ⚠️  Skipping {}: file not found".format(test_name))
+                print("   [WARNING]  Skipping {}: file not found".format(test_name))
 
         return all(results) if results else False
 
@@ -321,7 +321,7 @@ class CSV2RDLValidator:
                 result = self.test_csv_file(csv_file, test_name, expected_patterns)
                 results.append(result)
             else:
-                print("   ⚠️  Skipping {}: file not found".format(test_name))
+                print("   [WARNING]  Skipping {}: file not found".format(test_name))
 
         return all(results) if results else False
 
@@ -364,7 +364,7 @@ class CSV2RDLValidator:
                 result = self.test_csv_file(csv_file, test_name, expected_patterns)
                 results.append(result)
             else:
-                print("   ⚠️  Skipping {}: file not found".format(test_name))
+                print("   [WARNING]  Skipping {}: file not found".format(test_name))
 
         return all(results) if results else False
 
@@ -378,17 +378,17 @@ class CSV2RDLValidator:
         """Run tests on all discovered CSV files."""
         csv_files = self.discover_csv_test_files()
         if not csv_files:
-            print("❌ No test CSV files found in {}".format(self.test_dir))
+            print("[FAIL] No test CSV files found in {}".format(self.test_dir))
             return False
 
-        print("🔍 Found {} CSV test files".format(len(csv_files)))
+        print("[INFO] Found {} CSV test files".format(len(csv_files)))
 
         # Separate success and failure tests
         success_files = [f for f in csv_files if not self.is_expected_failure_test(f)]
         failure_files = [f for f in csv_files if self.is_expected_failure_test(f)]
 
-        print("   📗 Success test files: {}".format(len(success_files)))
-        print("   📕 Failure test files: {}".format(len(failure_files)))
+        print("   [SUCCESS] Success test files: {}".format(len(success_files)))
+        print("   [FAIL] Failure test files: {}".format(len(failure_files)))
 
         results = []
 
@@ -419,12 +419,12 @@ class CSV2RDLValidator:
 
     def run_validation_suite(self):
         """Run complete validation suite."""
-        print("🚀 Starting CSV2RDL Validation Suite")
+        print("[START] Starting CSV2RDL Validation Suite")
         print("=" * 60)
-        print("📂 Project root: {}".format(self.project_root))
-        print("📂 Test directory: {}".format(self.test_dir))
-        print("🔧 CSV2RDL binary: {}".format(self.csv2rdl_binary))
-        print("🔧 Parser binary: {}".format(self.parser_binary))
+        print("[DIR] Project root: {}".format(self.project_root))
+        print("[DIR] Test directory: {}".format(self.test_dir))
+        print("[TOOL] CSV2RDL binary: {}".format(self.csv2rdl_binary))
+        print("[TOOL] Parser binary: {}".format(self.parser_binary))
 
         self.setup_temp_dir()
 
@@ -442,21 +442,21 @@ class CSV2RDLValidator:
 
             for suite_name, test_func in test_suites:
                 try:
-                    print("\n📂 Running {} Test Suite".format(suite_name))
+                    print("\n[DIR] Running {} Test Suite".format(suite_name))
                     print("-" * 50)
 
                     if test_func():
                         self.results["passed"] += 1
-                        print("✅ {} Test Suite PASSED".format(suite_name))
+                        print("[OK] {} Test Suite PASSED".format(suite_name))
                     else:
                         self.results["failed"] += 1
-                        print("❌ {} Test Suite FAILED".format(suite_name))
+                        print("[FAIL] {} Test Suite FAILED".format(suite_name))
 
                 except Exception as e:
                     self.results["failed"] += 1
                     error_msg = "{} Test Suite encountered error: {}".format(suite_name, e)
                     self.results["errors"].append(error_msg)
-                    print("💥 {}".format(error_msg))
+                    print("[FATAL] {}".format(error_msg))
 
             # Print summary and return overall success
             return self.print_summary()
@@ -469,25 +469,25 @@ class CSV2RDLValidator:
         total = self.results["passed"] + self.results["failed"]
 
         print("\n" + "=" * 60)
-        print("📊 VALIDATION SUMMARY")
+        print("[SUMMARY] VALIDATION SUMMARY")
         print("=" * 60)
         print("Total Test Suites: {}".format(total))
-        print("✅ Passed: {}".format(self.results["passed"]))
-        print("❌ Failed: {}".format(self.results["failed"]))
+        print("[OK] Passed: {}".format(self.results["passed"]))
+        print("[FAIL] Failed: {}".format(self.results["failed"]))
 
         if self.results["errors"]:
-            print("\n🔍 Error Details:")
+            print("\n[INFO] Error Details:")
             for i, error in enumerate(self.results["errors"], 1):
                 print("  {}. {}".format(i, error))
 
         success_rate = (self.results["passed"] / total * 100) if total > 0 else 0
-        print("\n📈 Success Rate: {:.1f}%".format(success_rate))
+        print("\n[RATE] Success Rate: {:.1f}%".format(success_rate))
 
         if self.results["failed"] == 0:
-            print("🎉 All tests passed!")
+            print("[OK] All tests passed!")
             return True
         else:
-            print("🚨 Some tests failed - please review the errors above")
+            print("[ERROR] Some tests failed - please review the errors above")
             return False
 
 
@@ -499,11 +499,11 @@ def main():
 
         # Exit with appropriate code
         exit_code = 0 if success else 1
-        print("\n🏁 Exiting with code {}".format(exit_code))
+        print("\n[EXIT] Exiting with code {}".format(exit_code))
         return exit_code
 
     except Exception as e:
-        print("💥 Fatal error: {}".format(e))
+        print("[FATAL] Fatal error: {}".format(e))
         return 1
 
 
