@@ -1111,7 +1111,7 @@ if(Python3_FOUND)
         )
     else()
         add_custom_target(test-example
-            COMMAND echo "⚠️ Example not built - skipping example test"
+            COMMAND echo "[WARN] Example not built - skipping example test"
             COMMAND echo "   Enable with: cmake -DSYSTEMRDL_BUILD_TOOLS=ON"
             COMMENT "Example test skipped (example not built)"
         )
@@ -1293,19 +1293,19 @@ if(CLANG_FORMAT_EXECUTABLE)
 else()
     # Fallback targets when clang-format is not available
     add_custom_target(format-check
-        COMMAND echo "❌ clang-format not found! Please install clang-format to check C++ formatting."
+        COMMAND echo "[ERR] clang-format not found! Please install clang-format to check C++ formatting."
         COMMAND echo "   Ubuntu/Debian: sudo apt-get install clang-format"
         COMMAND echo "   Gentoo: sudo emerge clang"
         COMMAND false
     )
 
     add_custom_target(format-diff
-        COMMAND echo "❌ clang-format not found! Please install clang-format to show formatting differences."
+        COMMAND echo "[ERR] clang-format not found! Please install clang-format to show formatting differences."
         COMMAND false
     )
 
     add_custom_target(format
-        COMMAND echo "❌ clang-format not found! Please install clang-format to auto-format C++ code."
+        COMMAND echo "[ERR] clang-format not found! Please install clang-format to auto-format C++ code."
         COMMAND false
     )
 endif()
@@ -1342,14 +1342,14 @@ if(CPPCHECK_EXECUTABLE)
 else()
     # Fallback targets when cppcheck is not available
     add_custom_target(cppcheck
-        COMMAND echo "❌ cppcheck not found! Please install cppcheck for static analysis."
+        COMMAND echo "[ERR] cppcheck not found! Please install cppcheck for static analysis."
         COMMAND echo "   Ubuntu/Debian: sudo apt-get install cppcheck"
         COMMAND echo "   Gentoo: sudo emerge dev-util/cppcheck"
         COMMAND false
     )
 
     add_custom_target(cppcheck-verbose
-        COMMAND echo "❌ cppcheck not found! Please install cppcheck for static analysis."
+        COMMAND echo "[ERR] cppcheck not found! Please install cppcheck for static analysis."
         COMMAND false
     )
 endif()
@@ -1394,22 +1394,22 @@ if(PYTHON_EXECUTABLE)
 else()
     # Fallback targets when Python is not available
     add_custom_target(python-format-check
-        COMMAND echo "❌ Python not found! Please install Python to check Python code quality."
+        COMMAND echo "[ERR] Python not found! Please install Python to check Python code quality."
         COMMAND false
     )
 
     add_custom_target(python-format
-        COMMAND echo "❌ Python not found! Please install Python to format Python code."
+        COMMAND echo "[ERR] Python not found! Please install Python to format Python code."
         COMMAND false
     )
 
     add_custom_target(python-lint
-        COMMAND echo "❌ Python not found! Please install Python to lint Python code."
+        COMMAND echo "[ERR] Python not found! Please install Python to lint Python code."
         COMMAND false
     )
 
     add_custom_target(python-quality
-        COMMAND echo "❌ Python not found! Please install Python to check Python code quality."
+        COMMAND echo "[ERR] Python not found! Please install Python to check Python code quality."
         COMMAND false
     )
 endif()
@@ -1446,18 +1446,18 @@ if(PYMARKDOWN_AVAILABLE)
 else()
     # Fallback targets when PyMarkdown is not available
     add_custom_target(markdown-lint
-        COMMAND echo "❌ PyMarkdown not found! Please install pymarkdown to lint Markdown files."
+        COMMAND echo "[ERR] PyMarkdown not found! Please install pymarkdown to lint Markdown files."
         COMMAND echo "   pip install pymarkdown"
         COMMAND false
     )
 
     add_custom_target(markdown-fix
-        COMMAND echo "❌ PyMarkdown not found! Please install pymarkdown to fix Markdown files."
+        COMMAND echo "[ERR] PyMarkdown not found! Please install pymarkdown to fix Markdown files."
         COMMAND false
     )
 
     add_custom_target(markdown-rules
-        COMMAND echo "❌ PyMarkdown not found! Please install pymarkdown to show available rules."
+        COMMAND echo "[ERR] PyMarkdown not found! Please install pymarkdown to show available rules."
         COMMAND false
     )
 endif()
@@ -1507,10 +1507,10 @@ add_custom_target(pre-commit
 
 add_custom_target(quality-help
     COMMAND echo ""
-    COMMAND echo "📋 Available Code Quality Targets:"
+    COMMAND echo "[INFO] Available Code Quality Targets:"
     COMMAND echo "=================================="
     COMMAND echo ""
-    COMMAND echo "🔍 Code Checking:"
+    COMMAND echo "[CHECK] Code Checking:"
     COMMAND echo "  quality-check      - Run all quality checks"
     COMMAND echo "  format-check       - Check C++ code formatting \\(includes example/\\)"
     COMMAND echo "  format-diff        - Show C++ formatting differences"
@@ -1529,18 +1529,18 @@ add_custom_target(quality-help
     COMMAND echo "  test-elaborator    - Run elaborator tests only"
     COMMAND echo "  run-tests          - Run all tests"
     COMMAND echo ""
-    COMMAND echo "🔧 Code Fixing:"
+    COMMAND echo "[FIX] Code Fixing:"
     COMMAND echo "  quality-format     - Auto-format all code"
     COMMAND echo "  format             - Auto-format C++ code \\(includes example/\\)"
     COMMAND echo "  python-format      - Auto-format Python code"
     COMMAND echo "  markdown-fix       - Auto-fix Markdown issues"
     COMMAND echo "  fix-all            - Fix all auto-fixable issues"
     COMMAND echo ""
-    COMMAND echo "🚀 Combined Targets:"
+    COMMAND echo "[TARGETS] Combined Targets:"
     COMMAND echo "  pre-commit         - Run pre-commit checks \\(quality + fast tests\\)"
     COMMAND echo "  quality-all        - Run complete quality analysis"
     COMMAND echo ""
-    COMMAND echo "💡 Examples:"
+    COMMAND echo "[EXAMPLES] Examples:"
     COMMAND echo "  make quality-check    # Check code quality \\(includes example/\\)"
     COMMAND echo "  make format           # Auto-format C++ code"
     COMMAND echo "  make test-example     # Test library integration"
