@@ -1304,6 +1304,26 @@ bool elaborate(std::istream &input, std::ostream &output)
     }
 }
 
+bool elaborate_simplified(std::istream &input, std::ostream &output)
+{
+    try {
+        std::string
+            content((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+
+        auto result = systemrdl::elaborate_simplified(content);
+        if (result.ok()) {
+            output << result.value();
+            return true;
+        } else {
+            output << "Error: " << result.error();
+            return false;
+        }
+    } catch (const std::exception &e) {
+        output << "Stream error: " << e.what();
+        return false;
+    }
+}
+
 bool csv_to_rdl(std::istream &input, std::ostream &output)
 {
     try {
