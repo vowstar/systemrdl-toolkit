@@ -137,6 +137,8 @@ int main(int argc, char *argv[])
     cmdline.set_version(systemrdl::get_detailed_version());
     cmdline.add_option_with_optional_value(
         "a", "ast", "Enable AST JSON output, optionally specify filename");
+    cmdline.add_option_with_optional_value(
+        "j", "json", "Enable simplified JSON output, optionally specify filename");
     cmdline.add_option("h", "help", "Show this help message");
 
     if (!cmdline.parse(argc, argv)) {
@@ -258,7 +260,37 @@ int main(int argc, char *argv[])
             }
         }
 
-        std::cout << "\n🎉 Elaboration completed successfully!" << std::endl;
+        // 6. Generate simplified JSON output if requested
+        if (cmdline.is_set("json")) {
+            std::string output_file = cmdline.get_value("json");
+
+            // If no filename provided, generate default
+            if (output_file.empty()) {
+                output_file = get_default_ast_filename(inputFile, "_simplified");
+            }
+
+            std::cout << "\nGenerating simplified JSON output..." << std::endl;
+
+            // Use unified API for consistent JSON output
+            systemrdl::Result result = systemrdl::file::elaborate_simplified(inputFile);
+            if (result.ok()) {
+                std::ofstream outFile(output_file);
+                if (outFile.is_open()) {
+                    outFile << result.value();
+                    outFile.close();
+                    std::cout << "Simplified JSON output written to: " << output_file << std::endl;
+                } else {
+                    std::cerr << "Failed to write simplified JSON output to: " << output_file
+                              << std::endl;
+                    return 1;
+                }
+            } else {
+                std::cerr << "Failed to generate simplified JSON: " << result.error() << std::endl;
+                return 1;
+            }
+        }
+
+        std::cout << "\nElaboration completed successfully!" << std::endl;
 
     } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;

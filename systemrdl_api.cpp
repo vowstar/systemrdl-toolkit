@@ -141,6 +141,187 @@ static nlohmann::json convert_elaborated_node_to_json(systemrdl::ElaboratedNode 
     return json_node;
 }
 
+// Helper function to convert elaborated node to simplified JSON
+static void extract_registers_simplified(systemrdl::ElaboratedNode &node, 
+                                        nlohmann::json &registers_array,
+                                        nlohmann::json &regfiles_array, 
+                                        std::vector<std::string> &path,
+                                        std::vector<std::string> &path_abs)
+{
+    // Format current absolute address as hex string
+    std::ostringstream hex_addr;
+    hex_addr << "0x" << std::hex << node.absolute_address;
+    std::string current_addr = hex_addr.str();
+
+    if (node.get_node_type() == "regfile") {
+        // Add regfile to regfiles array
+        nlohmann::json regfile_obj;
+        regfile_obj["inst_name"] = node.inst_name;
+        if (!node.properties.empty()) {
+            auto name_prop = node.properties.find("name");
+            if (name_prop != node.properties.end()) {
+                regfile_obj["name"] = convert_property_to_json(name_prop->second);
+            }
+            auto desc_prop = node.properties.find("desc");
+            if (desc_prop != node.properties.end()) {
+                regfile_obj["desc"] = convert_property_to_json(desc_prop->second);
+            }
+        }
+        regfile_obj["absolute_address"] = current_addr;
+        regfile_obj["path"] = nlohmann::json::array();
+        for (const auto &p : path) {
+            regfile_obj["path"].push_back(p);
+        }
+        regfile_obj["size"] = node.size;
+        regfiles_array.push_back(regfile_obj);
+
+        // Add current regfile to path for children
+        path.push_back(node.inst_name);
+        path_abs.push_back(current_addr);
+    } else if (node.get_node_type() == "reg") {
+        // This is a register - add it to the registers array
+        nlohmann::json register_obj;
+        register_obj["inst_name"] = node.inst_name;
+        
+        // Add name and desc from properties if available
+        if (!node.properties.empty()) {
+            auto name_prop = node.properties.find("name");
+            if (name_prop != node.properties.end()) {
+                register_obj["name"] = convert_property_to_json(name_prop->second);
+            }
+            auto desc_prop = node.properties.find("desc");
+            if (desc_prop != node.properties.end()) {
+                register_obj["desc"] = convert_property_to_json(desc_prop->second);
+            }
+        }
+        
+        register_obj["absolute_address"] = current_addr;
+        register_obj["offset"] = static_cast<int>(node.absolute_address);
+        register_obj["path"] = nlohmann::json::array();
+        register_obj["path_abs"] = nlohmann::json::array();
+        
+        // Add path information
+        for (const auto &p : path) {
+            register_obj["path"].push_back(p);
+        }
+        for (const auto &pa : path_abs) {
+            register_obj["path_abs"].push_back(pa);
+        }
+        
+        // Extract fields
+        nlohmann::json fields = nlohmann::json::array();
+        for (auto &child : node.children) {
+            if (child->get_node_type() == "field") {
+                nlohmann::json field_obj;
+                field_obj["inst_name"] = child->inst_name;
+                
+                // Add field properties
+                if (!child->properties.empty()) {
+                    auto name_prop = child->properties.find("name");
+                    if (name_prop != child->properties.end()) {
+                        field_obj["name"] = convert_property_to_json(name_prop->second);
+                    } else {
+                        field_obj["name"] = child->inst_name; // fallback to inst_name
+                    }
+                    auto desc_prop = child->properties.find("desc");
+                    if (desc_prop != child->properties.end()) {
+                        field_obj["desc"] = convert_property_to_json(desc_prop->second);
+                    }
+                    
+                    // Add other important properties
+                    for (const auto &prop : child->properties) {
+                        if (prop.first == "lsb" || prop.first == "msb" || prop.first == "width" ||
+                            prop.first == "sw" || prop.first == "hw" || prop.first == "reserved" ||
+                            prop.first == "reset" || prop.first == "onwrite") {
+                            field_obj[prop.first] = convert_property_to_json(prop.second);
+                        }
+                    }
+                }
+                
+                std::ostringstream field_hex_addr;
+                field_hex_addr << "0x" << std::hex << child->absolute_address;
+                field_obj["absolute_address"] = field_hex_addr.str();
+                
+                fields.push_back(field_obj);
+            }
+        }
+        register_obj["fields"] = fields;
+        
+        registers_array.push_back(register_obj);
+    } else {
+        // For addrmap and other node types, continue recursing but don't add to path for addrmap
+        if (node.get_node_type() != "addrmap") {
+            path.push_back(node.inst_name);
+            path_abs.push_back(current_addr);
+        }
+    }
+
+    // Recurse through children
+    for (auto &child : node.children) {
+        extract_registers_simplified(*child, registers_array, regfiles_array, path, path_abs);
+    }
+
+    // Remove current node from path when done (except for addrmap)
+    if (node.get_node_type() == "regfile" || 
+        (node.get_node_type() != "addrmap" && node.get_node_type() != "reg")) {
+        if (!path.empty()) path.pop_back();
+        if (!path_abs.empty()) path_abs.pop_back();
+    }
+}
+
+static nlohmann::json convert_elaborated_node_to_simplified_json(systemrdl::ElaboratedNode &node)
+{
+    nlohmann::json result;
+    result["format"] = "SystemRDL_SimplifiedModel";
+    result["version"] = "1.0";
+
+    // Extract addrmap information (should be the root node)
+    nlohmann::json addrmap_obj;
+    addrmap_obj["inst_name"] = node.inst_name;
+    
+    // Add addrmap properties
+    if (!node.properties.empty()) {
+        auto name_prop = node.properties.find("name");
+        if (name_prop != node.properties.end()) {
+            addrmap_obj["name"] = convert_property_to_json(name_prop->second);
+        }
+        auto desc_prop = node.properties.find("desc");
+        if (desc_prop != node.properties.end()) {
+            addrmap_obj["desc"] = convert_property_to_json(desc_prop->second);
+        }
+    }
+    
+    std::ostringstream hex_addr;
+    hex_addr << "0x" << std::hex << node.absolute_address;
+    addrmap_obj["absolute_address"] = hex_addr.str();
+    addrmap_obj["base"] = hex_addr.str(); // Alternative name for base address
+    
+    result["addrmap"] = addrmap_obj;
+
+    // Extract registers and regfiles
+    nlohmann::json registers_array = nlohmann::json::array();
+    nlohmann::json regfiles_array = nlohmann::json::array();
+    std::vector<std::string> path;
+    std::vector<std::string> path_abs;
+    
+    // Start with addrmap in path
+    path.push_back(node.inst_name);
+    path_abs.push_back(hex_addr.str());
+    
+    for (auto &child : node.children) {
+        extract_registers_simplified(*child, registers_array, regfiles_array, path, path_abs);
+    }
+
+    // Add regfiles array if not empty
+    if (!regfiles_array.empty()) {
+        result["regfiles"] = regfiles_array;
+    }
+    
+    result["registers"] = registers_array;
+
+    return result;
+}
+
 // CSV Row structure
 struct CSVRow
 {
@@ -860,6 +1041,40 @@ Result elaborate(std::string_view rdl_content)
     }
 }
 
+Result elaborate_simplified(std::string_view rdl_content)
+{
+    try {
+        ParseContext ctx(rdl_content);
+
+        if (ctx.hasErrors()) {
+            return Result::error("Syntax errors found during parsing");
+        }
+
+        // Create elaborator and elaborate the design
+        systemrdl::SystemRDLElaborator elaborator;
+        auto                           elaborated_model = elaborator.elaborate(ctx.tree);
+
+        if (elaborator.has_errors()) {
+            std::string error_details = "Elaboration errors:\n";
+            for (const auto &err : elaborator.get_errors()) {
+                error_details += "  " + err.message + "\n";
+            }
+            return Result::error(error_details);
+        }
+
+        if (!elaborated_model) {
+            return Result::error("Failed to elaborate design");
+        }
+
+        // Convert elaborated model to simplified JSON
+        nlohmann::json simplified_result = convert_elaborated_node_to_simplified_json(*elaborated_model);
+
+        return Result::success(simplified_result.dump(2)); // Pretty print with 2 spaces
+    } catch (const std::exception &e) {
+        return Result::error(std::string("Elaboration error: ") + e.what());
+    }
+}
+
 Result csv_to_rdl(std::string_view csv_content)
 {
     try {
@@ -913,6 +1128,22 @@ Result elaborate(const std::string &filename)
         std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
         return systemrdl::elaborate(content);
+    } catch (const std::exception &e) {
+        return Result::error(std::string("File read error: ") + e.what());
+    }
+}
+
+Result elaborate_simplified(const std::string &filename)
+{
+    try {
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            return Result::error("Cannot open file: " + filename);
+        }
+
+        std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+        return systemrdl::elaborate_simplified(content);
     } catch (const std::exception &e) {
         return Result::error(std::string("File read error: ") + e.what());
     }

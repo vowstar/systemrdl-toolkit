@@ -1002,7 +1002,7 @@ if(Python3_FOUND)
             # AST test using unified Python script (replaces bash script)
             add_test(
                 NAME "ast_test_${test_name}"
-                COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/json_output_validator.py
+                COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/ast_output_validator.py
                         --test
                         --parser ${CMAKE_BINARY_DIR}/systemrdl_parser
                         --elaborator ${CMAKE_BINARY_DIR}/systemrdl_elaborator
@@ -1012,6 +1012,20 @@ if(Python3_FOUND)
             set_tests_properties("ast_test_${test_name}" PROPERTIES
                 LABELS "ast;test"
                 DEPENDS "systemrdl_parser;systemrdl_elaborator"
+            )
+
+            # JSON test using unified Python script for simplified JSON
+            add_test(
+                NAME "json_test_${test_name}"
+                COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/json_output_validator.py
+                        --test
+                        --elaborator ${CMAKE_BINARY_DIR}/systemrdl_elaborator
+                        --rdl ${rdl_file}
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            )
+            set_tests_properties("json_test_${test_name}" PROPERTIES
+                LABELS "json;test"
+                DEPENDS "systemrdl_elaborator"
             )
         endif()
     endforeach()
@@ -1058,6 +1072,12 @@ if(Python3_FOUND)
         COMMENT "Running AST output tests"
     )
 
+    add_custom_target(test-json
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "json"
+        DEPENDS systemrdl_elaborator
+        COMMENT "Running simplified JSON output tests"
+    )
+
     add_custom_target(test-semantic
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L "semantic"
         COMMENT "Running RDL semantic validation tests"
@@ -1097,16 +1117,17 @@ if(Python3_FOUND)
         )
     endif()
 
-    # Custom target to run fast tests (AST + semantic + CSV2RDL + template + example)
+    # Custom target to run fast tests (AST + JSON + semantic + CSV2RDL + template + example)
     add_custom_target(test-fast
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L ast
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L json
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L semantic
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L csv2rdl
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L template
         COMMAND echo "Running example integration test..."
         COMMAND ${CMAKE_COMMAND} --build . --target test-example
         DEPENDS systemrdl_parser systemrdl_elaborator systemrdl_csv2rdl systemrdl_render
-        COMMENT "Running fast tests (AST + semantic + CSV2RDL + template + example validation)"
+        COMMENT "Running fast tests (AST + JSON + semantic + CSV2RDL + template + example validation)"
     )
 else()
     message(WARNING "Python3 not found - JSON and semantic validation tests will be disabled")

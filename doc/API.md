@@ -130,13 +130,23 @@ int main() {
         return 1;
     }
 
-    // Elaborate SystemRDL design
+    // Elaborate SystemRDL design (hierarchical AST JSON)
     auto elaborate_result = systemrdl::elaborate(rdl_content);
     if (elaborate_result.ok()) {
         std::cout << "Elaboration successful!" << std::endl;
         std::cout << "Elaborated JSON: " << elaborate_result.value() << std::endl;
     } else {
         std::cerr << "Elaboration failed: " << elaborate_result.error() << std::endl;
+        return 1;
+    }
+
+    // Elaborate SystemRDL design (simplified flattened JSON)
+    auto simplified_result = systemrdl::elaborate_simplified(rdl_content);
+    if (simplified_result.ok()) {
+        std::cout << "Simplified elaboration successful!" << std::endl;
+        std::cout << "Simplified JSON: " << simplified_result.value() << std::endl;
+    } else {
+        std::cerr << "Simplified elaboration failed: " << simplified_result.error() << std::endl;
         return 1;
     }
 
@@ -157,11 +167,18 @@ int main() {
         // process parse_result.value()
     }
 
-    // Elaborate SystemRDL file
+    // Elaborate SystemRDL file (hierarchical AST JSON)
     auto elaborate_result = systemrdl::file::elaborate("design.rdl");
     if (elaborate_result.ok()) {
         std::cout << "File elaborated successfully!" << std::endl;
         // process elaborate_result.value()
+    }
+
+    // Elaborate SystemRDL file (simplified flattened JSON)
+    auto simplified_result = systemrdl::file::elaborate_simplified("design.rdl");
+    if (simplified_result.ok()) {
+        std::cout << "File elaborated to simplified JSON successfully!" << std::endl;
+        // process simplified_result.value()
     }
 
     return 0;
@@ -245,6 +262,36 @@ if (result.has_error()) {
 - **Flexible Input**: Multiple ways to provide SystemRDL content
 - **CSV Integration**: Built-in CSV to SystemRDL conversion
 
+#### JSON Output Formats
+
+The SystemRDL library provides two different JSON output formats to suit different use cases:
+
+**1. Hierarchical AST JSON (`elaborate()`)**
+
+- Maintains the original hierarchical structure of the SystemRDL design
+- Preserves parent-child relationships between address maps, regfiles, registers, and fields
+- Suitable for tools that need to understand the full design hierarchy
+- Compatible with existing SystemRDL toolchains and templates
+
+**2. Simplified Flattened JSON (`elaborate_simplified()`)**
+
+- Flattens the hierarchical structure into separate arrays for registers and regfiles
+- Includes full path information for each register and field
+- More user-friendly for register documentation and code generation
+- Easier to process for applications that don't need hierarchy details
+
+**Example comparison:**
+
+```cpp
+// Hierarchical JSON - preserves structure
+auto ast_result = systemrdl::elaborate(rdl_content);
+// Output: {"addrmap": {"children": [{"reg": {"children": [{"field": ...}]}}]}}
+
+// Simplified JSON - flattened structure  
+auto simplified_result = systemrdl::elaborate_simplified(rdl_content);
+// Output: {"registers": [...], "regfiles": [...], "fields": [...]}
+```
+
 ### Traditional API (Advanced Users)
 
 For users who need direct access to ANTLR4 features or fine-grained control:
@@ -327,7 +374,8 @@ for (const auto& entry : address_map) {
 |-----------|--------|-------------|
 | `systemrdl::Result` | `systemrdl_api.h` | Result type for error handling |
 | `systemrdl::parse()` | `systemrdl_api.h` | Parse SystemRDL content to AST JSON |
-| `systemrdl::elaborate()` | `systemrdl_api.h` | Elaborate SystemRDL content to JSON |
+| `systemrdl::elaborate()` | `systemrdl_api.h` | Elaborate SystemRDL content to hierarchical JSON |
+| `systemrdl::elaborate_simplified()` | `systemrdl_api.h` | Elaborate SystemRDL content to simplified flattened JSON |
 | `systemrdl::csv_to_rdl()` | `systemrdl_api.h` | Convert CSV to SystemRDL format |
 | `systemrdl::file::*` | `systemrdl_api.h` | File-based operations namespace |
 | `systemrdl::stream::*` | `systemrdl_api.h` | Stream-based operations namespace |
@@ -482,6 +530,45 @@ std::vector<ValidationResult> validate_rdl_files(const std::vector<std::string>&
     }
 
     return results;
+}
+```
+
+#### Pattern 5: Dual JSON Output Generation
+
+```cpp
+#include <systemrdl/systemrdl_api.h>
+#include <iostream>
+#include <fstream>
+
+// Generate both hierarchical and simplified JSON outputs
+bool generate_dual_outputs(const std::string& rdl_file, const std::string& output_dir) {
+    // Generate hierarchical AST JSON
+    auto ast_result = systemrdl::file::elaborate(rdl_file);
+    if (!ast_result.ok()) {
+        std::cerr << "AST elaboration failed: " << ast_result.error() << std::endl;
+        return false;
+    }
+
+    // Generate simplified flattened JSON
+    auto simplified_result = systemrdl::file::elaborate_simplified(rdl_file);
+    if (!simplified_result.ok()) {
+        std::cerr << "Simplified elaboration failed: " << simplified_result.error() << std::endl;
+        return false;
+    }
+
+    // Save both outputs
+    std::ofstream ast_file(output_dir + "/design_ast.json");
+    std::ofstream simplified_file(output_dir + "/design_simplified.json");
+
+    ast_file << ast_result.value();
+    simplified_file << simplified_result.value();
+
+    std::cout << "Generated both AST and simplified JSON outputs" << std::endl;
+    return true;
+}
+
+int main() {
+    return generate_dual_outputs("chip_design.rdl", "output") ? 0 : 1;
 }
 ```
 
