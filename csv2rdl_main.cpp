@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     }
 
     try {
-        std::cout << "🔧 Parsing CSV file: " << input_file << std::endl;
+        std::cout << "[PARSE] Parsing CSV file: " << input_file << std::endl;
 
         // Use the API to convert CSV to RDL
         auto result = systemrdl::file::csv_to_rdl(input_file);
@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        std::cout << "✅ Successfully converted CSV to SystemRDL" << std::endl;
+        std::cout << "[OK] Successfully converted CSV to SystemRDL" << std::endl;
 
         // Write output file
         std::ofstream output_stream(output_file);
@@ -63,8 +63,8 @@ int main(int argc, char *argv[])
         output_stream << result.value();
         output_stream.close();
 
-        std::cout << "✅ SystemRDL file generated: " << output_file << std::endl;
-        std::cout << "\n🎉 Conversion completed successfully!" << std::endl;
+        std::cout << "[OK] SystemRDL file generated: " << output_file << std::endl;
+        std::cout << "\n[OK] Conversion completed successfully!" << std::endl;
 
     } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;

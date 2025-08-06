@@ -41,13 +41,13 @@ class CSV2RDLValidator:
     def setup_temp_dir(self):
         """Create temporary directory for test outputs."""
         self.temp_dir = Path(tempfile.mkdtemp(prefix="csv2rdl_test_"))
-        print("📁 Using temporary directory: {}".format(self.temp_dir))
+        print("[DIR] Using temporary directory: {}".format(self.temp_dir))
 
     def cleanup_temp_dir(self):
         """Remove temporary directory."""
         if self.temp_dir and self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
-            print("🗑️  Cleaned up temporary directory")
+            print("[CLEAN] Cleaned up temporary directory")
 
     def run_csv2rdl(self, csv_file: Path, output_file: Optional[Path] = None) -> Tuple[bool, str, str]:
         """
@@ -139,7 +139,7 @@ class CSV2RDLValidator:
         Returns:
             True if test passed, False otherwise
         """
-        print("\n🧪 Testing: {} (Expected: ✅ SUCCESS)".format(test_name))
+        print("\n[TEST] Testing: {} (Expected: SUCCESS)".format(test_name))
         print("   Input: {}".format(csv_file.name))
 
         # Generate output file path in temp directory
@@ -148,7 +148,7 @@ class CSV2RDLValidator:
         # Step 1: Run CSV2RDL converter
         success, stdout, stderr = self.run_csv2rdl(csv_file, output_file)
         if not success:
-            print("   ❌ CSV2RDL conversion failed (unexpected)")
+            print("   [ERR] CSV2RDL conversion failed (unexpected)")
             print("      stdout: {}".format(stdout))
             print("      stderr: {}".format(stderr))
             self.results["errors"].append("{}: CSV2RDL conversion failed - {}".format(test_name, stderr))
@@ -156,11 +156,11 @@ class CSV2RDLValidator:
 
         # Check if output file was created
         if not output_file.exists():
-            print("   ❌ Output file not created: {}".format(output_file))
+            print("   [ERR] Output file not created: {}".format(output_file))
             self.results["errors"].append("{}: Output file not created".format(test_name))
             return False
 
-        print("   ✅ CSV2RDL conversion successful")
+        print("   [OK] CSV2RDL conversion successful")
         print("   Output: {}".format(output_file.name))
 
         # Step 2: Validate RDL syntax with parser
@@ -202,7 +202,7 @@ class CSV2RDLValidator:
         Returns:
             True if test passed (failed as expected), False otherwise
         """
-        print("\n🧪 Testing: {} (Expected: ❌ FAILURE)".format(test_name))
+        print("\n[TEST] Testing: {} (Expected: FAILURE)".format(test_name))
         print("   Input: {}".format(csv_file.name))
 
         # Generate output file path in temp directory

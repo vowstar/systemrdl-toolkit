@@ -33,17 +33,17 @@ protected:
         }
 
         // Print node information
-        std::string icon = "🔧";
+        std::string icon = "[REG]";
         if (node.get_node_type() == "addrmap")
-            icon = "📦";
+            icon = "[MAP]";
         else if (node.get_node_type() == "regfile")
-            icon = "📁";
+            icon = "[FILE]";
         else if (node.get_node_type() == "reg")
-            icon = "🔧";
+            icon = "[REG]";
         else if (node.get_node_type() == "field")
-            icon = "🔧";
+            icon = "[FIELD]";
         else if (node.get_node_type() == "mem")
-            icon = "💾";
+            icon = "[MEM]";
 
         std::cout << icon << " " << node.get_node_type() << ": " << node.inst_name;
 
@@ -81,7 +81,7 @@ protected:
             for (int i = 0; i <= depth_; i++) {
                 std::cout << "  ";
             }
-            std::cout << "📝 " << prop.first << ": ";
+            std::cout << "    " << prop.first << ": ";
 
             switch (prop.second.type) {
             case PropertyValue::STRING:
@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
 
     try {
         // 1. Parsing phase
-        std::cout << "🔧 Parsing SystemRDL file: " << inputFile << std::endl;
+        std::cout << "[PARSE] Parsing SystemRDL file: " << inputFile << std::endl;
 
         std::ifstream stream(inputFile);
         if (!stream.is_open()) {
@@ -180,10 +180,10 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        std::cout << "✅ Parsing successful!" << std::endl;
+        std::cout << "[OK] Parsing successful!" << std::endl;
 
         // 2. Elaboration phase
-        std::cout << "\n🚀 Starting elaboration..." << std::endl;
+        std::cout << "\n[ELAB] Starting elaboration..." << std::endl;
 
         SystemRDLElaborator elaborator;
         auto                root_context     = dynamic_cast<SystemRDLParser::RootContext *>(tree);
@@ -203,7 +203,7 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        std::cout << "✅ Elaboration successful!" << std::endl;
+        std::cout << "[OK] Elaboration successful!" << std::endl;
 
         // 3. Print elaborated model
         std::cout << "\n" << std::string(50, '=') << std::endl;
@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
 
         // 4. Generate address mapping
         std::cout << "\n" << std::string(50, '=') << std::endl;
-        std::cout << "📊 Address Map:" << std::endl;
+        std::cout << "[ADDR] Address Map:" << std::endl;
         std::cout << std::string(50, '=') << std::endl;
 
         AddressMapGenerator addr_gen;

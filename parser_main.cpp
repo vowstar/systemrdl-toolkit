@@ -51,17 +51,17 @@ void printAST(tree::ParseTree *tree, SystemRDLParser *parser, int depth = 0)
         // Different processing based on rule type
         if (ruleName == "component_named_def") {
             indent();
-            std::cout << "📦 Component Definition" << std::endl;
+            std::cout << "[COMP] Component Definition" << std::endl;
         } else if (ruleName == "component_type_primary") {
-            printAligned("🔧 Type: ", text);
+            printAligned("[TYPE] ", text);
         } else if (ruleName == "component_inst") {
-            printAligned("📋 Instance: ", text);
+            printAligned("[INST] ", text);
         } else if (ruleName == "local_property_assignment") {
-            printAligned("⚙️  Property: ", text);
+            printAligned("[PROP] ", text);
         } else if (ruleName == "range_suffix") {
-            printAligned("📏 Range: ", text);
+            printAligned("[RANGE] ", text);
         } else if (ruleName == "inst_addr_fixed") {
-            printAligned("📍 Address: ", text);
+            printAligned("[ADDR] ", text);
         }
 
         // Recursively process child nodes
@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        std::cout << "✅ Parsing successful!" << std::endl;
+        std::cout << "[OK] Parsing successful!" << std::endl;
 
         // Print AST to console
         std::cout << "\n=== Abstract Syntax Tree ===" << std::endl;
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        std::cout << "\n🎉 Parser completed successfully!" << std::endl;
+        std::cout << "\n[OK] Parser completed successfully!" << std::endl;
 
     } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;
