@@ -74,7 +74,7 @@ Result parse(std::string_view rdl_content);
  * std::string rdl_content = "addrmap simple { reg r1 @ 0x0; };";
  * auto result = systemrdl::elaborate(rdl_content);
  * if (result.ok()) {
- *     std::cout << "Elaborated JSON: " << result.value() << std::endl;
+ *     std::cout << "Full AST JSON: " << result.value() << std::endl;
  * } else {
  *     std::cerr << "Elaboration error: " << result.error() << std::endl;
  * }
@@ -91,7 +91,7 @@ Result elaborate(std::string_view rdl_content);
  * @example
  * ```cpp
  * std::string rdl_content = "addrmap simple { reg r1 @ 0x0; };";
- * auto result = systemrdl::elaborate_simplified(rdl_content);
+ * auto result = systemrdl::elaborate_simplified(rdl_content);  // Recommended for templates
  * if (result.ok()) {
  *     std::cout << "Simplified JSON: " << result.value() << std::endl;
  * } else {
@@ -154,7 +154,7 @@ Result parse(const std::string &filename);
  * ```cpp
  * auto result = systemrdl::file::elaborate("design.rdl");
  * if (result.ok()) {
- *     std::cout << "Elaborated JSON: " << result.value() << std::endl;
+ *     std::cout << "Full AST JSON: " << result.value() << std::endl;
  * } else {
  *     std::cerr << "Elaboration error: " << result.error() << std::endl;
  * }
@@ -170,7 +170,7 @@ Result elaborate(const std::string &filename);
  *
  * @example
  * ```cpp
- * auto result = systemrdl::file::elaborate_simplified("example.rdl");
+ * auto result = systemrdl::file::elaborate_simplified("example.rdl");  // Recommended for templates
  * if (result.ok()) {
  *     std::cout << "Simplified JSON: " << result.value() << std::endl;
  * } else {
@@ -235,7 +235,7 @@ bool parse(std::istream &input, std::ostream &output);
  * ```cpp
  * std::ifstream input("design.rdl");
  * std::ofstream output("elaborated.json");
- * bool success = systemrdl::stream::elaborate(input, output);
+ * bool success = systemrdl::stream::elaborate(input, output);  // Full AST JSON
  * if (!success) {
  *     std::cerr << "Stream elaboration failed" << std::endl;
  * }
@@ -254,7 +254,7 @@ bool elaborate(std::istream &input, std::ostream &output);
  * ```cpp
  * std::ifstream input("design.rdl");
  * std::ofstream output("simplified.json");
- * bool success = systemrdl::stream::elaborate_simplified(input, output);
+ * bool success = systemrdl::stream::elaborate_simplified(input, output);  // Recommended for templates
  * if (!success) {
  *     std::cerr << "Stream simplified elaboration failed" << std::endl;
  * }

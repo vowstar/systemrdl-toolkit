@@ -41,9 +41,9 @@ int main()
         std::cout << std::endl;
     }
 
-    // Example 2: Simple Elaborate SystemRDL content
+    // Example 2: Full AST JSON Elaboration
     {
-        std::cout << "[2] Example 2: Simple Elaboration" << std::endl;
+        std::cout << "[2] Example 2: Full AST JSON Elaboration" << std::endl;
 
         std::string rdl_content = R"(
             addrmap demo_chip {
@@ -111,9 +111,10 @@ int main()
         std::cout << std::endl;
     }
 
-    // Example 3: Simplified JSON Elaboration
+    // Example 3: Simplified JSON Elaboration (Recommended for Templates)
     {
-        std::cout << "[3] Example 3: Simplified JSON Elaboration" << std::endl;
+        std::cout << "[3] Example 3: Simplified JSON Elaboration (Recommended for Templates)"
+                  << std::endl;
 
         std::string rdl_content = R"(
             addrmap demo_chip {
