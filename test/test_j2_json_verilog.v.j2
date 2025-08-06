@@ -1,0 +1,150 @@
+//
+// Auto-generated Verilog RTL from SystemRDL (Simplified JSON Format)
+// Generator: SystemRDL Template Renderer
+// JSON Format: Simplified register/field model for easier templates
+//
+
+module {{ addrmap.inst_name | lower }}_regs #(
+    parameter ADDR_WIDTH = 32,
+    parameter DATA_WIDTH = 32
+) (
+    // Clock and Reset
+    input  wire                    clk,
+    input  wire                    rst_n,
+
+    // CPU Interface (APB-like)
+    input  wire                    psel,
+    input  wire                    penable,
+    input  wire                    pwrite,
+    input  wire [ADDR_WIDTH-1:0]   paddr,
+    input  wire [DATA_WIDTH-1:0]   pwdata,
+    output reg  [DATA_WIDTH-1:0]   prdata,
+    output wire                    pready,
+    output wire                    pslverr,
+
+    // Hardware Interface
+{% for reg in registers -%}
+{% for field in reg.fields -%}
+{% if field.hw == "w" or field.hw == "rw" -%}
+    input  wire [{{ field.msb }}:{{ field.lsb }}] hw_{{ reg.inst_name }}_{{ field.inst_name }}_i,
+{% endif -%}
+{% if field.hw == "r" or field.hw == "rw" -%}
+    output reg  [{{ field.msb }}:{{ field.lsb }}] hw_{{ reg.inst_name }}_{{ field.inst_name }}_o,
+{% endif -%}
+{% endfor -%}
+{% endfor -%}
+
+    // Status/Control
+    output wire                    register_error
+);
+
+    // Internal signals
+    wire write_enable;
+    wire read_enable;
+    reg  register_error_reg;
+
+    assign pready = 1'b1;  // Always ready
+    assign pslverr = register_error_reg;
+    assign register_error = register_error_reg;
+
+    assign write_enable = psel & penable & pwrite;
+    assign read_enable = psel & penable & ~pwrite;
+
+    // Register definitions
+{% for reg in registers -%}
+    // {{ reg.inst_name | upper }} @ {{ reg.absolute_address }}
+{% for field in reg.fields -%}
+    reg [{{ field.msb }}:{{ field.lsb }}] r_{{ reg.inst_name }}_{{ field.inst_name }};
+{% endfor -%}
+{% endfor -%}
+
+    // Address decode parameters
+{% for reg in registers -%}
+    localparam ADDR_{{ reg.inst_name | upper }} = {{ reg.absolute_address }};
+{% endfor -%}
+
+    // Write logic
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            register_error_reg <= 1'b0;
+{% for reg in registers -%}
+{% for field in reg.fields -%}
+{% if field.sw == "rw" or field.sw == "w" -%}
+            r_{{ reg.inst_name }}_{{ field.inst_name }} <= {{ field.width }}'h0;
+{% endif -%}
+{% endfor -%}
+{% endfor -%}
+        end else begin
+            register_error_reg <= 1'b0;
+
+            if (write_enable) begin
+                case (paddr)
+{% for reg in registers -%}
+                    ADDR_{{ reg.inst_name | upper }}: begin
+{% for field in reg.fields -%}
+{% if field.sw == "rw" or field.sw == "w" -%}
+                        r_{{ reg.inst_name }}_{{ field.inst_name }} <= pwdata[{{ field.msb }}:{{ field.lsb }}];
+{% endif -%}
+{% endfor -%}
+                    end
+{% endfor -%}
+                    default: begin
+                        register_error_reg <= 1'b1;
+                    end
+                endcase
+            end
+
+            // Hardware write inputs
+{% for reg in registers -%}
+{% for field in reg.fields -%}
+{% if field.hw == "w" or field.hw == "rw" -%}
+            r_{{ reg.inst_name }}_{{ field.inst_name }} <= hw_{{ reg.inst_name }}_{{ field.inst_name }}_i;
+{% endif -%}
+{% endfor -%}
+{% endfor -%}
+        end
+    end
+
+    // Read logic
+    always @(*) begin
+        prdata = 32'h0;
+
+        if (read_enable) begin
+            case (paddr)
+{% for reg in registers -%}
+                ADDR_{{ reg.inst_name | upper }}: begin
+{% for field in reg.fields -%}
+{% if field.sw == "r" or field.sw == "rw" -%}
+                    prdata[{{ field.msb }}:{{ field.lsb }}] = r_{{ reg.inst_name }}_{{ field.inst_name }};
+{% endif -%}
+{% endfor -%}
+                end
+{% endfor -%}
+                default: begin
+                    prdata = 32'h0;
+                end
+            endcase
+        end
+    end
+
+    // Hardware output assignments
+{% for reg in registers -%}
+{% for field in reg.fields -%}
+{% if field.hw == "r" or field.hw == "rw" -%}
+    assign hw_{{ reg.inst_name }}_{{ field.inst_name }}_o = r_{{ reg.inst_name }}_{{ field.inst_name }};
+{% endif -%}
+{% endfor -%}
+{% endfor -%}
+
+endmodule
+
+//
+// {{ addrmap.inst_name | upper }} Register Map Summary (Simplified JSON):
+//
+{% for reg in registers -%}
+// {{ reg.inst_name | upper }} @ {{ reg.absolute_address }}
+{% for field in reg.fields -%}
+//   [{{ field.msb }}:{{ field.lsb }}] {{ field.inst_name }} - SW:{{ field.sw }}, HW:{{ field.hw }}
+{% endfor -%}
+//
+{% endfor -%}
