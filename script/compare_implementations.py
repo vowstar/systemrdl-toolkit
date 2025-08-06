@@ -103,30 +103,30 @@ class ImplementationComparator:
         file_name = os.path.basename(rdl_file)
         expect_failure = self.check_expect_elaboration_failure(rdl_file)
 
-        print(f"\n📁 Testing: {file_name}")
+        print(f"\n[FOLDER] Testing: {file_name}")
         if expect_failure:
-            print("   🎯 Expected: FAILURE (validation test)")
+            print("   [VAL] Expected: FAILURE (validation test)")
         else:
-            print("   🎯 Expected: SUCCESS")
+            print("   [VAL] Expected: SUCCESS")
 
         # Run both implementations
         cpp_success, cpp_output = self.run_cpp_implementation(rdl_file)
         python_success, python_output = self.run_python_implementation(rdl_file)
 
-        print(f"   🔧 C++ Result: {'✅ PASS' if cpp_success else '❌ FAIL'}")
-        print(f"   🐍 Python Result: {'✅ PASS' if python_success else '❌ FAIL'}")
+        print(f"   [CPP] C++ Result: {'[OK] PASS' if cpp_success else '[FAIL] FAIL'}")
+        print(f"   [PY] Python Result: {'[OK] PASS' if python_success else '[FAIL] FAIL'}")
 
         # For expected failures, invert the logic
         if expect_failure:
             cpp_success = not cpp_success
             python_success = not python_success
-            print(f"   🎯 C++ Validation: {'✅ PASS' if cpp_success else '❌ FAIL'}")
-            print(f"   🎯 Python Validation: {'✅ PASS' if python_success else '❌ FAIL'}")
+            print(f"   [VAL] C++ Validation: {'[OK] PASS' if cpp_success else '[FAIL] FAIL'}")
+            print(f"   [VAL] Python Validation: {'[OK] PASS' if python_success else '[FAIL] FAIL'}")
 
         # Categorize results
         if cpp_success and python_success:
             self.results["both_pass"].append(file_name)
-            print("   📊 Status: BOTH PASS ✅")
+            print("   [SUMMARY] Status: BOTH PASS [OK]")
         elif not cpp_success and not python_success:
             # Check if error messages are similar
             cpp_errors = self.extract_error_messages(cpp_output)
@@ -134,19 +134,19 @@ class ImplementationComparator:
 
             if self.errors_similar(cpp_errors, python_errors):
                 self.results["both_fail"].append(file_name)
-                print("   📊 Status: BOTH FAIL (similar errors) ⚠️")
+                print("   [SUMMARY] Status: BOTH FAIL (similar errors) [WARNING]")
             else:
                 self.results["different_errors"].append((file_name, cpp_errors, python_errors))
-                print("   📊 Status: BOTH FAIL (different errors) ⚠️")
+                print("   [SUMMARY] Status: BOTH FAIL (different errors) [WARNING]")
                 print(f"      C++ errors: {cpp_errors}")
                 print(f"      Python errors: {python_errors}")
         elif cpp_success and not python_success:
             self.results["cpp_only_pass"].append((file_name, python_output))
-            print("   📊 Status: C++ PASS, Python FAIL ⚠️")
+            print("   [SUMMARY] Status: C++ PASS, Python FAIL [WARNING]")
             print(f"      Python error: {self.extract_error_messages(python_output)}")
         elif not cpp_success and python_success:
             self.results["python_only_pass"].append((file_name, cpp_output))
-            print("   📊 Status: Python PASS, C++ FAIL ⚠️")
+            print("   [SUMMARY] Status: Python PASS, C++ FAIL [WARNING]")
             print(f"      C++ error: {self.extract_error_messages(cpp_output)}")
 
     def errors_similar(self, cpp_errors, python_errors):
@@ -181,24 +181,24 @@ class ImplementationComparator:
     def run_comparison(self):
         """Run comparison on all RDL files"""
         if not os.path.exists(self.test_dir):
-            print(f"❌ Test directory does not exist: {self.test_dir}")
+            print(f"[FAIL] Test directory does not exist: {self.test_dir}")
             return False
 
         rdl_files = glob.glob(os.path.join(self.test_dir, "*.rdl"))
         if not rdl_files:
-            print(f"❌ No RDL files found in directory {self.test_dir}")
+            print(f"[FAIL] No RDL files found in directory {self.test_dir}")
             return False
 
-        print(f"🎯 Found {len(rdl_files)} RDL files for comparison")
+        print(f"[VAL] Found {len(rdl_files)} RDL files for comparison")
         print("=" * 80)
 
         # Test executables
         if not os.path.exists(self.cpp_exe):
-            print(f"❌ C++ executable not found: {self.cpp_exe}")
+            print(f"[FAIL] C++ executable not found: {self.cpp_exe}")
             return False
 
         if not os.path.exists(self.python_script):
-            print(f"❌ Python script not found: {self.python_script}")
+            print(f"[FAIL] Python script not found: {self.python_script}")
             return False
 
         for rdl_file in sorted(rdl_files):
@@ -210,7 +210,7 @@ class ImplementationComparator:
     def print_summary(self):
         """Print comparison summary"""
         print("\n" + "=" * 80)
-        print("📊 COMPARISON SUMMARY")
+        print("[SUMMARY] COMPARISON SUMMARY")
         print("=" * 80)
 
         total_files = (
@@ -221,21 +221,21 @@ class ImplementationComparator:
             + len(self.results["python_only_pass"])
         )
 
-        print(f"📁 Total files tested: {total_files}")
-        print(f"✅ Both implementations pass: {len(self.results['both_pass'])}")
-        print(f"⚠️  Both implementations fail (similar): {len(self.results['both_fail'])}")
-        print(f"⚠️  Both implementations fail (different): {len(self.results['different_errors'])}")
-        print(f"🔧 C++ only passes: {len(self.results['cpp_only_pass'])}")
-        print(f"🐍 Python only passes: {len(self.results['python_only_pass'])}")
+        print(f"[FOLDER] Total files tested: {total_files}")
+        print(f"[OK] Both implementations pass: {len(self.results['both_pass'])}")
+        print(f"[WARNING]  Both implementations fail (similar): {len(self.results['both_fail'])}")
+        print(f"[WARNING]  Both implementations fail (different): {len(self.results['different_errors'])}")
+        print(f"[CPP] C++ only passes: {len(self.results['cpp_only_pass'])}")
+        print(f"[PY] Python only passes: {len(self.results['python_only_pass'])}")
 
         # Detailed breakdown
         if self.results["both_pass"]:
-            print(f"\n✅ BOTH PASS ({len(self.results['both_pass'])}):")
+            print(f"\n[OK] BOTH PASS ({len(self.results['both_pass'])}):")
             for file_name in self.results["both_pass"]:
                 print(f"   - {file_name}")
 
         if self.results["cpp_only_pass"]:
-            print(f"\n🔧 C++ ONLY PASS ({len(self.results['cpp_only_pass'])}):")
+            print(f"\n[CPP] C++ ONLY PASS ({len(self.results['cpp_only_pass'])}):")
             for file_name, python_error in self.results["cpp_only_pass"]:
                 print(f"   - {file_name}")
                 errors = self.extract_error_messages(python_error)
@@ -243,7 +243,7 @@ class ImplementationComparator:
                     print(f"     Python error: {errors[0]}")
 
         if self.results["python_only_pass"]:
-            print(f"\n🐍 PYTHON ONLY PASS ({len(self.results['python_only_pass'])}):")
+            print(f"\n[PY] PYTHON ONLY PASS ({len(self.results['python_only_pass'])}):")
             for file_name, cpp_error in self.results["python_only_pass"]:
                 print(f"   - {file_name}")
                 errors = self.extract_error_messages(cpp_error)
@@ -251,25 +251,25 @@ class ImplementationComparator:
                     print(f"     C++ error: {errors[0]}")
 
         if self.results["different_errors"]:
-            print(f"\n⚠️  DIFFERENT ERROR TYPES ({len(self.results['different_errors'])}):")
+            print(f"\n[WARNING]  DIFFERENT ERROR TYPES ({len(self.results['different_errors'])}):")
             for file_name, cpp_errors, python_errors in self.results["different_errors"]:
                 print(f"   - {file_name}")
                 print(f"     C++: {cpp_errors}")
                 print(f"     Python: {python_errors}")
 
         # Analysis
-        print("\n🔍 ANALYSIS:")
+        print("\n[INFO] ANALYSIS:")
         compatibility = len(self.results["both_pass"]) + len(self.results["both_fail"])
         compatibility_percent = (compatibility / total_files) * 100 if total_files > 0 else 0
 
-        print(f"   📈 Compatibility: {compatibility}/{total_files} ({compatibility_percent:.1f}%)")
+        print(f"   [RATE] Compatibility: {compatibility}/{total_files} ({compatibility_percent:.1f}%)")
 
         if len(self.results["cpp_only_pass"]) > 0:
-            print("   🔧 C++ implementation may be more permissive")
+            print("   [CPP] C++ implementation may be more permissive")
         if len(self.results["python_only_pass"]) > 0:
-            print("   🐍 Python implementation may be more permissive")
+            print("   [PY] Python implementation may be more permissive")
         if len(self.results["different_errors"]) > 0:
-            print("   ⚠️  Error message differences detected")
+            print("   [WARNING]  Error message differences detected")
 
 
 def main():

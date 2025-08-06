@@ -43,24 +43,24 @@ def demonstrate_elaboration(rdl_file):
 
     try:
         # Compile SystemRDL file
-        print(f"🔧 Compiling SystemRDL file: {rdl_file}")
+        print(f"[CPP] Compiling SystemRDL file: {rdl_file}")
         rdlc.compile_file(rdl_file)
 
         # Elaborate - this is the key step!
         if expect_failure:
-            print("🚀 Starting elaboration (expecting failure for validation test)...")
+            print("[START] Starting elaboration (expecting failure for validation test)...")
         else:
-            print("🚀 Starting elaboration...")
+            print("[START] Starting elaboration...")
         root = rdlc.elaborate()
 
         # If we get here and expected failure, that's wrong
         if expect_failure:
-            print("❌ Expected elaboration failure, but elaboration succeeded")
+            print("[FAIL] Expected elaboration failure, but elaboration succeeded")
             return False
         else:
-            print("✅ Elaboration successful!")
+            print("[OK] Elaboration successful!")
             print("\n" + "=" * 50)
-            print(f"📊 Elaborated register model information ({rdl_file}):")
+            print(f"[SUMMARY] Elaborated register model information ({rdl_file}):")
             print("=" * 50)
 
             # Traverse elaborated model
@@ -69,17 +69,17 @@ def demonstrate_elaboration(rdl_file):
 
     except RDLCompileError as e:
         if expect_failure:
-            print("✅ Elaboration failed as expected (validation test passed)")
+            print("[OK] Elaboration failed as expected (validation test passed)")
             return True
         else:
-            print(f"❌ Compilation error ({rdl_file}): {e}")
+            print(f"[FAIL] Compilation error ({rdl_file}): {e}")
             return False
     except Exception as e:
         if expect_failure:
-            print("✅ Elaboration failed as expected (validation test passed)")
+            print("[OK] Elaboration failed as expected (validation test passed)")
             return True
         else:
-            print(f"❌ Other error ({rdl_file}): {e}")
+            print(f"[FAIL] Other error ({rdl_file}): {e}")
             return False
 
 
@@ -88,7 +88,7 @@ def traverse_node(node, depth=0):
     indent = "  " * depth
 
     # Print node information
-    print(f"{indent}📦 {node.__class__.__name__}: {node.inst_name}")
+    print(f"{indent}[NODE] {node.__class__.__name__}: {node.inst_name}")
 
     # Special handling for FieldNode - show detailed field information
     from systemrdl.node import FieldNode
@@ -99,9 +99,9 @@ def traverse_node(node, depth=0):
             msb = node.msb
             lsb = node.lsb
             width = node.width
-            print(f"{indent}   🎯 Bit range: [{msb}:{lsb}] (width: {width})")
+            print(f"{indent}   [VAL] Bit range: [{msb}:{lsb}] (width: {width})")
         except (ValueError, AttributeError):
-            print(f"{indent}   🎯 Bit range: <cannot determine>")
+            print(f"{indent}   [VAL] Bit range: <cannot determine>")
 
         # Show field properties
         try:
@@ -109,7 +109,7 @@ def traverse_node(node, depth=0):
             sw = node.get_property("sw")
             hw = node.get_property("hw")
             if sw or hw:
-                print(f"{indent}   🔧 Access: sw={sw}, hw={hw}")
+                print(f"{indent}   [CPP] Access: sw={sw}, hw={hw}")
         except LookupError:
             pass
 
@@ -117,7 +117,7 @@ def traverse_node(node, depth=0):
             # Reset value
             reset = node.get_property("reset")
             if reset is not None:
-                print(f"{indent}   🔄 Reset value: 0x{reset:X}")
+                print(f"{indent}   [RESET] Reset value: 0x{reset:X}")
         except (LookupError, TypeError):
             pass
 
@@ -125,7 +125,7 @@ def traverse_node(node, depth=0):
             # Field width (if explicitly set)
             fieldwidth = node.get_property("fieldwidth")
             if fieldwidth is not None:
-                print(f"{indent}   📏 Field width: {fieldwidth}")
+                print(f"{indent}   [SIZE] Field width: {fieldwidth}")
         except LookupError:
             pass
 
@@ -135,25 +135,25 @@ def traverse_node(node, depth=0):
     if isinstance(node, AddressableNode):
         try:
             addr = node.absolute_address
-            print(f"{indent}   📍 Address: 0x{addr:08X}")
+            print(f"{indent}   [ADDR] Address: 0x{addr:08X}")
         except ValueError:
             # Cannot calculate address when array index is unknown
-            print(f"{indent}   📍 Address: <array index unknown>")
+            print(f"{indent}   [ADDR] Address: <array index unknown>")
 
         try:
             size = node.size
-            print(f"{indent}   📏 Size: {size} bytes")
+            print(f"{indent}   [SIZE] Size: {size} bytes")
         except ValueError:
-            print(f"{indent}   📏 Size: <cannot determine>")
+            print(f"{indent}   [SIZE] Size: <cannot determine>")
 
         # Check if it's an array
         if hasattr(node, "array_dimensions") and node.array_dimensions:
-            print(f"{indent}   🔢 Array dimensions: {node.array_dimensions}")
+            print(f"{indent}   [ARRAY] Array dimensions: {node.array_dimensions}")
             try:
                 stride = node.array_stride
-                print(f"{indent}   🔢 Array stride: {stride}")
+                print(f"{indent}   [ARRAY] Array stride: {stride}")
             except ValueError:
-                print(f"{indent}   🔢 Array stride: <cannot determine>")
+                print(f"{indent}   [ARRAY] Array stride: <cannot determine>")
 
     # If there's a description, show description
     if hasattr(node, "get_property"):
@@ -162,7 +162,7 @@ def traverse_node(node, depth=0):
             if desc:  # Only show when description is not empty
                 if len(desc) > 50:
                     desc = desc[:47] + "..."
-                print(f"{indent}   📝 Description: {desc}")
+                print(f"{indent}   [DESC] Description: {desc}")
         except LookupError:
             # Some node types may not support desc attribute
             pass
@@ -176,15 +176,15 @@ def traverse_node(node, depth=0):
 def test_all_rdl_files(test_dir="test"):
     """Test all RDL files in specified directory"""
     if not os.path.exists(test_dir):
-        print(f"❌ Test directory does not exist: {test_dir}")
+        print(f"[FAIL] Test directory does not exist: {test_dir}")
         return False
 
     rdl_files = glob.glob(os.path.join(test_dir, "*.rdl"))
     if not rdl_files:
-        print(f"❌ No RDL files found in directory {test_dir}")
+        print(f"[FAIL] No RDL files found in directory {test_dir}")
         return False
 
-    print(f"🎯 Found {len(rdl_files)} RDL files for testing")
+    print(f"[VAL] Found {len(rdl_files)} RDL files for testing")
     print("=" * 60)
 
     success_count = 0
@@ -200,9 +200,9 @@ def test_all_rdl_files(test_dir="test"):
 
         print(f"\n{'='*60}")
 
-    print("\n🏁 Testing complete!")
-    print(f"✅ Success: {success_count}/{total_count}")
-    print(f"❌ Failed: {total_count - success_count}/{total_count}")
+    print("\n[EXIT] Testing complete!")
+    print(f"[OK] Success: {success_count}/{total_count}")
+    print(f"[FAIL] Failed: {total_count - success_count}/{total_count}")
 
     return success_count == total_count
 
@@ -215,7 +215,7 @@ if __name__ == "__main__":
             success = demonstrate_elaboration(rdl_file)
             sys.exit(0 if success else 1)
         else:
-            print(f"❌ File does not exist: {rdl_file}")
+            print(f"[FAIL] File does not exist: {rdl_file}")
             sys.exit(1)
     else:
         # If no argument provided, test all files in test directory
