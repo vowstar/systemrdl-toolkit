@@ -198,8 +198,9 @@ static void extract_registers_simplified(
 
         register_obj["absolute_address"] = current_addr;
         register_obj["offset"]           = static_cast<int>(node.absolute_address);
-        register_obj["path"]             = nlohmann::json::array();
-        register_obj["path_abs"]         = nlohmann::json::array();
+        register_obj["size"]     = static_cast<int>(node.size); // Add size field for convenience
+        register_obj["path"]     = nlohmann::json::array();
+        register_obj["path_abs"] = nlohmann::json::array();
 
         // Add path information
         for (const auto &p : path) {
