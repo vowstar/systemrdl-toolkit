@@ -1,0 +1,32 @@
+/*
+ * Auto-generated C header file from SystemRDL (Simplified JSON Format)
+ * Generated using simplified JSON model - recommended for templates
+ */
+
+#ifndef {{ addrmap.inst_name | upper }}_H
+#define {{ addrmap.inst_name | upper }}_H
+
+#include <stdint.h>
+
+/* Address Map: {{ addrmap.inst_name }} */
+#define {{ addrmap.inst_name | upper }}_BASE_ADDR  {{ addrmap.absolute_address }}
+
+{% for reg in registers -%}
+/* Register: {{ reg.inst_name }} */
+#define {{ addrmap.inst_name | upper }}_{{ reg.inst_name | upper }}_OFFSET  {{ reg.absolute_address }}
+#define {{ addrmap.inst_name | upper }}_{{ reg.inst_name | upper }}_ADDR    {{ reg.absolute_address }}
+
+{%- for field in reg.fields %}
+{%- if field.inst_name != "RESERVED_31_16" and "RESERVED" not in field.inst_name %}
+/* Field: {{ field.inst_name }} */
+#define {{ addrmap.inst_name | upper }}_{{ reg.inst_name | upper }}_{{ field.inst_name | upper }}_LSB     {{ field.lsb }}
+#define {{ addrmap.inst_name | upper }}_{{ reg.inst_name | upper }}_{{ field.inst_name | upper }}_MSB     {{ field.msb }}
+#define {{ addrmap.inst_name | upper }}_{{ reg.inst_name | upper }}_{{ field.inst_name | upper }}_WIDTH   {{ field.width }}
+#define {{ addrmap.inst_name | upper }}_{{ reg.inst_name | upper }}_{{ field.inst_name | upper }}_MASK    (((1UL << {{ field.width }}) - 1) << {{ field.lsb }})
+#define {{ addrmap.inst_name | upper }}_{{ reg.inst_name | upper }}_{{ field.inst_name | upper }}_GET(reg_val) (((reg_val) >> {{ field.lsb }}) & ((1UL << {{ field.width }}) - 1))
+#define {{ addrmap.inst_name | upper }}_{{ reg.inst_name | upper }}_{{ field.inst_name | upper }}_SET(reg_val, field_val) (((reg_val) & ~{{ addrmap.inst_name | upper }}_{{ reg.inst_name | upper }}_{{ field.inst_name | upper }}_MASK) | (((field_val) << {{ field.lsb }}) & {{ addrmap.inst_name | upper }}_{{ reg.inst_name | upper }}_{{ field.inst_name | upper }}_MASK))
+{%- endif %}
+{%- endfor %}
+
+{% endfor %}
+#endif /* {{ addrmap.inst_name | upper }}_H */

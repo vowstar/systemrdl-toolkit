@@ -117,17 +117,29 @@ def test_template_with_rdl(template_file, rdl_file, temp_dir):
     template_name = Path(template_file).stem
     rdl_name = Path(rdl_file).stem
 
-    # Extract output filename from template name (e.g., test_j2_header.h -> header.h)
+    # Extract output filename from template name, removing prefix
+    # Examples: test_j2_ast_header.h -> header.h, test_j2_json_header.h -> header.h
     if "_j2_" in template_name:
-        output_suffix = template_name.split("_j2_", 1)[1]
+        # Split by _j2_ and take the part after
+        after_j2 = template_name.split("_j2_", 1)[1]
+        # Remove ast_ or json_ prefix if present
+        if after_j2.startswith("ast_"):
+            output_suffix = after_j2[4:]  # Remove "ast_"
+        elif after_j2.startswith("json_"):
+            output_suffix = after_j2[5:]  # Remove "json_"
+        else:
+            output_suffix = after_j2
         output_file = os.path.join(temp_dir, f"{rdl_name}_{output_suffix}")
     else:
         output_file = os.path.join(temp_dir, f"{rdl_name}_{template_name}.txt")
 
     print(f"  [CPP] Testing {template_name} with {rdl_name}")
 
-    # Run template rendering - use AST format for existing templates that expect 'model' variable
-    success, output = run_template_render(rdl_file, template_file, output_file, use_ast=True)
+    # Run template rendering - determine format based on template name prefix
+    # Templates with "ast" prefix expect full AST JSON format
+    # Templates with "json" prefix expect simplified JSON format (default)
+    use_ast = "_ast_" in template_name.lower()
+    success, output = run_template_render(rdl_file, template_file, output_file, use_ast=use_ast)
 
     if not success:
         print(f"    [FAIL] Template rendering failed: {output}")
