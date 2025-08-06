@@ -111,9 +111,73 @@ int main()
         std::cout << std::endl;
     }
 
-    // Example 3: Advanced Elaboration with Arrays
+    // Example 3: Simplified JSON Elaboration
     {
-        std::cout << "[3] Example 3: Advanced Elaboration (Arrays & Complex Features)" << std::endl;
+        std::cout << "[3] Example 3: Simplified JSON Elaboration" << std::endl;
+
+        std::string rdl_content = R"(
+            addrmap demo_chip {
+                name = "Demo Chip";
+                desc = "Demonstration chip for simplified JSON";
+
+                reg {
+                    name = "Control Register";
+                    regwidth = 32;
+
+                    field {
+                        name = "ENABLE";
+                        desc = "Enable control";
+                        sw = rw;
+                        hw = r;
+                    } enable[0:0] = 0;
+
+                    field {
+                        name = "MODE";
+                        desc = "Operation mode";
+                        sw = rw;
+                        hw = r;
+                    } mode[3:1] = 0;
+                } ctrl_reg @ 0x0000;
+
+                reg {
+                    name = "Status Register";
+                    regwidth = 32;
+
+                    field {
+                        name = "READY";
+                        desc = "System ready";
+                        sw = r;
+                        hw = w;
+                    } ready[0:0] = 0;
+                } status_reg @ 0x0004;
+            };
+        )";
+
+        auto result = systemrdl::elaborate_simplified(rdl_content);
+        if (result.ok()) {
+            std::cout << "[OK] Simplified elaboration successful!" << std::endl;
+            std::cout << "[OUT] Simplified JSON (first 400 chars): "
+                      << result.value().substr(0, 400) << "..." << std::endl;
+
+            // Check for simplified JSON characteristics
+            std::string json       = result.value();
+            bool        has_format = json.find("\"format\"") != std::string::npos;
+            bool has_simplified    = json.find("SystemRDL_SimplifiedModel") != std::string::npos;
+            bool has_registers     = json.find("\"registers\"") != std::string::npos;
+
+            std::cout << "[INFO] Simplified JSON validation:" << std::endl;
+            std::cout << "  - Has format field: " << (has_format ? "✓" : "✗") << std::endl;
+            std::cout << "  - Is simplified model: " << (has_simplified ? "✓" : "✗") << std::endl;
+            std::cout << "  - Has registers array: " << (has_registers ? "✓" : "✗") << std::endl;
+        } else {
+            std::cout << "[ERR] Simplified elaboration failed: " << result.error() << std::endl;
+        }
+        std::cout << std::endl;
+    }
+
+    // Example 4: Advanced Elaboration with Arrays
+    {
+        std::cout << "[4] Example 4: Advanced Elaboration (Arrays & Complex Features)" << std::endl;
 
         std::string complex_rdl = R"(
             addrmap advanced_soc {
@@ -221,9 +285,9 @@ int main()
         std::cout << std::endl;
     }
 
-    // Example 4: CSV to SystemRDL conversion
+    // Example 5: CSV to SystemRDL conversion
     {
-        std::cout << "[4] Example 4: Convert CSV to SystemRDL" << std::endl;
+        std::cout << "[5] Example 5: Convert CSV to SystemRDL" << std::endl;
 
         std::string csv_content
             = "addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,"
