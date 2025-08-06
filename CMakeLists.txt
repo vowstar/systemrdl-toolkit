@@ -1218,6 +1218,7 @@ file(GLOB_RECURSE CPP_SOURCE_FILES
     "${CMAKE_SOURCE_DIR}/parser_main.cpp"
     "${CMAKE_SOURCE_DIR}/csv2rdl_main.cpp"
     "${CMAKE_SOURCE_DIR}/render_main.cpp"
+    "${CMAKE_SOURCE_DIR}/systemrdl_api.cpp"
     "${CMAKE_SOURCE_DIR}/example/*.cpp"
     "${CMAKE_SOURCE_DIR}/*.h"
 )

@@ -142,11 +142,12 @@ static nlohmann::json convert_elaborated_node_to_json(systemrdl::ElaboratedNode 
 }
 
 // Helper function to convert elaborated node to simplified JSON
-static void extract_registers_simplified(systemrdl::ElaboratedNode &node, 
-                                        nlohmann::json &registers_array,
-                                        nlohmann::json &regfiles_array, 
-                                        std::vector<std::string> &path,
-                                        std::vector<std::string> &path_abs)
+static void extract_registers_simplified(
+    systemrdl::ElaboratedNode &node,
+    nlohmann::json            &registers_array,
+    nlohmann::json            &regfiles_array,
+    std::vector<std::string>  &path,
+    std::vector<std::string>  &path_abs)
 {
     // Format current absolute address as hex string
     std::ostringstream hex_addr;
@@ -168,7 +169,7 @@ static void extract_registers_simplified(systemrdl::ElaboratedNode &node,
             }
         }
         regfile_obj["absolute_address"] = current_addr;
-        regfile_obj["path"] = nlohmann::json::array();
+        regfile_obj["path"]             = nlohmann::json::array();
         for (const auto &p : path) {
             regfile_obj["path"].push_back(p);
         }
@@ -182,7 +183,7 @@ static void extract_registers_simplified(systemrdl::ElaboratedNode &node,
         // This is a register - add it to the registers array
         nlohmann::json register_obj;
         register_obj["inst_name"] = node.inst_name;
-        
+
         // Add name and desc from properties if available
         if (!node.properties.empty()) {
             auto name_prop = node.properties.find("name");
@@ -194,12 +195,12 @@ static void extract_registers_simplified(systemrdl::ElaboratedNode &node,
                 register_obj["desc"] = convert_property_to_json(desc_prop->second);
             }
         }
-        
+
         register_obj["absolute_address"] = current_addr;
-        register_obj["offset"] = static_cast<int>(node.absolute_address);
-        register_obj["path"] = nlohmann::json::array();
-        register_obj["path_abs"] = nlohmann::json::array();
-        
+        register_obj["offset"]           = static_cast<int>(node.absolute_address);
+        register_obj["path"]             = nlohmann::json::array();
+        register_obj["path_abs"]         = nlohmann::json::array();
+
         // Add path information
         for (const auto &p : path) {
             register_obj["path"].push_back(p);
@@ -207,14 +208,14 @@ static void extract_registers_simplified(systemrdl::ElaboratedNode &node,
         for (const auto &pa : path_abs) {
             register_obj["path_abs"].push_back(pa);
         }
-        
+
         // Extract fields
         nlohmann::json fields = nlohmann::json::array();
         for (auto &child : node.children) {
             if (child->get_node_type() == "field") {
                 nlohmann::json field_obj;
                 field_obj["inst_name"] = child->inst_name;
-                
+
                 // Add field properties
                 if (!child->properties.empty()) {
                     auto name_prop = child->properties.find("name");
@@ -227,26 +228,26 @@ static void extract_registers_simplified(systemrdl::ElaboratedNode &node,
                     if (desc_prop != child->properties.end()) {
                         field_obj["desc"] = convert_property_to_json(desc_prop->second);
                     }
-                    
+
                     // Add other important properties
                     for (const auto &prop : child->properties) {
-                        if (prop.first == "lsb" || prop.first == "msb" || prop.first == "width" ||
-                            prop.first == "sw" || prop.first == "hw" || prop.first == "reserved" ||
-                            prop.first == "reset" || prop.first == "onwrite") {
+                        if (prop.first == "lsb" || prop.first == "msb" || prop.first == "width"
+                            || prop.first == "sw" || prop.first == "hw" || prop.first == "reserved"
+                            || prop.first == "reset" || prop.first == "onwrite") {
                             field_obj[prop.first] = convert_property_to_json(prop.second);
                         }
                     }
                 }
-                
+
                 std::ostringstream field_hex_addr;
                 field_hex_addr << "0x" << std::hex << child->absolute_address;
                 field_obj["absolute_address"] = field_hex_addr.str();
-                
+
                 fields.push_back(field_obj);
             }
         }
         register_obj["fields"] = fields;
-        
+
         registers_array.push_back(register_obj);
     } else {
         // For addrmap and other node types, continue recursing but don't add to path for addrmap
@@ -262,23 +263,25 @@ static void extract_registers_simplified(systemrdl::ElaboratedNode &node,
     }
 
     // Remove current node from path when done (except for addrmap)
-    if (node.get_node_type() == "regfile" || 
-        (node.get_node_type() != "addrmap" && node.get_node_type() != "reg")) {
-        if (!path.empty()) path.pop_back();
-        if (!path_abs.empty()) path_abs.pop_back();
+    if (node.get_node_type() == "regfile"
+        || (node.get_node_type() != "addrmap" && node.get_node_type() != "reg")) {
+        if (!path.empty())
+            path.pop_back();
+        if (!path_abs.empty())
+            path_abs.pop_back();
     }
 }
 
 static nlohmann::json convert_elaborated_node_to_simplified_json(systemrdl::ElaboratedNode &node)
 {
     nlohmann::json result;
-    result["format"] = "SystemRDL_SimplifiedModel";
+    result["format"]  = "SystemRDL_SimplifiedModel";
     result["version"] = "1.0";
 
     // Extract addrmap information (should be the root node)
     nlohmann::json addrmap_obj;
     addrmap_obj["inst_name"] = node.inst_name;
-    
+
     // Add addrmap properties
     if (!node.properties.empty()) {
         auto name_prop = node.properties.find("name");
@@ -290,24 +293,24 @@ static nlohmann::json convert_elaborated_node_to_simplified_json(systemrdl::Elab
             addrmap_obj["desc"] = convert_property_to_json(desc_prop->second);
         }
     }
-    
+
     std::ostringstream hex_addr;
     hex_addr << "0x" << std::hex << node.absolute_address;
     addrmap_obj["absolute_address"] = hex_addr.str();
-    addrmap_obj["base"] = hex_addr.str(); // Alternative name for base address
-    
+    addrmap_obj["base"]             = hex_addr.str(); // Alternative name for base address
+
     result["addrmap"] = addrmap_obj;
 
     // Extract registers and regfiles
-    nlohmann::json registers_array = nlohmann::json::array();
-    nlohmann::json regfiles_array = nlohmann::json::array();
+    nlohmann::json           registers_array = nlohmann::json::array();
+    nlohmann::json           regfiles_array  = nlohmann::json::array();
     std::vector<std::string> path;
     std::vector<std::string> path_abs;
-    
+
     // Start with addrmap in path
     path.push_back(node.inst_name);
     path_abs.push_back(hex_addr.str());
-    
+
     for (auto &child : node.children) {
         extract_registers_simplified(*child, registers_array, regfiles_array, path, path_abs);
     }
@@ -316,7 +319,7 @@ static nlohmann::json convert_elaborated_node_to_simplified_json(systemrdl::Elab
     if (!regfiles_array.empty()) {
         result["regfiles"] = regfiles_array;
     }
-    
+
     result["registers"] = registers_array;
 
     return result;
@@ -336,8 +339,8 @@ struct CSVRow
     std::string reset_value;
     std::string sw_access;
     std::string hw_access;
-    std::string onread;     // New: onread behavior (rclr, rset, ruser)
-    std::string onwrite;    // New: onwrite behavior (woclr, woset, wot, etc.)
+    std::string onread;  // New: onread behavior (rclr, rset, ruser)
+    std::string onwrite; // New: onwrite behavior (woclr, woset, wot, etc.)
     std::string description;
 };
 
@@ -807,35 +810,40 @@ public:
                 // Validate access values
                 if (!row.sw_access.empty()) {
                     std::string sw_upper = to_upper(row.sw_access);
-                    if (sw_upper != "RW" && sw_upper != "RO" && sw_upper != "WO" && sw_upper != "NA") {
-                        return "Error: Invalid sw_access value '" + row.sw_access 
+                    if (sw_upper != "RW" && sw_upper != "RO" && sw_upper != "WO"
+                        && sw_upper != "NA") {
+                        return "Error: Invalid sw_access value '" + row.sw_access
                                + "' (use RW/RO/WO/NA)";
                     }
                 }
                 if (!row.hw_access.empty()) {
                     std::string hw_upper = to_upper(row.hw_access);
-                    if (hw_upper != "RW" && hw_upper != "RO" && hw_upper != "WO" && hw_upper != "NA") {
-                        return "Error: Invalid hw_access value '" + row.hw_access 
+                    if (hw_upper != "RW" && hw_upper != "RO" && hw_upper != "WO"
+                        && hw_upper != "NA") {
+                        return "Error: Invalid hw_access value '" + row.hw_access
                                + "' (use RW/RO/WO/NA)";
                     }
                 }
-                
+
                 // Validate onread values
                 if (!row.onread.empty()) {
                     std::string onread_upper = to_upper(row.onread);
-                    if (onread_upper != "RCLR" && onread_upper != "RSET" && onread_upper != "RUSER") {
-                        return "Error: Invalid onread value '" + row.onread 
+                    if (onread_upper != "RCLR" && onread_upper != "RSET"
+                        && onread_upper != "RUSER") {
+                        return "Error: Invalid onread value '" + row.onread
                                + "' (use rclr/rset/ruser)";
                     }
                 }
-                
-                // Validate onwrite values  
+
+                // Validate onwrite values
                 if (!row.onwrite.empty()) {
                     std::string onwrite_upper = to_upper(row.onwrite);
-                    if (onwrite_upper != "WOCLR" && onwrite_upper != "WOSET" && onwrite_upper != "WOT" &&
-                        onwrite_upper != "WZS" && onwrite_upper != "WZC" && onwrite_upper != "WZT" &&
-                        onwrite_upper != "WCLR" && onwrite_upper != "WSET" && onwrite_upper != "WUSER") {
-                        return "Error: Invalid onwrite value '" + row.onwrite 
+                    if (onwrite_upper != "WOCLR" && onwrite_upper != "WOSET"
+                        && onwrite_upper != "WOT" && onwrite_upper != "WZS"
+                        && onwrite_upper != "WZC" && onwrite_upper != "WZT"
+                        && onwrite_upper != "WCLR" && onwrite_upper != "WSET"
+                        && onwrite_upper != "WUSER") {
+                        return "Error: Invalid onwrite value '" + row.onwrite
                                + "' (use woclr/woset/wot/wzs/wzc/wzt/wclr/wset/wuser)";
                     }
                 }
@@ -937,14 +945,20 @@ private:
     }
 
     // Helper function to map CSV access values to SystemRDL access values
-    std::string map_access_to_systemrdl(const std::string& csv_access) {
+    std::string map_access_to_systemrdl(const std::string &csv_access)
+    {
         std::string upper_access;
-        std::transform(csv_access.begin(), csv_access.end(), std::back_inserter(upper_access), ::toupper);
-        
-        if (upper_access == "RW") return "rw";
-        if (upper_access == "RO") return "r";
-        if (upper_access == "WO") return "w";
-        if (upper_access == "NA") return "na";
+        std::transform(
+            csv_access.begin(), csv_access.end(), std::back_inserter(upper_access), ::toupper);
+
+        if (upper_access == "RW")
+            return "rw";
+        if (upper_access == "RO")
+            return "r";
+        if (upper_access == "WO")
+            return "w";
+        if (upper_access == "NA")
+            return "na";
         return csv_access; // fallback to original if unknown
     }
 
@@ -1146,7 +1160,8 @@ Result elaborate_simplified(std::string_view rdl_content)
         }
 
         // Convert elaborated model to simplified JSON
-        nlohmann::json simplified_result = convert_elaborated_node_to_simplified_json(*elaborated_model);
+        nlohmann::json simplified_result = convert_elaborated_node_to_simplified_json(
+            *elaborated_model);
 
         return Result::success(simplified_result.dump(2)); // Pretty print with 2 spaces
     } catch (const std::exception &e) {
