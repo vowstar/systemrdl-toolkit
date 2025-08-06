@@ -6,11 +6,11 @@
 
 int main()
 {
-    std::cout << "🚀 SystemRDL Modern API Example\n" << std::endl;
+    std::cout << "[API] SystemRDL Modern API Example\n" << std::endl;
 
     // Example 1: Parse SystemRDL string content
     {
-        std::cout << "📋 Example 1: Parse SystemRDL content" << std::endl;
+        std::cout << "[1] Example 1: Parse SystemRDL content" << std::endl;
 
         std::string rdl_content = R"(
             addrmap simple_chip {
@@ -32,18 +32,18 @@ int main()
 
         auto result = systemrdl::parse(rdl_content);
         if (result.ok()) {
-            std::cout << "✅ Parse successful!" << std::endl;
-            std::cout << "📄 AST JSON (first 200 chars): " << result.value().substr(0, 200) << "..."
-                      << std::endl;
+            std::cout << "[OK] Parse successful!" << std::endl;
+            std::cout << "[OUT] AST JSON (first 200 chars): " << result.value().substr(0, 200)
+                      << "..." << std::endl;
         } else {
-            std::cout << "❌ Parse failed: " << result.error() << std::endl;
+            std::cout << "[ERR] Parse failed: " << result.error() << std::endl;
         }
         std::cout << std::endl;
     }
 
     // Example 2: Simple Elaborate SystemRDL content
     {
-        std::cout << "🚀 Example 2: Simple Elaboration" << std::endl;
+        std::cout << "[2] Example 2: Simple Elaboration" << std::endl;
 
         std::string rdl_content = R"(
             addrmap demo_chip {
@@ -92,9 +92,9 @@ int main()
 
         auto result = systemrdl::elaborate(rdl_content);
         if (result.ok()) {
-            std::cout << "✅ Elaboration successful!" << std::endl;
-            std::cout << "🏗️ Elaborated JSON (first 300 chars): " << result.value().substr(0, 300)
-                      << "..." << std::endl;
+            std::cout << "[OK] Elaboration successful!" << std::endl;
+            std::cout << "[OUT] Elaborated JSON (first 300 chars): "
+                      << result.value().substr(0, 300) << "..." << std::endl;
 
             // Count the number of nodes in the elaborated model
             std::string json       = result.value();
@@ -104,16 +104,16 @@ int main()
                 node_count++;
                 pos++;
             }
-            std::cout << "📊 Total elaborated nodes: " << node_count << std::endl;
+            std::cout << "[INFO] Total elaborated nodes: " << node_count << std::endl;
         } else {
-            std::cout << "❌ Elaboration failed: " << result.error() << std::endl;
+            std::cout << "[ERR] Elaboration failed: " << result.error() << std::endl;
         }
         std::cout << std::endl;
     }
 
     // Example 3: Advanced Elaboration with Arrays
     {
-        std::cout << "🎯 Example 3: Advanced Elaboration (Arrays & Complex Features)" << std::endl;
+        std::cout << "[3] Example 3: Advanced Elaboration (Arrays & Complex Features)" << std::endl;
 
         std::string complex_rdl = R"(
             addrmap advanced_soc {
@@ -167,7 +167,7 @@ int main()
 
         auto result = systemrdl::elaborate(complex_rdl);
         if (result.ok()) {
-            std::cout << "✅ Advanced elaboration successful!" << std::endl;
+            std::cout << "[OK] Advanced elaboration successful!" << std::endl;
 
             // Count different types of nodes
             std::string json          = result.value();
@@ -199,31 +199,31 @@ int main()
                 pos++;
             }
 
-            std::cout << "📊 Elaborated Structure:" << std::endl;
-            std::cout << "   🏢 Address Maps: " << addrmap_count << std::endl;
-            std::cout << "   📁 Register Files: " << regfile_count << std::endl;
-            std::cout << "   🔧 Registers: " << reg_count << std::endl;
-            std::cout << "   🔢 Fields: " << field_count << std::endl;
-            std::cout << "   📊 Total Nodes: "
+            std::cout << "[INFO] Elaborated Structure:" << std::endl;
+            std::cout << "   [MAP] Address Maps: " << addrmap_count << std::endl;
+            std::cout << "   [FILE] Register Files: " << regfile_count << std::endl;
+            std::cout << "   [REG] Registers: " << reg_count << std::endl;
+            std::cout << "   [FIELD] Fields: " << field_count << std::endl;
+            std::cout << "   [TOTAL] Total Nodes: "
                       << (addrmap_count + regfile_count + reg_count + field_count) << std::endl;
 
             // Show size of elaborated JSON
-            std::cout << "📄 Elaborated JSON size: " << json.length() << " bytes" << std::endl;
-            std::cout << "🎯 This demonstrates:" << std::endl;
-            std::cout << "   • Array instantiation (mem_ctrl[4])" << std::endl;
-            std::cout << "   • Complex address mapping with strides" << std::endl;
-            std::cout << "   • Hierarchical regfile structures" << std::endl;
-            std::cout << "   • Automatic gap filling and validation" << std::endl;
-            std::cout << "   • Property inheritance and elaboration" << std::endl;
+            std::cout << "[INFO] Elaborated JSON size: " << json.length() << " bytes" << std::endl;
+            std::cout << "[DEMO] This demonstrates:" << std::endl;
+            std::cout << "   - Array instantiation (mem_ctrl[4])" << std::endl;
+            std::cout << "   - Complex address mapping with strides" << std::endl;
+            std::cout << "   - Hierarchical regfile structures" << std::endl;
+            std::cout << "   - Automatic gap filling and validation" << std::endl;
+            std::cout << "   - Property inheritance and elaboration" << std::endl;
         } else {
-            std::cout << "❌ Advanced elaboration failed: " << result.error() << std::endl;
+            std::cout << "[ERR] Advanced elaboration failed: " << result.error() << std::endl;
         }
         std::cout << std::endl;
     }
 
     // Example 4: CSV to SystemRDL conversion
     {
-        std::cout << "📊 Example 4: Convert CSV to SystemRDL" << std::endl;
+        std::cout << "[4] Example 4: Convert CSV to SystemRDL" << std::endl;
 
         std::string csv_content
             = "addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,"
@@ -238,17 +238,17 @@ int main()
 
         auto result = systemrdl::csv_to_rdl(csv_content);
         if (result.ok()) {
-            std::cout << "✅ CSV conversion successful!" << std::endl;
-            std::cout << "🔄 SystemRDL output:\n" << result.value() << std::endl;
+            std::cout << "[OK] CSV conversion successful!" << std::endl;
+            std::cout << "[OUT] SystemRDL output:\n" << result.value() << std::endl;
         } else {
-            std::cout << "❌ CSV conversion failed: " << result.error() << std::endl;
+            std::cout << "[ERR] CSV conversion failed: " << result.error() << std::endl;
         }
         std::cout << std::endl;
     }
 
     // Example 5: File-based operations
     {
-        std::cout << "📁 Example 5: File-based operations" << std::endl;
+        std::cout << "[5] Example 5: File-based operations" << std::endl;
 
         // Create a test file
         std::ofstream test_file("test_example.rdl");
@@ -266,28 +266,28 @@ int main()
         // Parse file
         auto parse_result = systemrdl::file::parse("test_example.rdl");
         if (parse_result.ok()) {
-            std::cout << "✅ File parse successful!" << std::endl;
-            std::cout << "📄 File AST JSON (first 200 chars): "
+            std::cout << "[OK] File parse successful!" << std::endl;
+            std::cout << "[OUT] File AST JSON (first 200 chars): "
                       << parse_result.value().substr(0, 200) << "..." << std::endl;
         } else {
-            std::cout << "❌ File parse failed: " << parse_result.error() << std::endl;
+            std::cout << "[ERR] File parse failed: " << parse_result.error() << std::endl;
         }
 
         // Elaborate file
         auto elaborate_result = systemrdl::file::elaborate("test_example.rdl");
         if (elaborate_result.ok()) {
-            std::cout << "✅ File elaboration successful!" << std::endl;
-            std::cout << "🏗️ File elaborated JSON (first 200 chars): "
+            std::cout << "[OK] File elaboration successful!" << std::endl;
+            std::cout << "[OUT] File elaborated JSON (first 200 chars): "
                       << elaborate_result.value().substr(0, 200) << "..." << std::endl;
         } else {
-            std::cout << "❌ File elaboration failed: " << elaborate_result.error() << std::endl;
+            std::cout << "[ERR] File elaboration failed: " << elaborate_result.error() << std::endl;
         }
         std::cout << std::endl;
     }
 
     // Example 6: Stream operations
     {
-        std::cout << "🌊 Example 6: Stream operations" << std::endl;
+        std::cout << "[6] Example 6: Stream operations" << std::endl;
 
         std::string rdl_content = R"(
             addrmap stream_test {
@@ -303,11 +303,11 @@ int main()
         std::ostringstream output;
 
         if (systemrdl::stream::parse(input, output)) {
-            std::cout << "✅ Stream parse successful!" << std::endl;
-            std::cout << "🌊 Stream output (first 200 chars): " << output.str().substr(0, 200)
+            std::cout << "[OK] Stream parse successful!" << std::endl;
+            std::cout << "[OUT] Stream output (first 200 chars): " << output.str().substr(0, 200)
                       << "..." << std::endl;
         } else {
-            std::cout << "❌ Stream parse failed!" << std::endl;
+            std::cout << "[ERR] Stream parse failed!" << std::endl;
         }
 
         // Test stream elaboration
@@ -315,56 +315,57 @@ int main()
         std::ostringstream elab_output;
 
         if (systemrdl::stream::elaborate(elab_input, elab_output)) {
-            std::cout << "✅ Stream elaboration successful!" << std::endl;
-            std::cout << "🌊 Stream elaborated output (first 200 chars): "
+            std::cout << "[OK] Stream elaboration successful!" << std::endl;
+            std::cout << "[OUT] Stream elaborated output (first 200 chars): "
                       << elab_output.str().substr(0, 200) << "..." << std::endl;
         } else {
-            std::cout << "❌ Stream elaboration failed!" << std::endl;
+            std::cout << "[ERR] Stream elaboration failed!" << std::endl;
         }
         std::cout << std::endl;
     }
 
     // Example 7: Error handling demonstration
     {
-        std::cout << "❗ Example 7: Error handling" << std::endl;
+        std::cout << "[7] Example 7: Error handling" << std::endl;
 
         std::string invalid_rdl = "invalid SystemRDL syntax here!!!";
 
         auto result = systemrdl::parse(invalid_rdl);
         if (!result.ok()) {
-            std::cout << "✅ Error handling working correctly!" << std::endl;
-            std::cout << "🚨 Error message: " << result.error() << std::endl;
+            std::cout << "[OK] Error handling working correctly!" << std::endl;
+            std::cout << "[ERR] Error message: " << result.error() << std::endl;
         } else {
-            std::cout << "❌ Expected error but got success!" << std::endl;
+            std::cout << "[ERR] Expected error but got success!" << std::endl;
         }
 
         // Test elaboration error handling
         auto elab_result = systemrdl::elaborate(invalid_rdl);
         if (!elab_result.ok()) {
-            std::cout << "✅ Elaboration error handling working correctly!" << std::endl;
-            std::cout << "🚨 Elaboration error: " << elab_result.error() << std::endl;
+            std::cout << "[OK] Elaboration error handling working correctly!" << std::endl;
+            std::cout << "[ERR] Elaboration error: " << elab_result.error() << std::endl;
         } else {
-            std::cout << "❌ Expected elaboration error but got success!" << std::endl;
+            std::cout << "[ERR] Expected elaboration error but got success!" << std::endl;
         }
         std::cout << std::endl;
     }
 
-    std::cout << "✅ SystemRDL Modern API example completed." << std::endl;
-    std::cout << "\n💡 Key features of the API:" << std::endl;
-    std::cout << "   • Clean interface without ANTLR4 header exposure" << std::endl;
-    std::cout << "   • String-based input/output for ease of use" << std::endl;
-    std::cout << "   • Consistent error handling pattern" << std::endl;
-    std::cout << "   • Multiple input/output methods supported" << std::endl;
-    std::cout << "   • Modern C++ design patterns" << std::endl;
-    std::cout << "   • Elaboration functionality available" << std::endl;
-    std::cout << "\n📋 Elaboration capabilities demonstrated:" << std::endl;
-    std::cout << "   • Hierarchical design processing" << std::endl;
-    std::cout << "   • Array and parameterization support" << std::endl;
-    std::cout << "   • Address calculation assistance" << std::endl;
-    std::cout << "   • Basic validation features" << std::endl;
-    std::cout << "   • Property inheritance handling" << std::endl;
-    std::cout << "   • Memory management through RAII" << std::endl;
-    std::cout << "\n🔧 This example shows the basic usage patterns of the toolkit." << std::endl;
+    std::cout << "[OK] SystemRDL Modern API example completed." << std::endl;
+    std::cout << "\n[INFO] Key features of the API:" << std::endl;
+    std::cout << "   - Clean interface without ANTLR4 header exposure" << std::endl;
+    std::cout << "   - String-based input/output for ease of use" << std::endl;
+    std::cout << "   - Consistent error handling pattern" << std::endl;
+    std::cout << "   - Multiple input/output methods supported" << std::endl;
+    std::cout << "   - Modern C++ design patterns" << std::endl;
+    std::cout << "   - Elaboration functionality available" << std::endl;
+    std::cout << "\n[INFO] Elaboration capabilities demonstrated:" << std::endl;
+    std::cout << "   - Hierarchical design processing" << std::endl;
+    std::cout << "   - Array and parameterization support" << std::endl;
+    std::cout << "   - Address calculation assistance" << std::endl;
+    std::cout << "   - Basic validation features" << std::endl;
+    std::cout << "   - Property inheritance handling" << std::endl;
+    std::cout << "   - Memory management through RAII" << std::endl;
+    std::cout << "\n[INFO] This example shows the basic usage patterns of the toolkit."
+              << std::endl;
 
     return 0;
 }

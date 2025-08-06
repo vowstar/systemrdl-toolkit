@@ -598,7 +598,7 @@ private:
     {
         std::vector<int> mapping;
 
-        std::cout << "📋 Column mapping:" << std::endl;
+        std::cout << "[MAP] Column mapping:" << std::endl;
         for (size_t i = 0; i < headers.size(); ++i) {
             int match = find_best_match(headers[i], standard_columns);
             mapping.push_back(match);
