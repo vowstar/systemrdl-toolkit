@@ -1,31 +1,13 @@
-# RCSV (Register-CSV) Specification v0.3
+# RCSV (Register-CSV) Specification v0.4
 
-RCSV is a practical, field-oriented CSV format specifically### 4.7 Column Name Rules
+RCSV is a practical, field-oriented CSV format for SystemRDL Toolkit. It provides a standardized way to represent register maps that can be converted to SystemRDL without semantic loss.
 
-All column headers MUST match the standard names EXACTLY and are case-sensitive:
+**Design Principles:**
 
-- `addrmap_offset`
-- `addrmap_name`
-- `reg_offset`
-- `reg_name`
-- `reg_width`
-- `field_name`
-- `field_lsb`
-- `field_msb`
-- `reset_value`
-- `sw_access`
-- `hw_access`
-- `onread` (optional)
-- `onwrite` (optional)
-- `description` (optional)
-- `array_dimensions` (optional) SystemRDL Toolkit. It provides a standardized way to represent register maps that can be converted to SystemRDL without semantic loss.
-
-**Key Design Principles:**
-
-- **Compatibility**: Works with existing CSV tools and Excel exports
 - **Simplicity**: Easy to understand and create manually or programmatically
+- **Direct Mapping**: CSV structure maps directly to SystemRDL syntax
 - **Completeness**: Preserves all essential register/field information
-- **Validation**: Strong consistency checks and error detection
+- **Validation**: Clear error messages for malformed input
 
 ---
 
@@ -98,10 +80,10 @@ RCSV defines a standard set of columns compatible with existing CSV2RDL tools:
 
 ### 4.4 Read/Write Behavior Columns
 
-|  Column   | Required |               Description               |                    Valid Values                    |
-| --------- | -------- | --------------------------------------- | -------------------------------------------------- |
-| `onread`  | No       | Read side-effect behavior               | `rclr`, `rset`, `ruser`                            |
-| `onwrite` | No       | Write side-effect behavior              | `woclr`, `woset`, `wot`, `wzs`, `wzc`, `wzt`, `wclr`, `wset`, `wuser` |
+|  Column   | Required |        Description         |                             Valid Values                              |
+| --------- | -------- | -------------------------- | --------------------------------------------------------------------- |
+| `onread`  | No       | Read side-effect behavior  | `rclr`, `rset`, `ruser`                                               |
+| `onwrite` | No       | Write side-effect behavior | `woclr`, `woset`, `wot`, `wzs`, `wzc`, `wzt`, `wclr`, `wset`, `wuser` |
 
 ### 4.5 Optional Documentation Column
 
@@ -109,15 +91,7 @@ RCSV defines a standard set of columns compatible with existing CSV2RDL tools:
 | ------------- | -------- | ----------------------------------------- | -------------------- |
 | `description` | No       | Human-readable field/register description | `Enable control bit` |
 
-### 4.6 Optional Array Support Column
-
-|       Column        | Required |            Description            |  Example  |
-| ------------------- | -------- | --------------------------------- | --------- |
-| `array_dimensions`  | No       | Array size for register instances | `[4]`     |
-
-**Array Syntax**: Single-dimensional arrays only, specified as `[N]` where N is the array size. Multi-dimensional arrays are not supported to maintain compatibility with current SystemRDL implementations.
-
-### 4.7 Column Name Rules
+### 4.6 Column Name Rules
 
 All column headers MUST match the standard names EXACTLY and are case-sensitive:
 
@@ -132,10 +106,19 @@ All column headers MUST match the standard names EXACTLY and are case-sensitive:
 - `reset_value`
 - `sw_access`
 - `hw_access`
+- `onread` (optional)
+- `onwrite` (optional)
 - `description` (optional)
-- `array_dimensions` (optional)
 
-Tools MAY offer a non-standard "compatibility mode" with aliases, but such behavior is outside this specification.
+### 4.7 Array Support
+
+Register arrays are specified directly in the `reg_name` column using SystemRDL syntax:
+
+```csv
+,,0x0000,BUFFER[8],32,,,,,,,8-element buffer array
+```
+
+This generates SystemRDL: `BUFFER[8] @ 0x0000` which expands to 8 registers with automatic address calculation. No additional columns needed.
 
 ---
 
@@ -222,33 +205,33 @@ RCSV supports SystemRDL's onread and onwrite behaviors for advanced field side-e
 
 ### 7.1 OnRead Behaviors (`onread`)
 
-| Value   |    Meaning     | SystemRDL Equivalent | Use Case |
-| ------- | -------------- | -------------------- | -------- |
-| `rclr`  | Read Clear     | `onread = rclr`      | Status bits that clear when read |
-| `rset`  | Read Set       | `onread = rset`      | Status bits that set when read |
-| `ruser` | Read User      | `onread = ruser`     | User-defined read behavior |
+|  Value  |  Meaning   | SystemRDL Equivalent |             Use Case             |
+| ------- | ---------- | -------------------- | -------------------------------- |
+| `rclr`  | Read Clear | `onread = rclr`      | Status bits that clear when read |
+| `rset`  | Read Set   | `onread = rset`      | Status bits that set when read   |
+| `ruser` | Read User  | `onread = ruser`     | User-defined read behavior       |
 
 ### 7.2 OnWrite Behaviors (`onwrite`)
 
-| Value   |    Meaning                | SystemRDL Equivalent | Use Case |
-| ------- | ------------------------- | -------------------- | -------- |
-| `woclr` | Write One Clear           | `onwrite = woclr`    | Write 1 to clear (W1C) |
-| `woset` | Write One Set             | `onwrite = woset`    | Write 1 to set (W1S) |
-| `wot`   | Write One Toggle          | `onwrite = wot`      | Write 1 to toggle (W1T) |
-| `wzs`   | Write Zero Set            | `onwrite = wzs`      | Write 0 to set (W0S) |
-| `wzc`   | Write Zero Clear          | `onwrite = wzc`      | Write 0 to clear (W0C) |
-| `wzt`   | Write Zero Toggle         | `onwrite = wzt`      | Write 0 to toggle (W0T) |
-| `wclr`  | Write Clear               | `onwrite = wclr`     | Any write clears |
-| `wset`  | Write Set                 | `onwrite = wset`     | Any write sets |
-| `wuser` | Write User                | `onwrite = wuser`    | User-defined write behavior |
+|  Value  |      Meaning      | SystemRDL Equivalent |          Use Case           |
+| ------- | ----------------- | -------------------- | --------------------------- |
+| `woclr` | Write One Clear   | `onwrite = woclr`    | Write 1 to clear (W1C)      |
+| `woset` | Write One Set     | `onwrite = woset`    | Write 1 to set (W1S)        |
+| `wot`   | Write One Toggle  | `onwrite = wot`      | Write 1 to toggle (W1T)     |
+| `wzs`   | Write Zero Set    | `onwrite = wzs`      | Write 0 to set (W0S)        |
+| `wzc`   | Write Zero Clear  | `onwrite = wzc`      | Write 0 to clear (W0C)      |
+| `wzt`   | Write Zero Toggle | `onwrite = wzt`      | Write 0 to toggle (W0T)     |
+| `wclr`  | Write Clear       | `onwrite = wclr`     | Any write clears            |
+| `wset`  | Write Set         | `onwrite = wset`     | Any write sets              |
+| `wuser` | Write User        | `onwrite = wuser`    | User-defined write behavior |
 
 ### 7.3 Common Read/Write Behavior Patterns
 
-| sw_access | hw_access | onread | onwrite |                   Use Case                   |
-| --------- | --------- | ------ | ------- | -------------------------------------------- |
+| sw_access | hw_access | onread | onwrite |                    Use Case                    |
+| --------- | --------- | ------ | ------- | ---------------------------------------------- |
 | `RO`      | `WO`      |        | `woclr` | Interrupt status (HW sets, SW clears with W1C) |
-| `RW`      | `RW`      | `rclr` |         | Error counter (clears when read) |
-| `WO`      | `RO`      |        | `woset` | Command trigger (write 1 to execute) |
+| `RW`      | `RW`      | `rclr` |         | Error counter (clears when read)               |
+| `WO`      | `RO`      |        | `woset` | Command trigger (write 1 to execute)           |
 
 ---
 
@@ -364,7 +347,7 @@ field_name, field_lsb, field_msb, reset_value, sw_access, hw_access
 **Optional Columns:**
 
 ```csv
-onread, onwrite, description, array_dimensions
+onread, onwrite, description
 ```
 
 This minimal set ensures complete SystemRDL generation without information loss.
@@ -385,7 +368,7 @@ addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,f
 ,,,,,IRQ_EN,8,8,0,RW,RW,,,"Interrupt enable"
 ,,,,,DEBUG,9,9,0,RW,RW,,,"Debug mode enable"
 ,,,,,RESET_REQ,31,31,0,WO,RO,,"woset","Write 1 to trigger reset"
-,,0x0004,STATUS,32,,,,,,,,,"Status register"  
+,,0x0004,STATUS,32,,,,,,,,,"Status register"
 ,,,,,READY,0,0,0,RO,WO,,,"System ready flag"
 ,,,,,ERROR,1,1,0,RO,WO,,"woclr","Error status (W1C)"
 ,,,,,INT_STATUS,8,15,0,RO,WO,"rclr",,"Interrupt status (clear on read)"
@@ -398,7 +381,7 @@ addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,f
 
 - Standard three-tier hierarchy (address map -> registers -> fields)
 - Mixed access patterns (RW/RO/WO combinations)
-- Hexadecimal values (addresses and reset values)  
+- Hexadecimal values (addresses and reset values)
 - Reserved field naming convention with recommended RO/NA access
 - Complete bit coverage within registers
 - Corrected field width descriptions (3-bit MODE field: 0-7)
@@ -406,16 +389,16 @@ addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,f
 
 ### 12.1 Array Example
 
-Arrays can be specified using the optional `array_dimensions` column:
+Register arrays are specified directly in the `reg_name` column:
 
 ```csv
-addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,array_dimensions,field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,description
+addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,description
 0x0000,ARRAY_DEMO,,,,,,,,,,Array demonstration
-,,0x0000,BUFFER_REG,32,[8],,,,,,,Buffer register array
-,,,,,,"DATA",0,31,0,RW,RW,"Buffer data value"
+,,0x0000,BUFFER[8],32,,,,,,,8-element buffer array
+,,,,,DATA,0,31,0,RW,RW,Buffer data value
 ```
 
-This generates an array of 8 registers: `BUFFER_REG[0]` through `BUFFER_REG[7]`, each containing a DATA field.
+This generates SystemRDL `BUFFER[8] @ 0x0000` which expands to 8 registers: `BUFFER[0]` through `BUFFER[7]`.
 
 ---
 
@@ -425,23 +408,23 @@ RCSV elements map directly to SystemRDL constructs:
 
 ### 13.1 Hierarchy Mapping
 
-|           RCSV            |     SystemRDL Equivalent     |
-| ------------------------- | ---------------------------- |
-| `addrmap_name`            | `addrmap <name> {`           |
-| `reg_name` @ `reg_offset` | `<reg_name> @ <reg_offset>;` |
-| `field_name[msb:lsb]`     | `<field_name>[<msb>:<lsb>];` |
-| `array_dimensions=[N]`    | `reg <name>[N]` (address stride equals register byte size: `reg_width/8`) |
+|             RCSV             |      SystemRDL Equivalent       |
+| ---------------------------- | ------------------------------- |
+| `addrmap_name`               | `addrmap <name> {`              |
+| `reg_name` @ `reg_offset`    | `<reg_name> @ <reg_offset>;`    |
+| `reg_name[N]` @ `reg_offset` | `<reg_name>[N] @ <reg_offset>;` |
+| `field_name[msb:lsb]`        | `<field_name>[<msb>:<lsb>];`    |
 
 ### 13.2 Property Mapping
 
-|        RCSV Column        | SystemRDL Property |
-| ------------------------- | ------------------ |
-| `sw_access` = RW/RO/WO/NA | `sw = rw/r/w/na`   |
-| `hw_access` = RW/RO/WO/NA | `hw = rw/r/w/na`   |
-| `onread` = rclr/rset/ruser | `onread = rclr/rset/ruser` |
+|         RCSV Column         |     SystemRDL Property      |
+| --------------------------- | --------------------------- |
+| `sw_access` = RW/RO/WO/NA   | `sw = rw/r/w/na`            |
+| `hw_access` = RW/RO/WO/NA   | `hw = rw/r/w/na`            |
+| `onread` = rclr/rset/ruser  | `onread = rclr/rset/ruser`  |
 | `onwrite` = woclr/woset/... | `onwrite = woclr/woset/...` |
-| `reset_value`             | `reset = <value>`  |
-| `description`             | `desc = "<text>"`  |
+| `reset_value`               | `reset = <value>`           |
+| `description`               | `desc = "<text>"`           |
 
 ### 13.3 Generated SystemRDL Example
 
@@ -491,18 +474,13 @@ RCSV is the **standard format** for the SystemRDL Toolkit's CSV2RDL converter:
 
 ### 14.2 Migration from Legacy Formats
 
-Existing CSV files can be easily migrated to RCSV compliance:
+Existing CSV files can be migrated to RCSV compliance:
 
-1. **Header Adjustment**: Rename columns to RCSV standard names
+1. **Header Adjustment**: Rename columns to standard names
 2. **Access Format**: Convert access values to RW/RO/WO/NA format
-3. **Structure Check**: Ensure address map -> register -> field hierarchy
+3. **Array Syntax**: Change separate array columns to reg_name[N] syntax
 4. **Validation**: Run validation tools to verify compliance
 
-### 14.3 Future Compatibility
-
-- **Column Extensions**: New optional columns may be added in future versions
-- **Backward Compatibility**: RCSV parsers will ignore unknown columns
-- **Version Detection**: Tools can detect RCSV format automatically
 
 ---
 
