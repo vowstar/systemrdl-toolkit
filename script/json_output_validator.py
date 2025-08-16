@@ -224,35 +224,37 @@ class JsonValidator:
             if not isinstance(reset_value, str):
                 self.log_error(f"register_reset_value must be string at {path}")
                 return False
-            
+
             # Validate hex format: must start with "0x" and contain only valid hex digits
             if not reset_value.startswith("0x"):
                 self.log_error(f"register_reset_value must start with '0x' at {path}, got '{reset_value}'")
                 return False
-            
+
             hex_part = reset_value[2:]  # Remove "0x" prefix
             if not hex_part:
                 self.log_error(f"register_reset_value must contain hex digits after '0x' at {path}")
                 return False
-            
+
             # Check if all characters are valid hex digits (lowercase preferred)
             valid_hex_chars = set("0123456789abcdefABCDEF")
             for char in hex_part:
                 if char not in valid_hex_chars:
                     self.log_error(f"register_reset_value contains invalid hex character '{char}' at {path}")
                     return False
-            
+
             # Warn if uppercase hex is used (lowercase is preferred)
             if any(c in "ABCDEF" for c in hex_part):
                 self.log_warning(f"register_reset_value uses uppercase hex at {path}, lowercase preferred")
-            
+
             # Validate that reset value fits within register width if both are present
             if "register_width" in register:
                 try:
                     reset_int = int(reset_value, 16)
                     max_value = (1 << register["register_width"]) - 1
                     if reset_int > max_value:
-                        self.log_error(f"register_reset_value {reset_value} exceeds register_width {register['register_width']} at {path}")
+                        self.log_error(
+                            f"register_reset_value {reset_value} exceeds register_width {register['register_width']} at {path}"
+                        )
                         return False
                 except ValueError:
                     self.log_error(f"register_reset_value '{reset_value}' is not valid hex at {path}")
