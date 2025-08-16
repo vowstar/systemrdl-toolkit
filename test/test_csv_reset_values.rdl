@@ -1,0 +1,61 @@
+addrmap RESET_TEST {
+    name = "RESET_TEST";
+    desc = "Test address map for reset values";
+
+    reg {
+        name = "BASIC_REG";
+        desc = "Basic register with different reset values";
+        regwidth = 32;
+
+        field {
+            name = "ZERO_FIELD";
+            desc = "Field with zero reset value";
+            sw = rw;
+            hw = rw;
+        } ZERO_FIELD[0:0] = 0;
+
+        field {
+            name = "ONE_FIELD";
+            desc = "Field with one reset value";
+            sw = rw;
+            hw = rw;
+        } ONE_FIELD[1:1] = 1;
+
+        field {
+            name = "HEX_FIELD";
+            desc = "Field with hex reset value";
+            sw = rw;
+            hw = rw;
+        } HEX_FIELD[15:8] = 0xAB;
+
+        field {
+            name = "DEC_FIELD";
+            desc = "Field with decimal reset value";
+            sw = rw;
+            hw = rw;
+        } DEC_FIELD[23:16] = 123;
+
+    } BASIC_REG @ 0x0000;
+
+    reg {
+        name = "MULTI_BIT";
+        desc = "Register with multi-bit field reset";
+        regwidth = 32;
+
+        field {
+            name = "WIDE_FIELD";
+            desc = "16-bit field with hex reset value";
+            sw = rw;
+            hw = rw;
+        } WIDE_FIELD[15:0] = 0x1234;
+
+        field {
+            name = "SINGLE_BIT";
+            desc = "Single bit with reset value 1";
+            sw = rw;
+            hw = rw;
+        } SINGLE_BIT[16:16] = 1;
+
+    } MULTI_BIT @ 0x0004;
+
+};

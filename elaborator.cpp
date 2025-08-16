@@ -433,6 +433,10 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node)
         // Detect and fill register gaps before calculating size
         detect_and_fill_register_gaps(reg_node);
         reg_node->size = (reg_node->register_width + 7) / 8; // Byte count (round up)
+        // Calculate register reset value after all fields are processed
+        calculate_register_reset_value(reg_node);
+        // Validate register reset value consistency
+        validate_register_reset_value(reg_node);
     } else if (auto field_node = dynamic_cast<ElaboratedField *>(node)) {
         field_node->size = 0; // Field does not occupy independent address space
     } else if (auto regfile_node = dynamic_cast<ElaboratedRegfile *>(node)) {
@@ -491,6 +495,115 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node)
     } else {
         // For addrmap, simplified calculation: default size
         node->size = 4; // Default 4 bytes
+    }
+}
+
+// Helper function to convert uint64_t to binary string
+std::string SystemRDLElaborator::uint64_to_binary_string(uint64_t value, size_t width)
+{
+    std::string binary(width, '0');
+    for (size_t i = 0; i < width && i < 64; ++i) {
+        if (value & (1ULL << i)) {
+            binary[width - 1 - i] = '1';
+        }
+    }
+    return binary;
+}
+
+// Helper function to convert binary string to hexadecimal
+std::string SystemRDLElaborator::binary_string_to_hex(const std::string &binary)
+{
+    std::string hex_result;
+
+    // Process 4 bits at a time (1 hex digit = 4 binary bits)
+    for (size_t i = 0; i < binary.length(); i += 4) {
+        // Extract 4-bit nibble, pad with leading zeros if needed
+        std::string nibble = binary.substr(i, 4);
+        while (nibble.length() < 4) {
+            nibble = "0" + nibble;
+        }
+
+        // Convert 4-bit binary to decimal value
+        int val = 0;
+        for (char c : nibble) {
+            val = (val << 1) + (c - '0');
+        }
+
+        // Convert to hex character (lowercase)
+        char hex_char = (val < 10) ? ('0' + val) : ('a' + val - 10);
+        hex_result += hex_char;
+    }
+
+    return hex_result;
+}
+
+// Calculate register reset value using pure string operations
+void SystemRDLElaborator::calculate_register_reset_value(ElaboratedReg *reg_node)
+{
+    if (!reg_node) {
+        return;
+    }
+
+    // Initialize binary string with all zeros
+    std::string bits(reg_node->register_width, '0');
+
+    // Set bits for each field
+    for (const auto &child : reg_node->children) {
+        if (auto field = dynamic_cast<ElaboratedField *>(child.get())) {
+            // Skip fields with invalid bit positions
+            if (field->lsb >= reg_node->register_width || field->msb >= reg_node->register_width) {
+                continue;
+            }
+
+            // Convert field reset value to binary string
+            size_t      field_width  = field->msb - field->lsb + 1;
+            std::string field_binary = uint64_to_binary_string(field->reset_value, field_width);
+
+            // Set bits from LSB position
+            for (size_t i = 0; i < field_width && (field->lsb + i) < reg_node->register_width; ++i) {
+                size_t bit_pos       = reg_node->register_width - 1 - (field->lsb + i);
+                size_t field_bit_pos = field_width - 1 - i;
+                bits[bit_pos]        = field_binary[field_bit_pos];
+            }
+        }
+    }
+
+    // Convert binary string to hexadecimal and store
+    std::string hex_str          = binary_string_to_hex(bits);
+    reg_node->register_reset_hex = "0x" + hex_str;
+}
+
+// Validate register reset value consistency and bounds
+void SystemRDLElaborator::validate_register_reset_value(ElaboratedReg *reg_node)
+{
+    if (!reg_node) {
+        return;
+    }
+
+    // Check if any field reset values exceed their bit width
+    for (const auto &child : reg_node->children) {
+        if (auto field = dynamic_cast<ElaboratedField *>(child.get())) {
+            // Skip reserved fields (auto-generated)
+            auto reserved_prop = field->get_property("reserved");
+            if (reserved_prop && reserved_prop->type == PropertyValue::BOOLEAN
+                && reserved_prop->bool_val) {
+                continue;
+            }
+
+            // Calculate maximum value for field width
+            size_t field_width = field->msb - field->lsb + 1;
+            if (field_width < 64) { // Avoid overflow for very large fields
+                uint64_t max_field_value = (1ULL << field_width) - 1;
+                if (field->reset_value > max_field_value) {
+                    report_error(
+                        "Field '" + field->inst_name + "' reset value "
+                            + std::to_string(field->reset_value) + " exceeds maximum value "
+                            + std::to_string(max_field_value) + " for "
+                            + std::to_string(field_width) + "-bit field",
+                        field->source_ctx);
+                }
+            }
+        }
     }
 }
 
