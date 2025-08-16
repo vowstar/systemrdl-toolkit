@@ -1,0 +1,10 @@
+addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,description
+0x0000,RESET_TEST,,,,,,,,,,Test address map for reset values
+,,0x0000,BASIC_REG,32,,,,,,,Basic register with different reset values
+,,,,,ZERO_FIELD,0,0,0,RW,RW,Field with zero reset value
+,,,,,ONE_FIELD,1,1,1,RW,RW,Field with one reset value
+,,,,,HEX_FIELD,8,15,0xAB,RW,RW,Field with hex reset value
+,,,,,DEC_FIELD,16,23,123,RW,RW,Field with decimal reset value
+,,0x0004,MULTI_BIT,32,,,,,,,Register with multi-bit field reset
+,,,,,WIDE_FIELD,0,15,0x1234,RW,RW,16-bit field with hex reset value
+,,,,,SINGLE_BIT,16,16,1,RW,RW,Single bit with reset value 1

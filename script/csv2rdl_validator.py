@@ -27,6 +27,7 @@ class CSV2RDLValidator:
         self.test_dir = self.project_root / "test"
         self.csv2rdl_binary = self.project_root / "build" / "systemrdl_csv2rdl"
         self.parser_binary = self.project_root / "build" / "systemrdl_parser"
+        self.elaborator_binary = self.project_root / "build" / "systemrdl_elaborator"
         self.temp_dir = None
 
         # Verify binaries exist
@@ -34,6 +35,8 @@ class CSV2RDLValidator:
             raise FileNotFoundError("CSV2RDL binary not found: {}".format(self.csv2rdl_binary))
         if not self.parser_binary.exists():
             raise FileNotFoundError("Parser binary not found: {}".format(self.parser_binary))
+        if not self.elaborator_binary.exists():
+            raise FileNotFoundError("Elaborator binary not found: {}".format(self.elaborator_binary))
 
         # Test results tracking
         self.results = {"passed": 0, "failed": 0, "errors": []}
@@ -115,6 +118,85 @@ class CSV2RDLValidator:
         except Exception as e:
             return False, ["Error reading file: {}".format(e)]
 
+    def run_elaborator(self, rdl_file: Path) -> Tuple[bool, str, str, Optional[Path]]:
+        """
+        Run SystemRDL elaborator to generate simplified JSON.
+
+        Args:
+            rdl_file: RDL file to elaborate
+
+        Returns:
+            Tuple of (success, stdout, stderr, json_file_path)
+        """
+        cmd = [str(self.elaborator_binary), str(rdl_file), "-j"]
+
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, cwd=rdl_file.parent)
+
+            # JSON file is created with _simplified.json suffix, need to check multiple possible names
+            json_file1 = rdl_file.with_suffix(".rdl_simplified.json")  # file.rdl -> file.rdl_simplified.json
+            json_file2 = rdl_file.with_name(rdl_file.stem + "_simplified.json")  # file.rdl -> file_simplified.json
+
+            json_file = None
+            if json_file1.exists():
+                json_file = json_file1
+            elif json_file2.exists():
+                json_file = json_file2
+
+            if result.returncode == 0 and json_file:
+                return True, result.stdout, result.stderr, json_file
+            else:
+                return False, result.stdout, result.stderr, None
+
+        except subprocess.TimeoutExpired:
+            return False, "", "Elaborator timed out", None
+        except Exception as e:
+            return False, "", str(e), None
+
+    def validate_json_reset_values(
+        self, json_file: Path, expected_reset_values: List[Tuple[str, int]]
+    ) -> Tuple[bool, List[str]]:
+        """
+        Validate JSON contains expected reset values.
+
+        Args:
+            json_file: JSON file to validate
+            expected_reset_values: List of (field_name, reset_value) tuples
+
+        Returns:
+            Tuple of (all_found, missing_values)
+        """
+        try:
+            import json
+
+            with open(json_file, "r") as f:
+                data = json.load(f)
+
+            missing = []
+
+            # Extract all fields from registers
+            all_fields = []
+            if "registers" in data:
+                for reg in data["registers"]:
+                    if "fields" in reg:
+                        all_fields.extend(reg["fields"])
+
+            # Check each expected reset value
+            for field_name, expected_reset in expected_reset_values:
+                found = False
+                for field in all_fields:
+                    if field.get("name") == field_name and field.get("reset") == expected_reset:
+                        found = True
+                        break
+
+                if not found:
+                    missing.append("Field '{}' with reset value {}".format(field_name, expected_reset))
+
+            return len(missing) == 0, missing
+
+        except Exception as e:
+            return False, ["Error validating JSON: {}".format(e)]
+
     def is_expected_failure_test(self, csv_file: Path) -> bool:
         """
         Check if a CSV file is an expected failure test.
@@ -186,6 +268,43 @@ class CSV2RDLValidator:
                 return False
 
             print("   [OK] Content validation passed")
+
+        # Step 4: Special JSON validation for reset values test
+        if csv_file.stem == "test_csv_reset_values":
+            elab_success, elab_stdout, elab_stderr, json_file = self.run_elaborator(output_file)
+            if not elab_success:
+                print("   [FAIL] JSON elaboration failed")
+                print("      Command: {} {} -j".format(self.elaborator_binary, output_file))
+                print("      stdout: {}".format(elab_stdout))
+                print("      stderr: {}".format(elab_stderr))
+                print("      Expected JSON file: {}".format(output_file.with_suffix(".rdl_simplified.json")))
+                self.results["errors"].append(
+                    "{}: JSON elaboration failed - {}".format(test_name, elab_stderr or "No error message")
+                )
+                return False
+
+            print("   [OK] JSON elaboration successful")
+
+            # Validate specific reset values in JSON
+            expected_reset_values = [
+                ("ZERO_FIELD", 0),
+                ("ONE_FIELD", 1),
+                ("HEX_FIELD", 171),  # 0xAB = 171
+                ("DEC_FIELD", 123),
+                ("WIDE_FIELD", 4660),  # 0x1234 = 4660
+                ("SINGLE_BIT", 1),
+            ]
+
+            json_valid, missing_values = self.validate_json_reset_values(json_file, expected_reset_values)
+            if not json_valid:
+                print("   [FAIL] JSON reset value validation failed")
+                print("      Missing reset values: {}".format(missing_values))
+                self.results["errors"].append(
+                    "{}: JSON reset value validation failed - missing: {}".format(test_name, missing_values)
+                )
+                return False
+
+            print("   [OK] JSON reset value validation passed")
 
         print("   [OK] {} PASSED".format(test_name))
         return True
@@ -395,12 +514,27 @@ class CSV2RDLValidator:
         # Test success cases
         for csv_file in success_files:
             test_name = "Auto-discovered Success: {}".format(csv_file.stem)
+
             # Basic validation patterns for success CSV files
             expected_patterns = [
                 r"addrmap \w+ \{",  # Should have addrmap
                 r'name = "[^"]+"',  # Should have name attributes
                 r"\};\s*$",  # Should end properly
             ]
+
+            # Special validation for reset values test
+            if csv_file.stem == "test_csv_reset_values":
+                expected_patterns.extend(
+                    [
+                        r"ZERO_FIELD\[0:0\] = 0;",  # Zero reset value
+                        r"ONE_FIELD\[1:1\] = 1;",  # One reset value
+                        r"HEX_FIELD\[15:8\] = 0xAB;",  # Hex reset value
+                        r"DEC_FIELD\[23:16\] = 123;",  # Decimal reset value
+                        r"WIDE_FIELD\[15:0\] = 0x1234;",  # Wide field hex
+                        r"SINGLE_BIT\[16:16\] = 1;",  # Single bit reset
+                    ]
+                )
+
             result = self.test_csv_file(csv_file, test_name, expected_patterns)
             results.append(result)
 
