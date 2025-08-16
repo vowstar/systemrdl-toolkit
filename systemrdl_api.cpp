@@ -425,18 +425,6 @@ private:
         return result;
     }
 
-    // Process name fields (remove all newlines and trim)
-    std::string process_name_field(const std::string &str)
-    {
-        if (str.empty())
-            return str;
-        std::string trimmed = trim(str);
-        return remove_all_newlines(trimmed);
-    }
-
-    // Process regular fields (just trim)
-    std::string process_regular_field(const std::string &str) { return trim(str); }
-
     // Remove outer quotes from a field if they exist and match
     std::string remove_outer_quotes(const std::string &str)
     {
@@ -777,29 +765,14 @@ public:
 
             // Check if the row type matches expectations
             if (is_addrmap_row) {
-                // Addrmap row should only have addrmap info, nothing else
-                if (is_reg_row || is_field_row) {
-                    return "Error: Line " + std::to_string(logical_line)
-                           + " is an addrmap row but contains register or field information";
-                }
                 expected = ExpectedRowType::REG;
             } else if (is_reg_row) {
-                // Register row should only have register info, field info is optional for description
-                if (is_addrmap_row) {
-                    return "Error: Line " + std::to_string(logical_line)
-                           + " is a register row but contains addrmap information";
-                }
                 if (expected == ExpectedRowType::ADDRMAP) {
                     return "Error: Line " + std::to_string(logical_line)
                            + " defines a register but no addrmap was defined first";
                 }
                 expected = ExpectedRowType::FIELD;
             } else if (is_field_row) {
-                // Field row should only have field info
-                if (is_addrmap_row || is_reg_row) {
-                    return "Error: Line " + std::to_string(logical_line)
-                           + " is a field row but contains addrmap or register information";
-                }
                 if (expected == ExpectedRowType::ADDRMAP) {
                     return "Error: Line " + std::to_string(logical_line)
                            + " defines a field but no addrmap was defined first";
