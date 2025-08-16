@@ -1193,6 +1193,28 @@ void SystemRDLElaborator::elaborate_field_bit_range(
         field_node->set_property("width", PropertyValue(static_cast<int64_t>(field_width)));
         field_node->set_property("auto_position", PropertyValue(true));
     }
+
+    // Process field reset value if specified (applies to both bit range and auto-positioned fields)
+    if (auto field_reset = inst_ctx->field_inst_reset()) {
+        if (auto reset_expr = field_reset->expr()) {
+            PropertyValue reset_value = evaluate_property_value(reset_expr);
+
+            // Store reset value in both the field member and properties
+            if (reset_value.type == PropertyValue::INTEGER) {
+                field_node->reset_value = static_cast<uint64_t>(reset_value.int_val);
+            } else if (reset_value.type == PropertyValue::STRING) {
+                // Try to parse string as integer (for hex values like "0x1A")
+                try {
+                    field_node->reset_value = std::stoull(reset_value.string_val, nullptr, 0);
+                } catch (...) {
+                    field_node->reset_value = 0;
+                }
+            }
+
+            // Always store in properties for JSON export
+            field_node->set_property("reset", reset_value);
+        }
+    }
 }
 
 // Parameter processing method implementation
