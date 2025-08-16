@@ -174,7 +174,8 @@ public:
     void        accept_visitor(ElaboratedNodeVisitor &visitor) override;
 
     // Register-specific properties
-    uint32_t register_width = 32; // Register bit width
+    uint32_t    register_width = 32; // Register bit width
+    std::string register_reset_hex;  // Register reset value in 0x format
 
     // Find fields
     ElaboratedField *find_field_by_name(const std::string &name) const;
@@ -422,6 +423,12 @@ private:
     size_t evaluate_integer_expression(SystemRDLParser::ExprContext *expr_ctx);
 
     void calculate_node_size(ElaboratedNode *node);
+
+    // Register reset value calculation methods
+    void        calculate_register_reset_value(ElaboratedReg *reg_node);
+    void        validate_register_reset_value(ElaboratedReg *reg_node);
+    std::string uint64_to_binary_string(uint64_t value, size_t width);
+    std::string binary_string_to_hex(const std::string &binary);
 
     // Error reporting
     void report_error(const std::string &message, antlr4::ParserRuleContext *ctx = nullptr);

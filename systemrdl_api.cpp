@@ -198,7 +198,16 @@ static void extract_registers_simplified(
 
         register_obj["absolute_address"] = current_addr;
         register_obj["offset"]           = static_cast<int>(node.absolute_address);
-        register_obj["size"]     = static_cast<int>(node.size); // Add size field for convenience
+        register_obj["size"] = static_cast<int>(node.size); // Add size field for convenience
+
+        // Add register-specific information if this is an ElaboratedReg
+        if (auto reg_node = dynamic_cast<systemrdl::ElaboratedReg *>(&node)) {
+            register_obj["register_width"] = static_cast<int>(reg_node->register_width);
+            if (!reg_node->register_reset_hex.empty()) {
+                register_obj["register_reset_value"] = reg_node->register_reset_hex;
+            }
+        }
+
         register_obj["path"]     = nlohmann::json::array();
         register_obj["path_abs"] = nlohmann::json::array();
 
@@ -212,7 +221,7 @@ static void extract_registers_simplified(
 
         // Extract fields
         nlohmann::json fields = nlohmann::json::array();
-        for (auto &child : node.children) {
+        for (const auto &child : node.children) {
             if (child->get_node_type() == "field") {
                 nlohmann::json field_obj;
                 field_obj["inst_name"] = child->inst_name;
