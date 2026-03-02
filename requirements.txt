@@ -1,8 +1,8 @@
 # SystemRDL compiler for semantic validation and testing
-systemrdl-compiler==1.29.3
+systemrdl-compiler==1.32.2
 
 # Code formatting for documentation quality
-black==25.1.0
+black==25.11.0
 flake8==7.3.0
-isort==6.0.1
-pymarkdownlnt==0.9.31
+isort==6.1.0
+pymarkdownlnt==0.9.33
