@@ -199,7 +199,18 @@ jobs:
         pip install flake8 black isort
         pip install -r requirements.txt
         sudo apt-get update
-        sudo apt-get install -y cppcheck clang-format
+        sudo apt-get install -y cppcheck wget gnupg lsb-release
+        # Pin clang-format to LLVM 22 so CI matches local; default Ubuntu
+        # package lags by several major versions and produces different
+        # formatting for the same .clang-format config.
+        sudo install -d -m 0755 /etc/apt/keyrings
+        wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | \
+          sudo gpg --dearmor -o /etc/apt/keyrings/llvm.gpg
+        echo "deb [signed-by=/etc/apt/keyrings/llvm.gpg] http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-22 main" | \
+          sudo tee /etc/apt/sources.list.d/llvm.list
+        sudo apt-get update
+        sudo apt-get install -y clang-format-22
+        sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-22 100
 
     - name: Python code formatting check
       run: |

@@ -18,6 +18,38 @@
 
 namespace systemrdl {
 
+namespace {
+
+// Captures ANTLR4 lexer/parser diagnostics into a string instead of letting
+// the default ConsoleErrorListener write them to stderr. Lets the library
+// surface every syntax error through Result::error() so the caller controls
+// where they appear.
+class CapturingErrorListener : public antlr4::BaseErrorListener
+{
+public:
+    void syntaxError(
+        antlr4::Recognizer * /*recognizer*/,
+        antlr4::Token * /*offendingSymbol*/,
+        size_t             line,
+        size_t             column,
+        const std::string &msg,
+        std::exception_ptr /*e*/) override
+    {
+        if (!buffer_.empty()) {
+            buffer_ += '\n';
+        }
+        buffer_ += "line " + std::to_string(line) + ":" + std::to_string(column) + " " + msg;
+    }
+
+    bool               hasErrors() const noexcept { return !buffer_.empty(); }
+    const std::string &joined() const noexcept { return buffer_; }
+
+private:
+    std::string buffer_;
+};
+
+} // namespace
+
 // Helper structure to keep ANTLR objects alive
 struct ParseContext
 {
@@ -26,6 +58,7 @@ struct ParseContext
     std::unique_ptr<antlr4::CommonTokenStream> tokens;
     std::unique_ptr<SystemRDLParser>           parser;
     SystemRDLParser::RootContext              *tree;
+    CapturingErrorListener                     listener;
 
     ParseContext(std::string_view content)
     {
@@ -36,10 +69,20 @@ struct ParseContext
         lexer  = std::make_unique<SystemRDLLexer>(input.get());
         tokens = std::make_unique<antlr4::CommonTokenStream>(lexer.get());
         parser = std::make_unique<SystemRDLParser>(tokens.get());
-        tree   = parser->root();
+
+        // Replace ANTLR4's default ConsoleErrorListener so syntax errors
+        // do not leak to stderr. They are accumulated in `listener` and
+        // surfaced through Result::error() instead.
+        lexer->removeErrorListeners();
+        lexer->addErrorListener(&listener);
+        parser->removeErrorListeners();
+        parser->addErrorListener(&listener);
+
+        tree = parser->root();
     }
 
-    bool hasErrors() const { return parser->getNumberOfSyntaxErrors() > 0; }
+    bool        hasErrors() const { return listener.hasErrors(); }
+    std::string errorMessages() const { return listener.joined(); }
 };
 
 // Helper function to convert ANTLR parse tree to JSON using nlohmann/json
@@ -611,20 +654,9 @@ private:
     std::vector<int> create_column_mapping(const std::vector<std::string> &headers)
     {
         std::vector<int> mapping;
-
-        std::cout << "[MAP] Column mapping:" << std::endl;
-        for (size_t i = 0; i < headers.size(); ++i) {
-            int match = find_best_match(headers[i], standard_columns);
-            mapping.push_back(match);
-
-            if (match >= 0) {
-                std::cout << "  [" << i << "] \"" << headers[i] << "\" -> "
-                          << standard_columns[match] << std::endl;
-            } else {
-                std::cout << "  [" << i << "] \"" << headers[i] << "\" -> (ignored)" << std::endl;
-            }
+        for (const auto &header : headers) {
+            mapping.push_back(find_best_match(header, standard_columns));
         }
-
         return mapping;
     }
 
@@ -1058,7 +1090,7 @@ Result parse(std::string_view rdl_content)
         ParseContext ctx(rdl_content);
 
         if (ctx.hasErrors()) {
-            return Result::error("Syntax errors found during parsing");
+            return Result::error("Syntax errors found during parsing:\n" + ctx.errorMessages());
         }
 
         // Convert AST to JSON
@@ -1083,7 +1115,7 @@ Result elaborate(std::string_view rdl_content)
         ParseContext ctx(rdl_content);
 
         if (ctx.hasErrors()) {
-            return Result::error("Syntax errors found during parsing");
+            return Result::error("Syntax errors found during parsing:\n" + ctx.errorMessages());
         }
 
         // Create elaborator and elaborate the design
@@ -1124,7 +1156,7 @@ Result elaborate_simplified(std::string_view rdl_content)
         ParseContext ctx(rdl_content);
 
         if (ctx.hasErrors()) {
-            return Result::error("Syntax errors found during parsing");
+            return Result::error("Syntax errors found during parsing:\n" + ctx.errorMessages());
         }
 
         // Create elaborator and elaborate the design
