@@ -1,0 +1,334 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 Huang Rui <vowstar@gmail.com>
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for manual release (e.g. v0.2.2-test)'
+        required: true
+        default: 'v0.0.0-test'
+
+permissions:
+  contents: write
+
+env:
+  BUILD_TYPE: Release
+  PROJECT_NAME: systemrdl-toolkit
+
+jobs:
+  build-linux:
+    name: Build Linux (AlmaLinux 8)
+    runs-on: ubuntu-22.04
+    container:
+      image: almalinux:8
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          dnf install -y epel-release
+          dnf config-manager --set-enabled powertools
+          dnf install -y \
+            cmake \
+            file \
+            gcc-toolset-13-gcc-c++ \
+            git \
+            libuuid-devel \
+            libcurl-devel \
+            ninja-build \
+            patchelf \
+            python39 \
+            python39-pip \
+            tar \
+            which \
+            xz
+          alternatives --set python /usr/bin/python3.9 || true
+          ln -sf /usr/bin/python3.9 /usr/local/bin/python3 || true
+          git config --global --add safe.directory '*'
+
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "name=${{ github.event.inputs.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure CMake
+        run: |
+          source /opt/rh/gcc-toolset-13/enable
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DUSE_SYSTEM_ANTLR4=OFF \
+            -DSYSTEMRDL_BUILD_SHARED=ON \
+            -DSYSTEMRDL_BUILD_STATIC=ON \
+            -DSYSTEMRDL_BUILD_TOOLS=ON \
+            -DSYSTEMRDL_BUILD_TESTS=OFF
+
+      - name: Build
+        run: |
+          source /opt/rh/gcc-toolset-13/enable
+          cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
+
+      - name: Stage install tree
+        run: |
+          DESTDIR="$(pwd)/stage" cmake --install build --strip
+          # Ensure standard layout under stage/usr -> repackage as bin/lib/include
+          mkdir -p pkg/bin pkg/lib pkg/include pkg/share
+          cp -a stage/usr/bin/. pkg/bin/
+          cp -a stage/usr/lib/. pkg/lib/ 2>/dev/null || true
+          cp -a stage/usr/lib64/. pkg/lib/ 2>/dev/null || true
+          cp -a stage/usr/include/. pkg/include/ 2>/dev/null || true
+          cp LICENSE README.md CONTRIBUTORS.md pkg/share/ 2>/dev/null || true
+
+      - name: Bundle libstdc++ and libgcc
+        run: |
+          source /opt/rh/gcc-toolset-13/enable
+          cp -L "$(gcc -print-file-name=libstdc++.so.6)" pkg/lib/
+          cp -L "$(gcc -print-file-name=libgcc_s.so.1)" pkg/lib/
+
+      - name: Patch RPATH
+        run: |
+          for f in pkg/bin/*; do
+            [ -f "$f" ] && patchelf --set-rpath '$ORIGIN/../lib' --force-rpath "$f" || true
+          done
+          for f in pkg/lib/*.so*; do
+            [ -f "$f" ] && [ ! -L "$f" ] && patchelf --set-rpath '$ORIGIN' --force-rpath "$f" || true
+          done
+
+      - name: Smoke test packaged binaries
+        run: |
+          export LD_LIBRARY_PATH=
+          ./pkg/bin/systemrdl_parser --help
+          ./pkg/bin/systemrdl_elaborator --help
+          ./pkg/bin/systemrdl_csv2rdl --help
+          ./pkg/bin/systemrdl_render --help
+          ./pkg/bin/example
+
+      - name: Create archive
+        run: |
+          VERSION="${{ steps.tag.outputs.name }}"
+          ARCHIVE="${{ env.PROJECT_NAME }}-${VERSION}-linux-x86_64"
+          mv pkg "${ARCHIVE}"
+          tar -cJf "${ARCHIVE}.tar.xz" "${ARCHIVE}"
+          ls -la "${ARCHIVE}.tar.xz"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-x86_64
+          path: ${{ env.PROJECT_NAME }}-*-linux-x86_64.tar.xz
+
+  build-windows:
+    name: Build Windows (MSYS2 mingw64)
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: mingw64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-curl
+            mingw-w64-x86_64-pkg-config
+            zip
+            tar
+
+      - name: Resolve release tag
+        id: tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "name=${{ github.event.inputs.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_INSTALL_PREFIX=/install \
+            -DUSE_SYSTEM_ANTLR4=OFF \
+            -DSYSTEMRDL_BUILD_SHARED=ON \
+            -DSYSTEMRDL_BUILD_STATIC=ON \
+            -DSYSTEMRDL_BUILD_TOOLS=ON \
+            -DSYSTEMRDL_BUILD_TESTS=OFF
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
+
+      - name: Stage package
+        run: |
+          mkdir -p pkg/bin pkg/lib pkg/include pkg/share
+          # Executables
+          cp build/systemrdl_parser.exe pkg/bin/
+          cp build/systemrdl_elaborator.exe pkg/bin/
+          cp build/systemrdl_csv2rdl.exe pkg/bin/
+          cp build/systemrdl_render.exe pkg/bin/
+          cp build/example.exe pkg/bin/
+          # Project DLLs
+          cp build/libsystemrdl.dll pkg/bin/ 2>/dev/null || true
+          # ANTLR4 DLL is the only third-party runtime needed
+          find build/_deps -name 'libantlr4-runtime.dll' -exec cp {} pkg/bin/ \;
+          # MinGW runtime DLLs (binaries are MinGW-built so they need these)
+          for dll in libstdc++-6.dll libgcc_s_seh-1.dll libwinpthread-1.dll; do
+            cp "/mingw64/bin/${dll}" pkg/bin/
+          done
+          # Static libs and headers
+          cp build/libsystemrdl_static.a pkg/lib/ 2>/dev/null || true
+          cp -r systemrdl_api.h elaborator.h systemrdl_version.h pkg/include/ 2>/dev/null || true
+          # Docs
+          cp LICENSE README.md CONTRIBUTORS.md pkg/share/ 2>/dev/null || true
+
+      - name: Smoke test packaged binaries
+        run: |
+          ./pkg/bin/systemrdl_parser.exe --help
+          ./pkg/bin/systemrdl_elaborator.exe --help
+          ./pkg/bin/systemrdl_csv2rdl.exe --help
+          ./pkg/bin/systemrdl_render.exe --help
+          ./pkg/bin/example.exe
+
+      - name: Create archive
+        run: |
+          VERSION="${{ steps.tag.outputs.name }}"
+          ARCHIVE="${{ env.PROJECT_NAME }}-${VERSION}-windows-x64"
+          mv pkg "${ARCHIVE}"
+          zip -r "${ARCHIVE}.zip" "${ARCHIVE}"
+          ls -la "${ARCHIVE}.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-x64
+          path: ${{ env.PROJECT_NAME }}-*-windows-x64.zip
+
+  build-macos:
+    name: Build macOS (arm64)
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install build tools
+        run: brew install ninja pkg-config ossp-uuid
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "name=${{ github.event.inputs.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DUSE_SYSTEM_ANTLR4=OFF \
+            -DSYSTEMRDL_BUILD_SHARED=ON \
+            -DSYSTEMRDL_BUILD_STATIC=ON \
+            -DSYSTEMRDL_BUILD_TOOLS=ON \
+            -DSYSTEMRDL_BUILD_TESTS=OFF
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
+
+      - name: Stage install tree
+        run: |
+          DESTDIR="$(pwd)/stage" cmake --install build --strip
+          mkdir -p pkg/bin pkg/lib pkg/include pkg/share
+          cp -a stage/usr/local/bin/. pkg/bin/ 2>/dev/null || true
+          cp -a stage/usr/local/lib/. pkg/lib/ 2>/dev/null || true
+          cp -a stage/usr/local/include/. pkg/include/ 2>/dev/null || true
+          cp LICENSE README.md CONTRIBUTORS.md pkg/share/ 2>/dev/null || true
+
+      - name: Fix install names and rpath
+        run: |
+          for f in pkg/bin/*; do
+            [ -f "$f" ] || continue
+            install_name_tool -add_rpath "@loader_path/../lib" "$f" 2>/dev/null || true
+          done
+          for dylib in pkg/lib/*.dylib; do
+            [ -f "$dylib" ] && [ ! -L "$dylib" ] || continue
+            install_name_tool -id "@rpath/$(basename "$dylib")" "$dylib" 2>/dev/null || true
+          done
+
+      - name: Smoke test packaged binaries
+        run: |
+          ./pkg/bin/systemrdl_parser --help
+          ./pkg/bin/systemrdl_elaborator --help
+          ./pkg/bin/systemrdl_csv2rdl --help
+          ./pkg/bin/systemrdl_render --help
+          ./pkg/bin/example
+
+      - name: Create archive
+        run: |
+          VERSION="${{ steps.tag.outputs.name }}"
+          ARCHIVE="${{ env.PROJECT_NAME }}-${VERSION}-macos-arm64"
+          mv pkg "${ARCHIVE}"
+          tar -cJf "${ARCHIVE}.tar.xz" "${ARCHIVE}"
+          ls -la "${ARCHIVE}.tar.xz"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-arm64
+          path: ${{ env.PROJECT_NAME }}-*-macos-arm64.tar.xz
+
+  release:
+    name: Publish GitHub Release
+    if: github.event_name == 'push'
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+
+      - name: List release files
+        run: |
+          ls -la linux-x86_64/
+          ls -la windows-x64/
+          ls -la macos-arm64/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            linux-x86_64/*.tar.xz
+            windows-x64/*.zip
+            macos-arm64/*.tar.xz
+          body: |
+            **Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
