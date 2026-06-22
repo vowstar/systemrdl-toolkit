@@ -51,7 +51,7 @@ jobs:
           ln -sf /usr/bin/python3.9 /usr/local/bin/python3 || true
           git config --global --add safe.directory '*'
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -139,7 +139,7 @@ jobs:
         shell: msys2 {0}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -231,7 +231,7 @@ jobs:
     runs-on: macos-15
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
