@@ -209,7 +209,6 @@ jobs:
           sudo tee /etc/apt/sources.list.d/llvm.list
         sudo apt-get update
         sudo apt-get install -y clang-format-22
-        sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-22 100
 
     - name: Python code formatting check
       run: |
@@ -239,8 +238,13 @@ jobs:
         fi
 
     - name: C++ code formatting check
+      env:
+        # Call the pinned binary by name. /usr/bin/clang-format is a real file
+        # from the distribution package, so update-alternatives cannot take it
+        # over and an unversioned call silently uses the older formatter.
+        CLANG_FORMAT: clang-format-22
       run: |
-        clang-format --version
+        "$CLANG_FORMAT" --version
         echo "Using .clang-format configuration:"
         echo "-------------------------------------"
         head -5 .clang-format
@@ -252,7 +256,7 @@ jobs:
           grep -E "\.(cpp|h)$" | \
           grep -v SystemRDL | \
           grep -v build | \
-          xargs clang-format --style=file:.clang-format --dry-run -Werror
+          xargs "$CLANG_FORMAT" --style=file:.clang-format --dry-run -Werror
 
     - name: Markdown linting
       run: |
