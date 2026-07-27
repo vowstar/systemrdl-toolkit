@@ -35,7 +35,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Setup MSYS2 (Windows only)
       if: matrix.os == 'windows-latest'
@@ -53,7 +53,7 @@ jobs:
 
     - name: Setup Python - Non-Windows
       if: matrix.os != 'windows-latest'
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: '3.9'
 
@@ -186,10 +186,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Setup Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: '3.9'
 
@@ -273,10 +273,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Setup Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: '3.9'
 
@@ -320,10 +320,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Setup Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: '3.9'
 
