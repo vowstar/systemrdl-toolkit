@@ -4,183 +4,96 @@
 [![C++17](https://img.shields.io/badge/C++-17-blue.svg)](https://isocpp.org/std/the-standard)
 [![CI](https://github.com/vowstar/systemrdl-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/vowstar/systemrdl-toolkit/actions)
 
-A comprehensive SystemRDL 2.0 toolkit based on ANTLR4 that provides parsing,
-elaboration, and conversion capabilitiesfor SystemRDL register description files.
+SystemRDL Toolkit is a C++17 parser and elaborator for SystemRDL register
+descriptions. It emits JSON models, converts RCSV to SystemRDL, and renders
+Inja templates supplied by the user. The project implements a tested subset
+of SystemRDL 2.0 semantics.
 
-## Features
+## Validated Scope
 
-- **SystemRDL 2.0 Support**: Implementation of SystemRDL 2.0 specification
-- **AST & Elaboration**: Parse and elaborate SystemRDL designs with semantic analysis
-- **AST Export**: Export AST and elaborated models to JSON format
-- **CSV Conversion**: Convert CSV specifications to SystemRDL format
-- **Template Rendering**: Documentation generation using Jinja2 templates
-- **Validation Testing**: Integration with Python SystemRDL compiler
-- **C++ API**: Library interface without ANTLR4 header dependencies
-- **Build Flexibility**: Support for multiple ANTLR4 versions
+The test corpus exercises parsing and elaboration paths for address maps,
+registers, register files, arrays with one dimension, parameters, enums,
+field access, reset values, and address calculation.
 
-## Tools Included
+Negative tests cover invalid field bounds, field overlaps, and instance address
+overlaps. The elaborator also fills unused register bits with reserved fields.
 
-|          Tool          |                       Description                        |
-| ---------------------- | -------------------------------------------------------- |
-| `systemrdl_parser`     | Parse SystemRDL files and generate Abstract Syntax Trees |
-| `systemrdl_elaborator` | Elaborate parsed designs with semantic analysis          |
-| `systemrdl_csv2rdl`    | Convert CSV register specifications to SystemRDL         |
-| `systemrdl_render`     | Generate documentation using Jinja2 templates            |
+## Known Limits
+
+- Dynamic property assignments and property modifiers are not elaborated.
+- Only the first array dimension is elaborated. A dimension that cannot be
+  evaluated falls back to four elements.
+- Memory size semantics are incomplete. A memory without a recognized size is
+  assigned 4096 bytes.
+- Reset range checking is skipped for fields that are 64 bits or wider.
+- Struct definitions can be parsed but are not used by the elaborated model.
+- RCSV is the schema defined by this project. It is not an arbitrary CSV
+  register format, and each file describes one address map.
+- The templates under `test/` are test fixtures. They are not qualified C
+  header or RTL generators.
+- JSON documents contain a format name and version, currently `1.0`. A
+  compatibility policy has not been defined.
+- The installed C++ package currently fails a standalone consumer build. Its
+  public header set and generic CMake target are incomplete.
+- The system dependency path used for offline builds is not covered by CI.
+
+## Data Flow
+
+```text
+RCSV -> systemrdl_csv2rdl -> SystemRDL
+SystemRDL + systemrdl_parser --ast -> AST JSON
+SystemRDL + systemrdl_elaborator --ast -> hierarchical JSON
+SystemRDL + systemrdl_elaborator --json -> simplified JSON
+SystemRDL or RCSV + Inja template -> systemrdl_render -> user-defined output
+```
 
 ## Quick Start
 
-### Prerequisites
-
-**Ubuntu/Debian:**
+The default configuration downloads ANTLR4, nlohmann/json, and Inja.
 
 ```bash
-sudo apt-get install cmake build-essential pkg-config python3 python3-venv
-```
-
-**Gentoo:**
-
-```bash
-sudo emerge cmake dev-util/cmake python:3.13
-```
-
-### Build
-
-```bash
-# Clone and build
-git clone <repository-url>
+git clone https://github.com/vowstar/systemrdl-toolkit.git
 cd systemrdl-toolkit
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
-
-# Run tests
-make test-fast
+cmake -B build
+cmake --build build --parallel
 ```
 
-### Example Usage
+Elaborate the register description used by the smoke tests:
 
 ```bash
-# Parse SystemRDL file
-./systemrdl_parser design.rdl --json
-
-# Elaborate design
-./systemrdl_elaborator design.rdl --json
-
-# Convert CSV to SystemRDL
-./systemrdl_csv2rdl registers.csv -o design.rdl
-
-# Generate documentation
-./systemrdl_render design.rdl -t template.j2 -o output.html
+./build/systemrdl_elaborator test/test_minimal.rdl --json=build/minimal.json
 ```
+
+The generated file identifies itself as `SystemRDL_SimplifiedModel` version
+`1.0` and contains the resolved address map, registers, fields, access
+properties, and reset values. Source build options are documented in
+[Build](doc/BUILD.md).
+
+## Command-Line Tools
+
+| Tool | Input | Output | JSON format |
+| -- | -- | -- | -- |
+| `systemrdl_parser` | SystemRDL | Printed parse tree and optional JSON through `--ast` | `SystemRDL_AST` |
+| `systemrdl_elaborator --ast` | SystemRDL | Hierarchical model | `SystemRDL_ElaboratedModel` |
+| `systemrdl_elaborator --json` | SystemRDL | Flattened register model | `SystemRDL_SimplifiedModel` |
+| `systemrdl_csv2rdl` | RCSV | SystemRDL source | None |
+| `systemrdl_render` | SystemRDL or RCSV plus an Inja template | Text produced by the supplied template | None |
+
+Run each tool with `--help`, or see [Command-Line Tools](doc/TOOLS.md). JSON
+consumers must validate both `format` and `version`; the three models use
+different schemas.
 
 ## Documentation
 
-|                   Document                   |                 Description                  |
-| -------------------------------------------- | -------------------------------------------- |
-| [BUILD.md](doc/BUILD.md)                     | Detailed build instructions and dependencies |
-| [TOOLS.md](doc/TOOLS.md)                     | Command-line tools usage guide              |
-| [API.md](doc/API.md)                         | C++ library API reference and examples       |
-| [TESTING.md](doc/TESTING.md)                 | Testing framework and validation procedures  |
-| [DEVELOPMENT.md](doc/DEVELOPMENT.md)         | Development setup and contribution guide     |
-| [TROUBLESHOOTING.md](doc/TROUBLESHOOTING.md) | Common issues and solutions                  |
-| [ARCHITECTURE.md](doc/ARCHITECTURE.md)       | Project structure and components             |
+Read [Build](doc/BUILD.md) for dependencies, [Command-Line Tools](doc/TOOLS.md)
+for CLI options, [RCSV](doc/RCSV.md) for the input schema, and
+[Testing](doc/TESTING.md) before changing parser or elaborator behavior. The
+C++ entry points in the source tree are declared in
+[`systemrdl_api.h`](systemrdl_api.h).
 
-## Library Usage
-
-The toolkit provides a modern C++ library for integrating SystemRDL functionality:
-
-```cpp
-#include "systemrdl_api.h"
-
-// Parse SystemRDL content
-auto result = systemrdl::parse_string(rdl_content);
-if (result.success) {
-    std::cout << "AST JSON: " << result.json_output << std::endl;
-}
-
-// Elaborate design
-auto elab_result = systemrdl::elaborate_string(rdl_content);
-if (elab_result.success) {
-    std::cout << "Elaborated JSON: " << elab_result.json_output << std::endl;
-}
-```
-
-See [API.md](doc/API.md) for complete library documentation.
-
-## Testing
-
-The project includes comprehensive validation using both C++ and Python SystemRDL tools:
-
-```bash
-# Run all tests
-make test
-
-# Quick validation tests
-make test-fast
-
-# Specific test categories
-make test-parser test-elaborator test-csv2rdl
-```
-
-## Installation
-
-```bash
-# Install to system
-sudo make install
-
-# Use in your project
-find_package(SystemRDL REQUIRED)
-target_link_libraries(your_target SystemRDL::systemrdl)
-```
-
-## Configuration
-
-### ANTLR4 Version Control
-
-```bash
-# Use specific version
-cmake .. -DANTLR4_VERSION=4.12.0
-
-# Use system ANTLR4
-cmake .. -DUSE_SYSTEM_ANTLR4=ON
-
-# Environment variable
-export ANTLR4_VERSION=4.11.1
-```
-
-### Build Options
-
-```bash
-# Build components
-cmake .. -DSYSTEMRDL_BUILD_TOOLS=ON -DSYSTEMRDL_BUILD_TESTS=ON
-
-# Library types
-cmake .. -DSYSTEMRDL_BUILD_SHARED=ON -DSYSTEMRDL_BUILD_STATIC=ON
-```
-
-## Version Information
-
-- **Version**: 0.1.0
-- **SystemRDL Standard**: 2.0
-- **C++ Standard**: C++17
-- **ANTLR4 Version**: 4.13.2 (default)
-
-All tools support `--version` flag for detailed version information including Git commit and build status.
-
-## Acknowledgments
-
-The SystemRDL grammar file (`SystemRDL.g4`) is derived from the
+The grammar in `SystemRDL.g4` is derived from the
 [SystemRDL Compiler](https://github.com/SystemRDL/systemrdl-compiler) project.
-We express our sincere gratitude to the SystemRDL organization and contributors
-for providing the comprehensiveSystemRDL 2.0 specification and grammar implementation.
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Issues & Support
-
-- **Documentation**: Check the [doc/](doc/) directory for detailed guides
-- **Bug Reports**: [Use the issue tracker](https://github.com/vowstar/systemrdl-toolkit/issues)
-- **Questions**: See [TROUBLESHOOTING.md](doc/TROUBLESHOOTING.md) for common issues
-- **Contributing**: Read [DEVELOPMENT.md](doc/DEVELOPMENT.md) for contribution guidelines
+License: [MIT](LICENSE). Bugs:
+[Issues](https://github.com/vowstar/systemrdl-toolkit/issues). Changes:
+[CONTRIBUTING.md](CONTRIBUTING.md).
