@@ -55,7 +55,7 @@ jobs:
       if: matrix.os != 'windows-latest'
       uses: actions/setup-python@v7
       with:
-        python-version: '3.9'
+        python-version: '3.10'
 
     - name: Install Python dependencies - Non-Windows
       if: matrix.os != 'windows-latest'
@@ -191,12 +191,11 @@ jobs:
     - name: Setup Python
       uses: actions/setup-python@v7
       with:
-        python-version: '3.9'
+        python-version: '3.10'
 
     - name: Install analysis tools
       run: |
         python -m pip install --upgrade pip
-        pip install flake8 black isort
         pip install -r requirements.txt
         sudo apt-get update
         sudo apt-get install -y cppcheck wget gnupg lsb-release
@@ -278,7 +277,7 @@ jobs:
     - name: Setup Python
       uses: actions/setup-python@v7
       with:
-        python-version: '3.9'
+        python-version: '3.10'
 
     - name: Install documentation tools
       run: |
@@ -325,7 +324,7 @@ jobs:
     - name: Setup Python
       uses: actions/setup-python@v7
       with:
-        python-version: '3.9'
+        python-version: '3.10'
 
     - name: Install dependencies
       run: |
