@@ -15,8 +15,8 @@
 
 // Version components
 #define SYSTEMRDL_VERSION_MAJOR 0
-#define SYSTEMRDL_VERSION_MINOR 2
-#define SYSTEMRDL_VERSION_PATCH 2
+#define SYSTEMRDL_VERSION_MINOR 3
+#define SYSTEMRDL_VERSION_PATCH 0
 
 // Helper macros to create version strings
 #define SYSTEMRDL_STRINGIFY(x) #x
