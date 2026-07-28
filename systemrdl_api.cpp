@@ -334,9 +334,6 @@ static nlohmann::json convert_elaborated_node_to_simplified_json(systemrdl::Elab
 {
     nlohmann::json result;
     result["format"] = "SystemRDL_SimplifiedModel";
-    // 2.0: field "reset" is a hex string. It was a JSON number in 1.0, which
-    // cannot represent a reset value wider than 64 bits.
-    result["version"] = "2.0";
 
     // Extract addrmap information (should be the root node)
     nlohmann::json addrmap_obj;
@@ -1104,9 +1101,8 @@ Result parse(std::string_view rdl_content)
 
         // Create full JSON structure
         nlohmann::json json_result;
-        json_result["format"]  = "SystemRDL_AST";
-        json_result["version"] = "1.0";
-        json_result["ast"]     = nlohmann::json::array();
+        json_result["format"] = "SystemRDL_AST";
+        json_result["ast"]    = nlohmann::json::array();
         json_result["ast"].push_back(ast_result);
 
         return Result::success(json_result.dump(2)); // Pretty print with 2 spaces
@@ -1146,9 +1142,7 @@ Result elaborate(std::string_view rdl_content)
         // Create full JSON structure
         nlohmann::json json_result;
         json_result["format"] = "SystemRDL_ElaboratedModel";
-        // 2.0: the "reset" property is a hex string, as in the simplified model.
-        json_result["version"] = "2.0";
-        json_result["model"]   = nlohmann::json::array();
+        json_result["model"]  = nlohmann::json::array();
         json_result["model"].push_back(elaborated_result);
 
         return Result::success(json_result.dump(2)); // Pretty print with 2 spaces

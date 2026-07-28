@@ -62,7 +62,7 @@ class JsonValidator:
 
     def validate_simplified_json(self, data: Dict[str, Any]) -> bool:
         """Validate simplified JSON structure"""
-        required_fields = ["format", "version", "addrmap", "registers"]
+        required_fields = ["format", "addrmap", "registers"]
 
         # Check required top-level fields
         for field in required_fields:
@@ -76,9 +76,6 @@ class JsonValidator:
             return False
 
         # Check version
-        if not isinstance(data["version"], str):
-            self.log_error("Version field must be a string")
-            return False
 
         # Validate addrmap structure
         if not self.validate_addrmap(data["addrmap"]):

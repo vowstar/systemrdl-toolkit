@@ -62,7 +62,7 @@ class JsonValidator:
 
     def validate_ast_json(self, data: Dict[str, Any]) -> bool:
         """Validate AST JSON structure"""
-        required_fields = ["format", "version", "ast"]
+        required_fields = ["format", "ast"]
 
         # Check required top-level fields
         for field in required_fields:
@@ -76,9 +76,6 @@ class JsonValidator:
             return False
 
         # Check version
-        if not isinstance(data["version"], str):
-            self.log_error("Version field must be a string")
-            return False
 
         # Check AST structure
         if not isinstance(data["ast"], list):
@@ -139,7 +136,7 @@ class JsonValidator:
 
     def validate_elaborated_json(self, data: Dict[str, Any]) -> bool:
         """Validate elaborated model JSON structure"""
-        required_fields = ["format", "version", "model"]
+        required_fields = ["format", "model"]
 
         # Check required top-level fields
         for field in required_fields:
@@ -153,9 +150,6 @@ class JsonValidator:
             return False
 
         # Check version
-        if not isinstance(data["version"], str):
-            self.log_error("Version field must be a string")
-            return False
 
         # Check model structure
         if not isinstance(data["model"], list):

@@ -579,7 +579,6 @@ Address     Size    Name      Path
 ```json
 {
   "format": "SystemRDL_ElaboratedModel",
-  "version": "1.0",
   "model": [
     {
       "node_type": "addrmap",

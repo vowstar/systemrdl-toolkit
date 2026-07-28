@@ -70,10 +70,9 @@ Elaborate the register description used by the smoke tests:
 ./build/systemrdl_elaborator test/test_minimal.rdl --json=build/minimal.json
 ```
 
-The generated file identifies itself as `SystemRDL_SimplifiedModel` version
-`2.0` and contains the resolved address map, registers, fields, access
-properties, and reset values. Source build options are documented in
-[Build](doc/BUILD.md).
+The generated file identifies itself as `SystemRDL_SimplifiedModel` and
+contains the resolved address map, registers, fields, access properties, and
+reset values. Source build options are documented in [Build](doc/BUILD.md).
 
 ## Command-Line Tools
 
@@ -86,9 +85,9 @@ properties, and reset values. Source build options are documented in
 | `systemrdl_render` | SystemRDL or RCSV plus an Inja template | Text produced by the supplied template | None |
 
 Run each tool with `--help`, or see [Command-Line Tools](doc/TOOLS.md). Each
-document carries a `format` name and a `version`; the three formats share no
-schema. A field reset is a lowercase hex string such as `"0xff"`, and a field
-the source gives no reset carries no `reset` key.
+document names its `format`; the three share no schema. A field reset is a
+lowercase hex string such as `"0xff"`, and a field the source gives no reset
+carries no `reset` key.
 
 ## Documentation
 
