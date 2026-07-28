@@ -38,7 +38,7 @@ except ImportError:
 # reported as an error so the entry gets removed. Never add an entry to silence
 # a new regression.
 KNOWN_VALUE_MISMATCHES = {
-    "test_parameterized.rdl": "regfile instance address ignores the BASE_ADDR parameter in '@ BASE_ADDR += 0x4'",
+    "test_parameterized.rdl": "regfile instance address is not aligned to a power of two of its size",
     "test_simple_auto_position.rdl": "auto-positioned fields are not assigned in declaration order",
 }
 

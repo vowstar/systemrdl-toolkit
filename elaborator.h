@@ -289,8 +289,13 @@ private:
     std::unordered_map<std::string, EnumDefinition>   enum_definitions_;
     std::unordered_map<std::string, StructDefinition> struct_definitions_;
 
-    // Parameter context: parameter values during current instantiation
-    std::unordered_map<std::string, PropertyValue> current_parameter_values_;
+    // Parameter scopes, innermost last.
+    //
+    // Instantiation nests: a parameterized regfile instantiates parameterized
+    // registers inside its own body, and the inner instance must not destroy
+    // the outer parameters. A single flat map made "regs[NUM_REGS] @ BASE_ADDR"
+    // unresolvable as soon as the inner instance bound its own parameters.
+    std::vector<std::unordered_map<std::string, PropertyValue>> parameter_scopes_;
 
     // Internal elaboration methods
     void elaborate_component_body(

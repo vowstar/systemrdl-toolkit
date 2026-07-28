@@ -1394,8 +1394,10 @@ void SystemRDLElaborator::apply_parameter_assignments(
     const std::vector<ParameterDefinition> &param_defs,
     const std::vector<ParameterAssignment> &param_assignments)
 {
-    // Clear current parameter context
-    current_parameter_values_.clear();
+    // Enter a new innermost scope. Enclosing scopes stay visible so an inner
+    // instance can still refer to the parameters of the component that
+    // contains it.
+    parameter_scopes_.emplace_back();
 
     // First apply default values (multi-round evaluation to handle parameter dependencies)
     std::set<std::string> resolved_params;
@@ -1411,7 +1413,7 @@ void SystemRDLElaborator::apply_parameter_assignments(
 
             if (param_def.default_value.type != PropertyValue::STRING) {
                 // Direct value, no need to re-evaluate
-                current_parameter_values_[param_def.name] = param_def.default_value;
+                parameter_scopes_.back()[param_def.name] = param_def.default_value;
                 resolved_params.insert(param_def.name);
                 progress = true;
             } else {
@@ -1420,7 +1422,7 @@ void SystemRDLElaborator::apply_parameter_assignments(
                 if (value.type != PropertyValue::STRING
                     || value.string_val != param_def.default_value.string_val) {
                     // Evaluation succeeded
-                    current_parameter_values_[param_def.name] = value;
+                    parameter_scopes_.back()[param_def.name] = value;
                     resolved_params.insert(param_def.name);
                     progress = true;
                 }
@@ -1431,7 +1433,7 @@ void SystemRDLElaborator::apply_parameter_assignments(
     // Process remaining unparsed parameters (may exist circular dependencies)
     for (const auto &param_def : param_defs) {
         if (param_def.has_default && !resolved_params.count(param_def.name)) {
-            current_parameter_values_[param_def.name] = param_def.default_value;
+            parameter_scopes_.back()[param_def.name] = param_def.default_value;
         }
     }
 
@@ -1447,7 +1449,7 @@ void SystemRDLElaborator::apply_parameter_assignments(
         }
 
         if (param_exists) {
-            current_parameter_values_[assignment.name] = assignment.value;
+            parameter_scopes_.back()[assignment.name] = assignment.value;
         } else {
             report_error("Unknown parameter: " + assignment.name);
         }
@@ -1456,7 +1458,7 @@ void SystemRDLElaborator::apply_parameter_assignments(
     // Check if all required parameters have values
     for (const auto &param_def : param_defs) {
         if (!param_def.has_default
-            && current_parameter_values_.find(param_def.name) == current_parameter_values_.end()) {
+            && parameter_scopes_.back().find(param_def.name) == parameter_scopes_.back().end()) {
             report_error("Missing required parameter: " + param_def.name);
         }
     }
@@ -1464,16 +1466,20 @@ void SystemRDLElaborator::apply_parameter_assignments(
 
 void SystemRDLElaborator::clear_parameter_context()
 {
-    current_parameter_values_.clear();
+    if (!parameter_scopes_.empty()) {
+        parameter_scopes_.pop_back();
+    }
 }
 
 PropertyValue SystemRDLElaborator::resolve_parameter_reference(const std::string &param_name)
 {
-    auto it = current_parameter_values_.find(param_name);
-    if (it != current_parameter_values_.end()) {
-        return it->second;
+    // Innermost scope wins, then outward.
+    for (auto scope = parameter_scopes_.rbegin(); scope != parameter_scopes_.rend(); ++scope) {
+        auto it = scope->find(param_name);
+        if (it != scope->end()) {
+            return it->second;
+        }
     }
-
     // If parameter not found, return original string
     return PropertyValue(param_name);
 }
