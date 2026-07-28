@@ -1,6 +1,8 @@
 # RCSV (Register-CSV) Specification v0.4
 
-RCSV is a practical, field-oriented CSV format for SystemRDL Toolkit. It provides a standardized way to represent register maps that can be converted to SystemRDL without semantic loss.
+RCSV is a practical, field-oriented CSV format for SystemRDL Toolkit. It gives a
+standard way to describe register maps in a spreadsheet and convert them to
+SystemRDL.
 
 **Design Principles:**
 
@@ -80,10 +82,10 @@ RCSV defines a standard set of columns compatible with existing CSV2RDL tools:
 
 ### 4.4 Read/Write Behavior Columns
 
-|  Column   | Required |        Description         |                             Valid Values                              |
-| --------- | -------- | -------------------------- | --------------------------------------------------------------------- |
-| `onread`  | No       | Read side-effect behavior  | `rclr`, `rset`, `ruser`                                               |
-| `onwrite` | No       | Write side-effect behavior | `woclr`, `woset`, `wot`, `wzs`, `wzc`, `wzt`, `wclr`, `wset`, `wuser` |
+| Column | Required | Description | Valid Values |
+| -- | -- | -- | -- |
+| `onread` | No | Read side-effect behavior | `rclr`, `rset`, `ruser` |
+| `onwrite` | No | Write side-effect behavior | `woclr`, `woset`, `wot`, `wzs`, `wzc`, `wzt`, `wclr`, `wset`, `wuser` |
 
 ### 4.5 Optional Documentation Column
 
@@ -118,7 +120,8 @@ Register arrays are specified directly in the `reg_name` column using SystemRDL 
 ,,0x0000,BUFFER[8],32,,,,,,,8-element buffer array
 ```
 
-This generates SystemRDL: `BUFFER[8] @ 0x0000` which expands to 8 registers with automatic address calculation. No additional columns needed.
+This generates `BUFFER[8] @ 0x0000`, which expands to 8 registers with
+addresses calculated automatically. No additional columns are needed.
 
 ---
 
@@ -130,11 +133,11 @@ RCSV uses a **row-based approach** to define the three-level hierarchy: Address 
 
 Rows are identified by which columns contain data:
 
-|    Row Type     |                                Populated Columns                                |         Empty Columns         |
-| --------------- | ------------------------------------------------------------------------------- | ----------------------------- |
-| **Address Map** | `addrmap_offset`, `addrmap_name`                                                | All register/field columns    |
-| **Register**    | `reg_offset`, `reg_name`, `reg_width`                                           | Address map and field columns |
-| **Field**       | `field_name`, `field_lsb`, `field_msb`, `reset_value`, `sw_access`, `hw_access` | Address map columns           |
+| Row Type | Populated Columns | Empty Columns |
+| -- | -- | -- |
+| **Address Map** | `addrmap_offset`, `addrmap_name` | All register/field columns |
+| **Register** | `reg_offset`, `reg_name`, `reg_width` | Address map and field columns |
+| **Field** | `field_name`, `field_lsb`, `field_msb`, `reset_value`, `sw_access`, `hw_access` | Address map columns |
 
 ### 5.2 Structural Rules
 
@@ -206,9 +209,29 @@ RCSV uses separate `sw_access` and `hw_access` columns to specify field access p
 
 ## 7. Side-Effect Behaviors
 
-**OnRead**: `rclr` (clear on read), `rset` (set on read), `ruser` (user-defined)
+What the hardware does when software touches the field.
 
-**OnWrite**: `woclr` (W1C), `woset` (W1S), `wot` (W1T), `wzs` (W0S), `wzc` (W0C), `wzt` (W0T), `wclr` (write clear), `wset` (write set), `wuser` (user-defined)
+`onread`:
+
+| Value | Effect |
+| -- | -- |
+| `rclr` | Clear the field |
+| `rset` | Set the field |
+| `ruser` | User defined |
+
+`onwrite`:
+
+| Value | Also known as | Effect |
+| -- | -- | -- |
+| `woclr` | W1C | Writing 1 clears the bit |
+| `woset` | W1S | Writing 1 sets the bit |
+| `wot` | W1T | Writing 1 toggles the bit |
+| `wzc` | W0C | Writing 0 clears the bit |
+| `wzs` | W0S | Writing 0 sets the bit |
+| `wzt` | W0T | Writing 0 toggles the bit |
+| `wclr` | | Any write clears the field |
+| `wset` | | Any write sets the field |
+| `wuser` | | User defined |
 
 ---
 
@@ -305,6 +328,7 @@ This generates SystemRDL `BUFFER[8] @ 0x0000` which expands to 8 registers: `BUF
 
 ## 13. SystemRDL Output
 
-RCSV maps directly to SystemRDL syntax. Arrays like `BUFFER[8]` become `BUFFER[8] @ address` and auto-expand to individual register instances.
+RCSV maps directly to SystemRDL syntax. An array such as `BUFFER[8]` becomes
+`BUFFER[8] @ address` and expands to individual register instances.
 
 ---

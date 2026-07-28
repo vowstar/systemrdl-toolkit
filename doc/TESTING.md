@@ -192,7 +192,7 @@ list needs updating, which is why this document does not keep one.
 | -- | -- |
 | `test_*.rdl` | Elaborated and compared against the reference implementation |
 | `test_*_fail.rdl` | Expected to fail elaboration, and to fail for its own stated reason |
-| `test_spec_*.rdl` | A worked example from the standard, with `SPEC-EXPECT` lines giving the values the standard states |
+| `test_spec_*.rdl` | A worked example from the standard, with `SPEC-EXPECT` lines giving the expected values |
 | `test_csv_*.csv` | An RCSV case for the converter |
 | `test_*.cpp` | A C++ unit test, built and run by CTest |
 

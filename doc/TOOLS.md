@@ -1,6 +1,7 @@
 # Command-Line Tools Usage
 
-After successful build, the executables are located in the `build/` directory. This document covers all command-line tools included in the SystemRDL Toolkit.
+The executables land in `build/` after a successful build. This document
+covers their command line options.
 
 ## Overview
 
@@ -182,7 +183,8 @@ The toolkit includes a CSV to SystemRDL converter with parsing capabilities and 
 
 ### CSV2RDL Format Requirements (RCSV Specification)
 
-The converter supports CSV files following the **RCSV (Register-CSV) specification** - a standardized format for register map interchange. RCSV uses a three-layer structure: **addrmap -> reg -> field**.
+The converter reads CSV files following the RCSV specification, which describes
+a register map in three layers: addrmap, then reg, then field.
 
 > [INFO] **Complete Specification**: See [RCSV.md](RCSV.md) for the full RCSV specification
 
@@ -210,9 +212,11 @@ CSV files should contain the following columns (header names are case-insensitiv
 #### Row Hierarchy Definition
 
 1. **Header Row** (Line 1): Column names defining the structure
-2. **Address Map Row**: Contains `addrmap_offset` and `addrmap_name`, all other fields empty
-3. **Register Row**: Contains `reg_offset`, `reg_name`, and `reg_width`, may include `description`
-4. **Field Row**: Contains `field_name`, `field_lsb`, `field_msb`, `reset_value`, `sw_access`, `hw_access`, and optionally `description`
+2. **Address Map Row**: Contains `addrmap_offset` and `addrmap_name`
+3. **Register Row**: Contains `reg_offset`, `reg_name` and `reg_width`, and may
+   include `description`
+4. **Field Row**: Contains `field_name`, `field_lsb`, `field_msb`,
+   `reset_value`, `sw_access`, `hw_access`, and optionally `description`
 
 #### RCSV Compliance Rules
 
