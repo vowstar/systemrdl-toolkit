@@ -1,0 +1,20 @@
+// SPEC-CASE 12.3.2 - the alignment property on a register file
+//
+// Reproduced from the worked example in SystemRDL 2.0 clause 12.3.2. The
+// standard annotates the second register with "Address of 8. Normally would
+// have been 4", so the alignment property is what moves it.
+//
+// 12.3.1-a requires every alignment value to be a power of two, in bytes.
+//
+// SPEC-EXPECT-REG test_spec_12_3_2_alignment.inst.a  0x0
+// SPEC-EXPECT-REG test_spec_12_3_2_alignment.inst.b  0x8
+addrmap test_spec_12_3_2_alignment {
+
+    regfile fifo_rfile {
+        alignment = 8;
+        reg { field {} a; } a;
+        reg { field {} a; } b;
+    };
+
+    fifo_rfile inst;
+};

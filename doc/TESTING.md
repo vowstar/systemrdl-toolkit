@@ -103,6 +103,29 @@ python3 script/json_output_validator.py --test --parser build/systemrdl_parser -
   - Comprehensive test coverage: basic, multiline, delimiters, fuzzy matching
   - Professional validation framework with detailed reporting and exit codes
 
+### 3. Spec Conformance Checker (`script/spec_conformance_check.py`)
+
+Checks the elaborator against the worked examples in the SystemRDL 2.0
+standard. Each example lives in `test/test_spec_*.rdl` with the addresses and
+bit positions the standard states recorded as `SPEC-EXPECT` comment lines.
+
+This checker consults no other implementation. A second implementation can tell
+you that two tools disagree; only the standard says which one is right.
+
+Examples the toolkit does not satisfy are listed in `KNOWN_FAILURES` alongside
+the clause they belong to. An entry that starts passing is reported as an error
+so the list cannot go stale.
+
+### 4. Value Comparison (`script/compare_implementations.py`)
+
+Elaborates every RDL file with both this toolkit and the reference
+implementation and compares the resulting register addresses, register widths,
+field bit positions and reset values. Matching exit status proves nothing about
+the numbers that reach RTL and firmware headers.
+
+Files named `test_spec_*.rdl` are skipped here because the spec conformance
+checker already covers them against the standard itself.
+
 ## Testing commands
 
 ```bash

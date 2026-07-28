@@ -403,6 +403,10 @@ class ImplementationComparator:
             return False
 
         rdl_files = glob.glob(os.path.join(self.test_dir, "*.rdl"))
+        # Files reproducing worked examples from the standard are checked by
+        # script/spec_conformance_check.py against the values the standard
+        # states. Tracking them here as well would duplicate the bookkeeping.
+        rdl_files = [f for f in rdl_files if not os.path.basename(f).startswith("test_spec_")]
         if not rdl_files:
             print(f"[FAIL] No RDL files found in directory {self.test_dir}")
             return False

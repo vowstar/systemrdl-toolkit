@@ -2023,6 +2023,14 @@ void SystemRDLElaborator::report_field_boundary_error(
 }
 
 // Gap detection and reserved field generation implementation
+//
+// This goes beyond the standard. 10.7 calls the bits between fields "reserved
+// and unused" but does not ask a tool to instantiate anything for them. Every
+// gap is turned into a real field carrying reserved = true so that back end
+// generators do not each have to derive the same information. A consumer that
+// does not want them can filter on the reserved property; one that creates
+// storage for every field it sees will produce flops for bits that should be
+// tied off.
 void SystemRDLElaborator::detect_and_fill_register_gaps(ElaboratedReg *reg_node)
 {
     if (!reg_node)

@@ -1,0 +1,24 @@
+// SPEC-CASE 10.7.2 - field packing with lsb0 ordering
+//
+// Reproduced verbatim from the worked example in SystemRDL 2.0 clause 10.7.2,
+// with the field named C twice in the standard split into C1 and C2 so both can
+// be instantiated. The standard states the resulting bit positions in comments,
+// which are the expectations below.
+//
+// The standard's own commentary on this example: "4 bits from 7 down to 4 are
+// reserved and unused". The packing pointer moves forward only; it never goes
+// back to fill a gap left by an explicitly positioned field.
+//
+// SPEC-EXPECT-FIELD test_spec_10_7_2_packing.regA.A   0:0
+// SPEC-EXPECT-FIELD test_spec_10_7_2_packing.regA.B   3:1
+// SPEC-EXPECT-FIELD test_spec_10_7_2_packing.regA.C1  15:8
+// SPEC-EXPECT-FIELD test_spec_10_7_2_packing.regA.C2  20:16
+addrmap test_spec_10_7_2_packing {
+
+    reg {
+        field {} A;
+        field {} B[3];
+        field {} C1[15:8];
+        field {} C2[5];
+    } regA @ 0x0;
+};

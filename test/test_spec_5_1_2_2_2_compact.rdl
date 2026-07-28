@@ -1,0 +1,22 @@
+// SPEC-CASE 5.1.2.2.2 Example 1 - compact addressing
+//
+// Reproduced from the worked example in SystemRDL 2.0 clause 5.1.2.2.2, which
+// states the addresses in comments: a at 0, b at 4, and c starting at 0xC.
+//
+// compact packs components tightly while keeping them aligned to accesswidth,
+// so the 64-bit register b follows a immediately. Contrast with the regalign
+// case, where the same description places b at 8.
+//
+// SPEC-EXPECT-REG test_spec_5_1_2_2_2_compact.a     0x0
+// SPEC-EXPECT-REG test_spec_5_1_2_2_2_compact.b     0x4
+// SPEC-EXPECT-REG test_spec_5_1_2_2_2_compact.c[0]  0xC
+// SPEC-EXPECT-REG test_spec_5_1_2_2_2_compact.c[1]  0x10
+// SPEC-EXPECT-REG test_spec_5_1_2_2_2_compact.c[2]  0x14
+addrmap test_spec_5_1_2_2_2_compact {
+    default accesswidth = 32;
+    addressing = compact;
+
+    reg { field {} a; } a;
+    reg { regwidth = 64; field {} a; } b;
+    reg { field {} a; } c[20];
+};

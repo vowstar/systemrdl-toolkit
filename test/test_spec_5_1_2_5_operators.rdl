@@ -1,0 +1,25 @@
+// SPEC-CASE 5.1.2.5 Example 3 - the @, += and %= address allocation operators
+//
+// Reproduced from the worked example in SystemRDL 2.0 clause 5.1.2.5, with the
+// register file instantiated so the description can be elaborated.
+//
+// The standard annotates the last register: "%=0x80 ... means ((address % 0x80)
+// == 0) ... So this would imply an address of 0x200 since that is the first
+// address satisfying address>=0x194 and (address % 0x80) == 0".
+//
+// SPEC-EXPECT-REG test_spec_5_1_2_5_operators.inst.a[0]  0x0
+// SPEC-EXPECT-REG test_spec_5_1_2_5_operators.inst.a[1]  0x4
+// SPEC-EXPECT-REG test_spec_5_1_2_5_operators.inst.b[0]  0x100
+// SPEC-EXPECT-REG test_spec_5_1_2_5_operators.inst.b[1]  0x110
+// SPEC-EXPECT-REG test_spec_5_1_2_5_operators.inst.c     0x200
+addrmap test_spec_5_1_2_5_operators {
+
+    regfile example {
+        reg some_reg { field {} a; };
+        some_reg a[10];
+        some_reg b[10] @0x100 += 0x10;
+        some_reg c %=0x80;
+    };
+
+    example inst;
+};

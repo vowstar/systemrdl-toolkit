@@ -1,0 +1,21 @@
+// SPEC-CASE 5.1.2.2.2 Example 4 - fullalign addressing
+//
+// Reproduced from the worked example in SystemRDL 2.0 clause 5.1.2.2.2, which
+// states the addresses in comments: a at 0, b at 8, and c starting at 0x80.
+//
+// fullalign matches regalign except for arrays: the first element is aligned to
+// the size of the whole array rounded up to the next power of two. Twenty
+// 4-byte registers occupy 80 bytes, which rounds to 0x80.
+//
+// SPEC-EXPECT-REG test_spec_5_1_2_2_2_fullalign.a     0x0
+// SPEC-EXPECT-REG test_spec_5_1_2_2_2_fullalign.b     0x8
+// SPEC-EXPECT-REG test_spec_5_1_2_2_2_fullalign.c[0]  0x80
+// SPEC-EXPECT-REG test_spec_5_1_2_2_2_fullalign.c[1]  0x84
+// SPEC-EXPECT-REG test_spec_5_1_2_2_2_fullalign.c[2]  0x88
+addrmap test_spec_5_1_2_2_2_fullalign {
+    addressing = fullalign;
+
+    reg { field {} a; } a;
+    reg { regwidth = 64; field {} a; } b;
+    reg { field {} a; } c[20];
+};

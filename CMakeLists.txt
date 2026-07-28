@@ -1089,6 +1089,18 @@ if(Python3_FOUND)
         DEPENDS "systemrdl_csv2rdl;systemrdl_parser"
     )
 
+    # Spec Conformance Test - checks the worked examples from the standard
+    add_test(
+        NAME "spec_conformance"
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/spec_conformance_check.py
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    set_tests_properties("spec_conformance" PROPERTIES
+        LABELS "conformance;validation;spec"
+        TIMEOUT 120
+        DEPENDS "systemrdl_elaborator"
+    )
+
     # Value Comparison Test - compares elaborated numbers against the reference implementation
     add_test(
         NAME "value_comparison"

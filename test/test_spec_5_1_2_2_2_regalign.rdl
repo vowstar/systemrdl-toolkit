@@ -1,0 +1,22 @@
+// SPEC-CASE 5.1.2.2.2 Example 3 - regalign addressing, the default mode
+//
+// Reproduced from the worked example in SystemRDL 2.0 clause 5.1.2.2.2, which
+// states the addresses in comments: a at 0, b at 8, and c starting at 0x10.
+//
+// regalign packs components so each start address is a multiple of its size,
+// so the 64-bit register b lands on an 8-byte boundary rather than immediately
+// after a. This is the default addressing mode: a description that does not set
+// the addressing property gets these addresses.
+//
+// SPEC-EXPECT-REG test_spec_5_1_2_2_2_regalign.a     0x0
+// SPEC-EXPECT-REG test_spec_5_1_2_2_2_regalign.b     0x8
+// SPEC-EXPECT-REG test_spec_5_1_2_2_2_regalign.c[0]  0x10
+// SPEC-EXPECT-REG test_spec_5_1_2_2_2_regalign.c[1]  0x14
+// SPEC-EXPECT-REG test_spec_5_1_2_2_2_regalign.c[2]  0x18
+addrmap test_spec_5_1_2_2_2_regalign {
+    addressing = regalign;
+
+    reg { field {} a; } a;
+    reg { regwidth = 64; field {} a; } b;
+    reg { field {} a; } c[20];
+};
