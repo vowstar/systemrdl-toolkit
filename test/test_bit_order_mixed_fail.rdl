@@ -1,0 +1,14 @@
+// Mixing the two bit range forms in one register.
+// EXPECT_ELABORATION_FAILURE - violates SystemRDL 2.0 clause 10.7.1-a
+//
+// 10.7.1-a: "Both the [low:high] and [high:low] bit specification forms shall
+// not be used together in the same register." The two forms select opposite bit
+// orderings, so a register using both leaves no way to tell which end of a
+// range is the most significant bit.
+addrmap test_bit_order_mixed {
+
+    reg {
+        field {} lsb0_form[7:0];
+        field {} msb0_form[8:15];
+    } reg0 @ 0x0;
+};

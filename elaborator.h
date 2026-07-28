@@ -193,6 +193,11 @@ public:
     // in which case it defaults to register_width (10.6.1-d).
     uint32_t access_width = 0;
 
+    // Bit ordering of this register (10.7). Fields without an explicit range
+    // are packed from bit 0 upward when false, and from regwidth-1 downward
+    // when true.
+    bool msb0 = false;
+
     uint32_t effective_access_width() const
     {
         return access_width != 0 ? access_width : register_width;
@@ -223,6 +228,11 @@ public:
     // undefined at power-up and must not be reported as resetting to zero:
     // that difference decides whether reset logic is generated at all.
     bool has_reset = false;
+
+    // The source wrote the bit range as [low:high], which selects msb0 ordering
+    // (10.7 b). msb and lsb above always hold the normalised positions, so this
+    // only records how the range was written.
+    bool declared_msb0 = false;
 
     // Access types
     enum AccessType { RW, R, W, W1C, W1S, W1T, W0C, W0S, W0T, NA };
@@ -393,6 +403,7 @@ private:
         SystemRDLParser::Component_instContext *inst_ctx, ElaboratedField *field_node);
 
     // Automatic field positioning
+    void resolve_register_bit_order(ElaboratedReg *reg_node, const ElaboratedNode *parent);
     void assign_automatic_field_positions(ElaboratedReg *reg_node);
 
     // Gap detection and reserved field generation methods
@@ -508,7 +519,7 @@ private:
 
     size_t evaluate_integer_expression(SystemRDLParser::ExprContext *expr_ctx);
 
-    void calculate_node_size(ElaboratedNode *node);
+    void calculate_node_size(ElaboratedNode *node, const ElaboratedNode *parent);
 
     // Register reset value calculation methods
     void calculate_register_reset_value(ElaboratedReg *reg_node);

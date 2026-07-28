@@ -332,7 +332,7 @@ void SystemRDLElaborator::elaborate_component_instance(
         }
 
         // Calculate size
-        calculate_node_size(node.get());
+        calculate_node_size(node.get(), parent);
 
         // Alignment can only be applied once the size is known. An address
         // given with @ is taken as written.
@@ -419,7 +419,7 @@ void SystemRDLElaborator::elaborate_array_instance(
             elaborate_component_body(body, node.get());
         }
 
-        calculate_node_size(node.get());
+        calculate_node_size(node.get(), parent);
 
         if (is_first_element) {
             // Align the start of the array, then let the elements follow at the
@@ -492,7 +492,7 @@ size_t SystemRDLElaborator::evaluate_integer_expression(SystemRDLParser::ExprCon
     return static_cast<size_t>(evaluate_integer_expression_enhanced(expr_ctx));
 }
 
-void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node)
+void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node, const ElaboratedNode *parent)
 {
     if (!node)
         return;
@@ -501,6 +501,8 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node)
         // Validate the register's own properties first: everything below assumes
         // a usable register width, and gap filling would mask a missing field.
         validate_register_properties(reg_node);
+        // Settle the bit ordering before any field is positioned.
+        resolve_register_bit_order(reg_node, parent);
         // Assign automatic positions to fields that need them
         assign_automatic_field_positions(reg_node);
         // Validate register fields first
@@ -911,7 +913,7 @@ void SystemRDLElaborator::elaborate_named_component_instance(
         }
 
         // Calculate size
-        calculate_node_size(node.get());
+        calculate_node_size(node.get(), parent);
 
         // Alignment can only be applied once the size is known. An address
         // given with @ is taken as written.
@@ -998,7 +1000,7 @@ void SystemRDLElaborator::elaborate_named_array_instance(
             elaborate_component_body(body, node.get());
         }
 
-        calculate_node_size(node.get());
+        calculate_node_size(node.get(), parent);
 
         if (is_first_element) {
             // Align the start of the array, then let the elements follow at the
@@ -1371,25 +1373,23 @@ void SystemRDLElaborator::elaborate_field_bit_range(
     if (auto range_suffix = inst_ctx->range_suffix()) {
         auto exprs = range_suffix->expr();
         if (exprs.size() == 2) {
-            // Parse [msb:lsb] format
-            size_t msb = evaluate_integer_expression_enhanced(exprs[0]);
-            size_t lsb = evaluate_integer_expression_enhanced(exprs[1]);
+            // 10.7: [high:low] selects lsb0 ordering and [low:high] selects
+            // msb0. Both name the same bits, so the positions are normalised
+            // here and only the choice of form is remembered.
+            const size_t left  = evaluate_integer_expression_enhanced(exprs[0]);
+            const size_t right = evaluate_integer_expression_enhanced(exprs[1]);
 
-            field_node->msb   = msb;
-            field_node->lsb   = lsb;
-            field_node->width = (msb >= lsb) ? (msb - lsb + 1) : 0;
+            const size_t high = left >= right ? left : right;
+            const size_t low  = left >= right ? right : left;
 
-            // Verify the reasonability of the bit range
-            if (msb < lsb) {
-                report_error(
-                    "Invalid bit range: MSB (" + std::to_string(msb) + ") is less than LSB ("
-                        + std::to_string(lsb) + ")",
-                    inst_ctx);
-            }
+            field_node->declared_msb0 = left < right;
+            field_node->msb           = high;
+            field_node->lsb           = low;
+            field_node->width         = high - low + 1;
 
             // Set bit range attribute
-            field_node->set_property("msb", PropertyValue(static_cast<int64_t>(msb)));
-            field_node->set_property("lsb", PropertyValue(static_cast<int64_t>(lsb)));
+            field_node->set_property("msb", PropertyValue(static_cast<int64_t>(high)));
+            field_node->set_property("lsb", PropertyValue(static_cast<int64_t>(low)));
             field_node->set_property("width", PropertyValue(static_cast<int64_t>(field_node->width)));
         }
     } else {
@@ -2409,6 +2409,59 @@ std::string SystemRDLElaborator::generate_reserved_field_name(size_t msb, size_t
 }
 
 // Automatic field positioning implementation
+// Decide whether this register counts bits from the bottom or the top.
+//
+// 10.7: writing a range as [low:high] selects msb0, and an explicit msb0
+// property does the same. The two range forms may not be mixed in one register
+// (10.7.1-a) because the reader would have no way to tell which end is which.
+void SystemRDLElaborator::resolve_register_bit_order(
+    ElaboratedReg *reg_node, const ElaboratedNode *parent)
+{
+    if (!reg_node) {
+        return;
+    }
+
+    const ElaboratedField *lsb0_field = nullptr;
+    const ElaboratedField *msb0_field = nullptr;
+
+    for (const auto &child : reg_node->children) {
+        auto field = dynamic_cast<const ElaboratedField *>(child.get());
+        if (!field || field->msb == SIZE_MAX) {
+            continue; // no explicit range, so it says nothing about ordering
+        }
+        if (field->declared_msb0) {
+            msb0_field = field;
+        } else if (field->msb != field->lsb) {
+            // A single bit range names the same index twice and is neutral.
+            lsb0_field = field;
+        }
+    }
+
+    if (lsb0_field != nullptr && msb0_field != nullptr) {
+        report_error(
+            "Register '" + reg_node->inst_name + "' mixes the [low:high] form of field '"
+                + msb0_field->inst_name + "' with the [high:low] form of field '"
+                + lsb0_field->inst_name + "', which violates SystemRDL 2.0 clause 10.7.1-a",
+            reg_node->source_ctx);
+    }
+
+    reg_node->msb0 = msb0_field != nullptr;
+
+    // An explicit property in scope wins over what the ranges imply.
+    for (const char *name : {"msb0", "lsb0"}) {
+        const PropertyValue *prop = nullptr;
+        if (auto own = reg_node->get_property(name)) {
+            prop = own;
+        } else {
+            prop = lookup_inherited(parent, name);
+        }
+        if (prop != nullptr && prop->type == PropertyValue::BOOLEAN) {
+            reg_node->msb0 = (std::string(name) == "msb0") ? prop->bool_val : !prop->bool_val;
+            break;
+        }
+    }
+}
+
 void SystemRDLElaborator::assign_automatic_field_positions(ElaboratedReg *reg_node)
 {
     if (!reg_node)
@@ -2422,7 +2475,10 @@ void SystemRDLElaborator::assign_automatic_field_positions(ElaboratedReg *reg_no
     // Fields are visited in declaration order, explicit ones included, because
     // where an explicit field sits determines where the next automatic field
     // lands.
-    size_t next_bit = 0;
+    // 10.7: packing starts at index 0 for lsb0 registers and at regwidth-1 for
+    // msb0 registers, and the pointer only moves away from that end.
+    const bool msb0     = reg_node->msb0;
+    size_t     next_bit = msb0 ? reg_node->register_width : 0;
 
     for (const auto &child : reg_node->children) {
         auto field = dynamic_cast<ElaboratedField *>(child.get());
@@ -2436,7 +2492,14 @@ void SystemRDLElaborator::assign_automatic_field_positions(ElaboratedReg *reg_no
                                     && auto_pos_prop->bool_val;
 
         if (!needs_position) {
-            if (field->msb != SIZE_MAX && field->msb + 1 > next_bit) {
+            if (field->msb == SIZE_MAX) {
+                continue;
+            }
+            if (msb0) {
+                if (field->lsb < next_bit) {
+                    next_bit = field->lsb;
+                }
+            } else if (field->msb + 1 > next_bit) {
                 next_bit = field->msb + 1;
             }
             continue;
@@ -2452,10 +2515,12 @@ void SystemRDLElaborator::assign_automatic_field_positions(ElaboratedReg *reg_no
             field_width = static_cast<size_t>(fieldwidth_prop->int_val);
         }
 
-        const size_t field_lsb = next_bit;
-        const size_t field_msb = next_bit + field_width - 1;
+        const size_t field_lsb = msb0 ? (next_bit >= field_width ? next_bit - field_width : 0)
+                                      : next_bit;
+        const size_t field_msb = msb0 ? (next_bit == 0 ? 0 : next_bit - 1)
+                                      : next_bit + field_width - 1;
 
-        if (field_msb >= reg_node->register_width) {
+        if ((msb0 && next_bit < field_width) || (!msb0 && field_msb >= reg_node->register_width)) {
             report_error(
                 "Auto-positioned field '" + field->inst_name + "' would exceed register width. "
                     + "Field needs " + std::to_string(field_width) + " bits but only "
@@ -2476,7 +2541,7 @@ void SystemRDLElaborator::assign_automatic_field_positions(ElaboratedReg *reg_no
         field->set_property("width", PropertyValue(static_cast<int64_t>(field_width)));
         field->set_property("auto_position", PropertyValue(false));
 
-        next_bit = field_msb + 1;
+        next_bit = msb0 ? field_lsb : field_msb + 1;
     }
 }
 

@@ -160,10 +160,14 @@ class ImplementationComparator:
                         "width": node.get_property("regwidth"),
                     }
                 elif isinstance(node, FieldNode):
+                    # high and low are the normalised positions. msb and lsb
+                    # follow the register's bit ordering, so they are swapped
+                    # for an msb0 register and would not line up with the
+                    # positions this toolkit reports.
                     model[path] = {
                         "kind": "field",
-                        "msb": node.msb,
-                        "lsb": node.lsb,
+                        "msb": node.high,
+                        "lsb": node.low,
                         "width": node.width,
                         "reset": self.normalize_reset(node.get_property("reset")),
                     }

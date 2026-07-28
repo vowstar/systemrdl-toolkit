@@ -1,0 +1,23 @@
+// SPEC-CASE 10.7.2 - field packing with msb0 bit ordering
+//
+// The msb0 half of the worked example in SystemRDL 2.0 clause 10.7.2, with the
+// field named C given a distinct name so both can be instantiated. The standard
+// states the resulting positions in comments: A is the single bit 31, B covers
+// 28 to 30, and C covers 8 to 15.
+//
+// With msb0 the packing pointer starts at regwidth-1 and moves down, which is
+// the mirror of the lsb0 case. The standard notes that "12 bits from 16 to 27
+// are reserved and unused", so here too the pointer never turns back.
+//
+// SPEC-EXPECT-FIELD test_spec_10_7_2_msb0.regA.A   31:31
+// SPEC-EXPECT-FIELD test_spec_10_7_2_msb0.regA.B   30:28
+// SPEC-EXPECT-FIELD test_spec_10_7_2_msb0.regA.C   15:8
+addrmap test_spec_10_7_2_msb0 {
+    msb0;
+
+    reg {
+        field {} A;
+        field {} B[3];
+        field {} C[8:15];
+    } regA @ 0x0;
+};
