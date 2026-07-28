@@ -186,8 +186,17 @@ public:
     void        accept_visitor(ElaboratedNodeVisitor &visitor) override;
 
     // Register-specific properties
-    uint32_t    register_width = 32; // Register bit width
+    uint32_t    register_width = 32; // Register bit width (10.1-e: default is 32)
     std::string register_reset_hex;  // Register reset value in 0x format
+
+    // Minimum software access width. Zero means the source did not specify one,
+    // in which case it defaults to register_width (10.6.1-d).
+    uint32_t access_width = 0;
+
+    uint32_t effective_access_width() const
+    {
+        return access_width != 0 ? access_width : register_width;
+    }
 
     // Find fields
     ElaboratedField *find_field_by_name(const std::string &name) const;
@@ -393,6 +402,10 @@ private:
     std::unique_ptr<ElaboratedField>       create_reserved_field(
         size_t msb, size_t lsb, const std::string &name);
     std::string generate_reserved_field_name(size_t msb, size_t lsb);
+
+    // Register property validation. Checks the constraints the standard states
+    // with "shall", which the elaborator previously accepted silently.
+    void validate_register_properties(ElaboratedReg *reg_node);
 
     // Field validation methods
     void validate_register_fields(ElaboratedReg *reg_node);

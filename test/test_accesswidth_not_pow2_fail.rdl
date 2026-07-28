@@ -1,0 +1,20 @@
+// Non-power-of-2 access width.
+// EXPECT_ELABORATION_FAILURE - accesswidth 48 violates SystemRDL 2.0 clause 10.6.1-b
+//
+// 10.6.1-b: "All registers shall have a accesswidth = 2^N, where N >= 3."
+// accesswidth is the minimum software access the register supports, so a value
+// that is not a machine access size has no meaning on any bus.
+addrmap test_accesswidth_not_pow2 {
+
+    reg bad_access {
+        regwidth    = 64;
+        accesswidth = 48;
+
+        field {
+            sw = rw;
+            hw = r;
+        } data[63:0];
+    };
+
+    bad_access reg0 @ 0x0000;
+};

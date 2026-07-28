@@ -121,24 +121,7 @@ addrmap test_comprehensive_gaps {
 
     edge_case edge @ 0x0010;
 
-    // Test 6: Non-power-of-2 register width
-    reg odd_width {
-        regwidth = 48;
-
-        field {
-            sw = rw;
-            hw = r;
-            desc = "First field";
-        } field1[11:0];     // bits 0-11
-
-        field {
-            sw = rw;
-            hw = r;
-            desc = "Last field";
-        } field2[47:36];    // bits 36-47
-
-        // Expected reserved field: RESERVED_35_12 (24 bits)
-    };
-
-    odd_width odd @ 0x0014;
+    // Non-power-of-2 register width moved to test_regwidth_not_pow2_fail.rdl.
+    // It was never exercised here: this file fails earlier on address overlap,
+    // so elaboration never reached that register.
 };

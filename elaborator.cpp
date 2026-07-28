@@ -460,6 +460,9 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node)
         return;
 
     if (auto reg_node = dynamic_cast<ElaboratedReg *>(node)) {
+        // Validate the register's own properties first: everything below assumes
+        // a usable register width, and gap filling would mask a missing field.
+        validate_register_properties(reg_node);
         // Assign automatic positions to fields that need them
         assign_automatic_field_positions(reg_node);
         // Validate register fields first
@@ -949,6 +952,12 @@ void SystemRDLElaborator::elaborate_local_property_assignment(
             if (prop_name == "regwidth" && value.type == PropertyValue::INTEGER) {
                 if (auto reg_node = dynamic_cast<ElaboratedReg *>(parent)) {
                     reg_node->register_width = static_cast<uint32_t>(value.int_val);
+                }
+            }
+            // Special handling for accesswidth property
+            else if (prop_name == "accesswidth" && value.type == PropertyValue::INTEGER) {
+                if (auto reg_node = dynamic_cast<ElaboratedReg *>(parent)) {
+                    reg_node->access_width = static_cast<uint32_t>(value.int_val);
                 }
             }
             // Special handling for reset written as a property assignment
@@ -1824,6 +1833,74 @@ StructDefinition *SystemRDLElaborator::find_struct_definition(const std::string 
 }
 
 // Field validation implementation
+namespace {
+
+bool is_power_of_two(uint32_t value)
+{
+    return value != 0 && (value & (value - 1)) == 0;
+}
+
+} // namespace
+
+// Validate the register properties the standard constrains with "shall".
+//
+// These were accepted silently before. A non-power-of-two register width in
+// particular breaks the addressing model: two 48-bit registers placed back to
+// back share a 32-bit bus word, so an access to one reaches into the other.
+void SystemRDLElaborator::validate_register_properties(ElaboratedReg *reg_node)
+{
+    if (!reg_node) {
+        return;
+    }
+
+    const uint32_t regwidth = reg_node->register_width;
+
+    // 10.1-f and 10.6.1-a: All registers shall have a width = 2^N, where N >= 3.
+    if (!is_power_of_two(regwidth) || regwidth < 8) {
+        report_error(
+            "Register '" + reg_node->inst_name + "' has regwidth " + std::to_string(regwidth)
+                + ", which violates SystemRDL 2.0 clauses 10.1-f and 10.6.1-a: regwidth shall be "
+                  "2^N with N >= 3 (8, 16, 32, 64, ...)",
+            reg_node->source_ctx);
+    }
+
+    // 10.6.1-b: All registers shall have an accesswidth = 2^N, where N >= 3.
+    const uint32_t accesswidth = reg_node->effective_access_width();
+    if (!is_power_of_two(accesswidth) || accesswidth < 8) {
+        report_error(
+            "Register '" + reg_node->inst_name + "' has accesswidth " + std::to_string(accesswidth)
+                + ", which violates SystemRDL 2.0 clause 10.6.1-b: accesswidth shall be 2^N with "
+                  "N >= 3 (8, 16, 32, 64, ...)",
+            reg_node->source_ctx);
+    }
+
+    // 10.6.1-c: The value of accesswidth shall not exceed the value of regwidth.
+    if (accesswidth > regwidth) {
+        report_error(
+            "Register '" + reg_node->inst_name + "' has accesswidth " + std::to_string(accesswidth)
+                + " greater than regwidth " + std::to_string(regwidth)
+                + ", which violates SystemRDL 2.0 clause 10.6.1-c",
+            reg_node->source_ctx);
+    }
+
+    // 10.1-c: At least one field shall be instantiated within a register.
+    // Checked before gap filling, which would otherwise insert a reserved field
+    // and hide the fact that the source declared none.
+    const bool has_field = std::any_of(
+        reg_node->children.begin(),
+        reg_node->children.end(),
+        [](const std::unique_ptr<ElaboratedNode> &child) {
+            return dynamic_cast<ElaboratedField *>(child.get()) != nullptr;
+        });
+    if (!has_field) {
+        report_error(
+            "Register '" + reg_node->inst_name
+                + "' contains no field, which violates SystemRDL 2.0 clause 10.1-c: at least one "
+                  "field shall be instantiated within a register",
+            reg_node->source_ctx);
+    }
+}
+
 void SystemRDLElaborator::validate_register_fields(ElaboratedReg *reg_node)
 {
     if (!reg_node)

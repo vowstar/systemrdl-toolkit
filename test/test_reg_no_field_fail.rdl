@@ -1,0 +1,14 @@
+// Register with no field.
+// EXPECT_ELABORATION_FAILURE - empty register violates SystemRDL 2.0 clause 10.1-c
+//
+// 10.1-c: "At least one field shall be instantiated within a register."
+// This is checked before reserved fields are generated for gaps, otherwise gap
+// filling would insert a field and hide the fact that the source declared none.
+addrmap test_reg_no_field {
+
+    reg empty_reg {
+        regwidth = 32;
+    };
+
+    empty_reg reg0 @ 0x0000;
+};

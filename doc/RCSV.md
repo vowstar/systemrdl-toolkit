@@ -60,7 +60,7 @@ RCSV defines a standard set of columns compatible with existing CSV2RDL tools:
 | `addrmap_name`   | Yes      | Address map instance name                        | `DEMO_CHIP` |
 | `reg_offset`     | Yes      | Register offset within address map (hex/decimal) | `0x1000`    |
 | `reg_name`       | Yes      | Register instance name                           | `CTRL_REG`  |
-| `reg_width`      | Yes      | Register width in bits                           | `32`        |
+| `reg_width`      | Yes      | Register width in bits, `2^N` with `N >= 3`      | `32`        |
 
 ### 4.2 Field Definition Columns
 
@@ -143,6 +143,11 @@ Rows are identified by which columns contain data:
 3. **Register Row**: Must appear before its associated field rows
 4. **Field Rows**: Must immediately follow their parent register row
 5. **Sequential Processing**: Rows processed in order, maintaining hierarchy
+6. **Register Width**: `reg_width` must be `2^N` with `N >= 3`, that is 8, 16,
+   32, 64 and so on. SystemRDL 2.0 requires this in clauses 10.1-f and
+   10.6.1-a, and elaboration rejects any other value. A register that holds
+   fewer meaningful bits is written at the next legal width with the unused
+   bits left to the automatic reserved field generation.
 
 ### 5.3 Example Structure
 

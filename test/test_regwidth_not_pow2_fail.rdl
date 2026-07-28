@@ -1,0 +1,32 @@
+// Non-power-of-2 register width.
+// EXPECT_ELABORATION_FAILURE - regwidth 48 violates SystemRDL 2.0 clauses 10.1-f and 10.6.1-a
+//
+// The standard states the rule twice: 10.1-f "All registers shall have a width
+// = 2^N, where N >= 3" and 10.6.1-a in the same words. This toolkit used to
+// accept any width. Two 48-bit registers placed back to back share a 32-bit bus
+// word, so an access to one reaches into the other, and the standard has no
+// machinery to describe that. Write regwidth = 64 with a 48-bit field instead:
+// the generated logic is identical and the reserved bits are tied off.
+//
+// Extracted from test_comprehensive_gaps_fail.rdl, where this register was
+// never actually reached because that file fails earlier on address overlap.
+addrmap test_regwidth_not_pow2 {
+
+    reg odd_width {
+        regwidth = 48;
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "First field";
+        } field1[11:0];
+
+        field {
+            sw = rw;
+            hw = r;
+            desc = "Last field";
+        } field2[47:36];
+    };
+
+    odd_width odd @ 0x0000;
+};

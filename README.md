@@ -25,14 +25,16 @@ overlaps. The elaborator also fills unused register bits with reserved fields.
   evaluated falls back to four elements.
 - Memory size semantics are incomplete. A memory without a recognized size is
   assigned 4096 bytes.
-- Reset range checking is skipped for fields that are 64 bits or wider.
 - Struct definitions can be parsed but are not used by the elaborated model.
+- Register widths must be `2^N` with `N >= 3`, as required by SystemRDL 2.0
+  clauses 10.1-f and 10.6.1-a. Earlier releases accepted any width.
 - RCSV is the schema defined by this project. It is not an arbitrary CSV
   register format, and each file describes one address map.
 - The templates under `test/` are test fixtures. They are not qualified C
   header or RTL generators.
-- JSON documents contain a format name and version, currently `1.0`. A
-  compatibility policy has not been defined.
+- JSON documents contain a format name and version. The elaborated models are
+  at `2.0` and the AST model is at `1.0`. A compatibility policy has not been
+  defined.
 - The installed C++ package currently fails a standalone consumer build. Its
   public header set and generic CMake target are incomplete.
 - The system dependency path used for offline builds is not covered by CI.
