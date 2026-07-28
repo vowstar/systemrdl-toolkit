@@ -425,6 +425,7 @@ set(SYSTEMRDL_LIB_SOURCES
     SystemRDLVisitor.cpp
     elaborator.cpp
     systemrdl_api.cpp
+    systemrdl_bitvector.cpp
 )
 
 # Define public header files for the library
@@ -435,6 +436,7 @@ set(SYSTEMRDL_LIB_PUBLIC_HEADERS
     SystemRDLBaseVisitor.h
     SystemRDLVisitor.h
     systemrdl_api.h
+    systemrdl_bitvector.h
 )
 
 # Define private header files
@@ -864,6 +866,23 @@ endif() # SYSTEMRDL_MAIN_PROJECT
 # ==============================================================================
 
 if(SYSTEMRDL_BUILD_TESTS)
+
+    # C++ unit tests. These compile the unit under test directly so they need
+    # neither the ANTLR4 runtime nor Python.
+    add_executable(test_bitvector
+        ${CMAKE_CURRENT_LIST_DIR}/test/test_bitvector.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/systemrdl_bitvector.cpp
+    )
+    target_include_directories(test_bitvector PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+    add_test(
+        NAME "unit_bitvector"
+        COMMAND test_bitvector
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+    set_tests_properties("unit_bitvector" PROPERTIES
+        LABELS "unit;bitvector"
+    )
+
 # Find all RDL test files
 file(GLOB RDL_TEST_FILES "${CMAKE_SOURCE_DIR}/test/*.rdl")
 
