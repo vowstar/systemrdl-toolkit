@@ -9,29 +9,38 @@ descriptions. It emits JSON models, converts RCSV to SystemRDL, and renders
 Inja templates supplied by the user. The project implements a tested subset
 of SystemRDL 2.0 semantics.
 
-## Validated Scope
+## Conformance
 
-The test corpus exercises parsing and elaboration paths for address maps,
-registers, register files, arrays with one dimension, parameters, enums,
-field access, reset values, and address calculation.
+The worked examples in SystemRDL 2.0 state the addresses and bit positions they
+produce. Those examples are in `test/test_spec_*.rdl` with the expected values
+recorded next to them, and `script/spec_conformance_check.py` compares them
+against what the elaborator produces on every build. The examples currently
+covered are the three addressing modes of 5.1.2.2.2, the allocation operators of
+5.1.2.5, the field packing of 10.7.2 in both bit orderings, and the alignment
+property of 12.3.2.
 
-Negative tests cover invalid field bounds, field overlaps, and instance address
-overlaps. The elaborator also fills unused register bits with reserved fields.
+Elaboration rejects a description that breaks a rule the standard states with
+"shall", naming the clause in the message. This includes register and access
+widths (10.1-f, 10.6.1), a register with no field (10.1-c), a register file with
+no register (12.2-c), field overlaps and bit ranges (10.1-d, 10.1-e), and mixing
+both bit ordering forms in one register (10.7.1-a).
 
-## Known Limits
+One behaviour goes beyond the standard: the bits between fields become real
+fields carrying `reserved = true`, so that generators do not each have to derive
+them. Filter on that property to ignore them.
 
-- Dynamic property assignments and property modifiers are not elaborated.
-- Only the first array dimension is elaborated.
-- Struct definitions can be parsed but are not used by the elaborated model.
-- Register widths must be `2^N` with `N >= 3`, as required by SystemRDL 2.0
-  clauses 10.1-f and 10.6.1-a. Earlier releases accepted any width.
+## Not Implemented
+
+- Dynamic property assignments and property modifiers.
+- Array dimensions beyond the first.
+- Struct definitions, which parse but do not reach the elaborated model.
+
+## Scope
+
 - RCSV is the schema defined by this project. It is not an arbitrary CSV
   register format, and each file describes one address map.
 - The templates under `test/` are test fixtures. They are not qualified C
   header or RTL generators.
-- JSON documents contain a format name and version. The elaborated models are
-  at `2.0` and the AST model is at `1.0`. A compatibility policy has not been
-  defined.
 - The system dependency path used for offline builds is not covered by CI.
 
 ## Data Flow
@@ -62,7 +71,7 @@ Elaborate the register description used by the smoke tests:
 ```
 
 The generated file identifies itself as `SystemRDL_SimplifiedModel` version
-`1.0` and contains the resolved address map, registers, fields, access
+`2.0` and contains the resolved address map, registers, fields, access
 properties, and reset values. Source build options are documented in
 [Build](doc/BUILD.md).
 
@@ -76,9 +85,10 @@ properties, and reset values. Source build options are documented in
 | `systemrdl_csv2rdl` | RCSV | SystemRDL source | None |
 | `systemrdl_render` | SystemRDL or RCSV plus an Inja template | Text produced by the supplied template | None |
 
-Run each tool with `--help`, or see [Command-Line Tools](doc/TOOLS.md). JSON
-consumers must validate both `format` and `version`; the three models use
-different schemas.
+Run each tool with `--help`, or see [Command-Line Tools](doc/TOOLS.md). Each
+document carries a `format` name and a `version`; the three formats share no
+schema. A field reset is a lowercase hex string such as `"0xff"`, and a field
+the source gives no reset carries no `reset` key.
 
 ## Documentation
 
