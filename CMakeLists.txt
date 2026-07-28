@@ -426,6 +426,7 @@ set(SYSTEMRDL_LIB_SOURCES
     elaborator.cpp
     systemrdl_api.cpp
     systemrdl_bitvector.cpp
+    systemrdl_number.cpp
 )
 
 # Define public header files for the library
@@ -437,6 +438,7 @@ set(SYSTEMRDL_LIB_PUBLIC_HEADERS
     SystemRDLVisitor.h
     systemrdl_api.h
     systemrdl_bitvector.h
+    systemrdl_number.h
 )
 
 # Define private header files
@@ -881,6 +883,21 @@ if(SYSTEMRDL_BUILD_TESTS)
     )
     set_tests_properties("unit_bitvector" PROPERTIES
         LABELS "unit;bitvector"
+    )
+
+    add_executable(test_number_parser
+        ${CMAKE_CURRENT_LIST_DIR}/test/test_number_parser.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/systemrdl_number.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/systemrdl_bitvector.cpp
+    )
+    target_include_directories(test_number_parser PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+    add_test(
+        NAME "unit_number_parser"
+        COMMAND test_number_parser
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+    set_tests_properties("unit_number_parser" PROPERTIES
+        LABELS "unit;number"
     )
 
 # Find all RDL test files
