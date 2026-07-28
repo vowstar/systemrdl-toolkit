@@ -1310,15 +1310,33 @@ file(GLOB_RECURSE PYTHON_SOURCE_FILES
 # Filter out unwanted python files
 list(FILTER PYTHON_SOURCE_FILES EXCLUDE REGEX ".*/(build|\.git|\.venv|__pycache__)/.+")
 
-# Collect Markdown files for linting
-file(GLOB_RECURSE MARKDOWN_FILES
-    "${CMAKE_SOURCE_DIR}/*.md"
-    "${CMAKE_SOURCE_DIR}/doc/*.md"
-)
+# Collect Markdown files for linting.
+#
+# Ask git which ones the repository actually contains. A recursive glob also
+# picks up whatever else happens to sit in the working tree, which makes the
+# target fail locally while passing in CI.
+set(MARKDOWN_FILES "")
+if(GIT_FOUND)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} ls-files "*.md"
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE MARKDOWN_FILES_RAW
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    string(REPLACE "\n" ";" MARKDOWN_FILES "${MARKDOWN_FILES_RAW}")
+    list(TRANSFORM MARKDOWN_FILES PREPEND "${CMAKE_SOURCE_DIR}/")
+    # Issue and pull request templates follow GitHub's conventions, not ours.
+    list(FILTER MARKDOWN_FILES EXCLUDE REGEX "/\\.github/")
+endif()
 
-# Filter out unwanted markdown files - exclude build artifacts, git files,
-# virtual environments, cache directories, GitHub templates, and test data
-list(FILTER MARKDOWN_FILES EXCLUDE REGEX ".*/(build|\.git|\.venv|__pycache__|\.github|test)/.*")
+if(NOT MARKDOWN_FILES)
+    file(GLOB_RECURSE MARKDOWN_FILES
+        "${CMAKE_SOURCE_DIR}/*.md"
+        "${CMAKE_SOURCE_DIR}/doc/*.md"
+    )
+    list(FILTER MARKDOWN_FILES EXCLUDE REGEX ".*/(build|\.git|\.venv|__pycache__|\.github|test)/.*")
+endif()
 
 # Also exclude specific files that may have special formatting requirements
 list(FILTER MARKDOWN_FILES EXCLUDE REGEX ".*/CHANGELOG\.md$")
