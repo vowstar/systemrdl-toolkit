@@ -292,9 +292,14 @@ void SystemRDLElaborator::elaborate_component_instance(
 {
     std::string inst_name = inst_ctx->ID()->getText();
 
-    // Check if it's an array
+    // Check if it's an array.
+    //
+    // A subscript means different things per 5.1.2 item 3)iii: for an addrmap,
+    // regfile, reg or mem it is the array size, but for a field it is the bit
+    // width. "field {} f[8]" is one 8-bit field, not eight one-bit fields, so
+    // it must not go through array expansion.
     auto array_suffixes = inst_ctx->array_suffix();
-    if (!array_suffixes.empty()) {
+    if (!array_suffixes.empty() && comp_type != "field") {
         elaborate_array_instance(def_ctx, inst_ctx, parent, current_address, comp_type);
     } else {
         // Single instance
@@ -1303,6 +1308,19 @@ void SystemRDLElaborator::elaborate_field_bit_range(
         // No bit range definition - field needs automatic positioning
         size_t field_width = 1; // Default width
 
+        // A subscript on a field is its bit width (5.1.2 item 3)iii).
+        if (auto array_suffixes = inst_ctx->array_suffix(); !array_suffixes.empty()) {
+            if (auto expr = array_suffixes[0]->expr()) {
+                const size_t declared = evaluate_integer_expression(expr);
+                if (declared == 0) {
+                    report_error(
+                        "Field '" + field_node->inst_name + "' declares a width of zero", inst_ctx);
+                } else {
+                    field_width = declared;
+                }
+            }
+        }
+
         // Check if fieldwidth property is defined
         auto fieldwidth_prop = field_node->get_property("fieldwidth");
         if (fieldwidth_prop && fieldwidth_prop->type == PropertyValue::INTEGER) {
@@ -2159,144 +2177,70 @@ void SystemRDLElaborator::assign_automatic_field_positions(ElaboratedReg *reg_no
     if (!reg_node)
         return;
 
-    // Collect fields that need automatic positioning (in order of appearance)
-    std::vector<ElaboratedField *> auto_position_fields;
-
-    for (const auto &child : reg_node->children) {
-        if (auto field = dynamic_cast<ElaboratedField *>(child.get())) {
-            auto auto_pos_prop = field->get_property("auto_position");
-            if (auto_pos_prop && auto_pos_prop->type == PropertyValue::BOOLEAN
-                && auto_pos_prop->bool_val) {
-                auto_position_fields.push_back(field);
-            }
-        }
-    }
-
-    // Group fields by base name to handle arrays correctly, keeping the groups
-    // in declaration order.
+    // 10.7: "any fields are packed contiguously, end-to-end, starting at index
+    // 0 for lsb0 registers". The pointer only moves forward. An explicitly
+    // positioned field pushes it past itself, and the bits it skips stay
+    // unused, as the worked example in 10.7.2 spells out.
     //
-    // A std::map here ordered the groups alphabetically, so bits were handed
-    // out by field name rather than by the order the source declares them.
-    std::vector<std::pair<std::string, std::vector<ElaboratedField *>>> field_groups;
-    std::unordered_map<std::string, size_t>                             group_index;
-
-    for (auto field : auto_position_fields) {
-        std::string base_name = field->inst_name;
-
-        // Extract base name from array field name (e.g., "enable[3]" -> "enable")
-        size_t bracket_pos = base_name.find('[');
-        if (bracket_pos != std::string::npos) {
-            base_name.resize(bracket_pos);
-        }
-
-        auto existing = group_index.find(base_name);
-        if (existing == group_index.end()) {
-            group_index[base_name] = field_groups.size();
-            field_groups.emplace_back(base_name, std::vector<ElaboratedField *>{field});
-        } else {
-            field_groups[existing->second].second.push_back(field);
-        }
-    }
-
-    // Assign positions starting from the next available bit
-    size_t current_bit = calculate_next_available_bit(reg_node);
-
-    // Process each field group
-    for (auto &group : field_groups) {
-        auto &fields = group.second;
-
-        // Sort array fields by their index to ensure proper ordering
-        std::sort(fields.begin(), fields.end(), [](ElaboratedField *a, ElaboratedField *b) {
-            // Extract array index from field name (e.g., "enable[3]" -> 3)
-            auto extract_index = [](const std::string &name) -> int {
-                size_t bracket_pos = name.find('[');
-                if (bracket_pos != std::string::npos) {
-                    size_t end_pos = name.find(']', bracket_pos);
-                    if (end_pos != std::string::npos) {
-                        std::string index_str
-                            = name.substr(bracket_pos + 1, end_pos - bracket_pos - 1);
-                        try {
-                            return std::stoi(index_str);
-                        } catch (...) {
-                        }
-                    }
-                }
-                return 0;
-            };
-
-            return extract_index(a->inst_name) < extract_index(b->inst_name);
-        });
-
-        // Assign consecutive bit positions to array elements
-        for (auto field : fields) {
-            // Calculate position for this field (each field is 1 bit by default)
-            size_t field_width = 1; // Default width for array elements
-
-            // Check if fieldwidth property is defined and override
-            auto fieldwidth_prop = field->get_property("fieldwidth");
-            if (fieldwidth_prop && fieldwidth_prop->type == PropertyValue::INTEGER) {
-                field_width = static_cast<size_t>(fieldwidth_prop->int_val);
-            }
-
-            size_t field_lsb = current_bit;
-            size_t field_msb = current_bit + field_width - 1;
-
-            // Check if field would exceed register width
-            if (field_msb >= reg_node->register_width) {
-                report_error(
-                    "Auto-positioned field '" + field->inst_name
-                        + "' would exceed register width. Field needs " + std::to_string(field_width)
-                        + " bits but only " + std::to_string(reg_node->register_width - current_bit)
-                        + " bits available from position " + std::to_string(current_bit),
-                    field->source_ctx);
-                continue;
-            }
-
-            // Assign the calculated position
-            field->lsb   = field_lsb;
-            field->msb   = field_msb;
-            field->width = field_width;
-
-            // Update properties
-            field->set_property("lsb", PropertyValue(static_cast<int64_t>(field_lsb)));
-            field->set_property("msb", PropertyValue(static_cast<int64_t>(field_msb)));
-            field->set_property("width", PropertyValue(static_cast<int64_t>(field_width)));
-            field->set_property("auto_position", PropertyValue(false)); // Clear auto-position flag
-
-            // Move to next available position
-            current_bit = field_msb + 1;
-        }
-    }
-}
-
-size_t SystemRDLElaborator::calculate_next_available_bit(ElaboratedReg *reg_node)
-{
-    if (!reg_node)
-        return 0;
-
+    // Fields are visited in declaration order, explicit ones included, because
+    // where an explicit field sits determines where the next automatic field
+    // lands.
     size_t next_bit = 0;
 
-    // Find the highest used bit among explicitly positioned fields
     for (const auto &child : reg_node->children) {
-        if (auto field = dynamic_cast<ElaboratedField *>(child.get())) {
-            auto auto_pos_prop = field->get_property("auto_position");
-            // Skip fields that need auto-positioning
-            if (auto_pos_prop && auto_pos_prop->type == PropertyValue::BOOLEAN
-                && auto_pos_prop->bool_val) {
-                continue;
-            }
-
-            // Only consider fields with valid bit positions
-            if (field->msb != SIZE_MAX && field->lsb != SIZE_MAX) {
-                size_t field_end = field->msb + 1;
-                if (field_end > next_bit) {
-                    next_bit = field_end;
-                }
-            }
+        auto field = dynamic_cast<ElaboratedField *>(child.get());
+        if (!field) {
+            continue;
         }
-    }
 
-    return next_bit;
+        auto       auto_pos_prop  = field->get_property("auto_position");
+        const bool needs_position = auto_pos_prop != nullptr
+                                    && auto_pos_prop->type == PropertyValue::BOOLEAN
+                                    && auto_pos_prop->bool_val;
+
+        if (!needs_position) {
+            if (field->msb != SIZE_MAX && field->msb + 1 > next_bit) {
+                next_bit = field->msb + 1;
+            }
+            continue;
+        }
+
+        // The fieldwidth property is assigned while the component body is
+        // elaborated, which happens after the instance subscript is read, so it
+        // is only visible here. It takes precedence over the subscript width.
+        size_t field_width = field->width > 0 ? field->width : 1;
+        if (auto fieldwidth_prop = field->get_property("fieldwidth");
+            fieldwidth_prop != nullptr && fieldwidth_prop->type == PropertyValue::INTEGER
+            && fieldwidth_prop->int_val > 0) {
+            field_width = static_cast<size_t>(fieldwidth_prop->int_val);
+        }
+
+        const size_t field_lsb = next_bit;
+        const size_t field_msb = next_bit + field_width - 1;
+
+        if (field_msb >= reg_node->register_width) {
+            report_error(
+                "Auto-positioned field '" + field->inst_name + "' would exceed register width. "
+                    + "Field needs " + std::to_string(field_width) + " bits but only "
+                    + std::to_string(
+                        reg_node->register_width > next_bit ? reg_node->register_width - next_bit
+                                                            : 0)
+                    + " bits available from position " + std::to_string(next_bit),
+                field->source_ctx);
+            continue;
+        }
+
+        field->lsb   = field_lsb;
+        field->msb   = field_msb;
+        field->width = field_width;
+
+        field->set_property("lsb", PropertyValue(static_cast<int64_t>(field_lsb)));
+        field->set_property("msb", PropertyValue(static_cast<int64_t>(field_msb)));
+        field->set_property("width", PropertyValue(static_cast<int64_t>(field_width)));
+        field->set_property("auto_position", PropertyValue(false));
+
+        next_bit = field_msb + 1;
+    }
 }
 
 // Instance address validation implementation

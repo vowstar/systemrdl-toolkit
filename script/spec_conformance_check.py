@@ -34,7 +34,6 @@ CASE_RE = re.compile(r"SPEC-CASE\s+(.+)")
 # Spec examples the elaborator does not satisfy yet. Keyed by test file name,
 # valued by the clause and a short description.
 KNOWN_FAILURES = {
-    "test_spec_10_7_2_packing.rdl": "10.7: field [N] is a width, and packing starts at bit 0",
     "test_spec_5_1_2_2_2_regalign.rdl": "5.1.2.2.2: regalign is the default addressing mode",
     "test_spec_5_1_2_2_2_fullalign.rdl": "5.1.2.2.2: fullalign addressing is not implemented",
     "test_spec_12_3_2_alignment.rdl": "12.3.1: the alignment property is not read",
