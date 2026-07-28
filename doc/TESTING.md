@@ -1,6 +1,8 @@
 # Testing and Validation
 
-The project includes testing capabilities with both C++ tools and Python validation scripts:
+Tests come in two kinds: C++ unit tests built by CTest, and Python checks that
+compare this toolkit against the standard and against the reference
+implementation.
 
 ## Setup Requirements
 
@@ -100,8 +102,6 @@ python3 script/json_output_validator.py --test --parser build/systemrdl_parser -
   - Three-tier validation: conversion success, syntax validation, content validation
   - Auto-discovers CSV test files using `test_csv_*.csv` naming convention
   - Cross-directory execution with automatic project path detection
-  - Comprehensive test coverage: basic, multiline, delimiters, fuzzy matching
-  - Professional validation framework with detailed reporting and exit codes
 
 ### 3. Spec Conformance Checker (`script/spec_conformance_check.py`)
 
@@ -183,29 +183,21 @@ ctest -R "rdl_semantic_validation" --output-on-failure
 - `test-elaborator` - SystemRDL elaborator tests
 - `test-all` - Complete test suite
 
-### Test Files
+### Adding a test
 
-The project includes 16 test files covering various SystemRDL features:
+Everything under `test/` is discovered by name, so adding a file is enough. No
+list needs updating, which is why this document does not keep one.
 
-- `test_minimal.rdl` - Basic SystemRDL structure
-- `test_basic_chip.rdl` - Simple chip layout
-- `test_bit_ranges.rdl` - Field bit range specifications
-- `test_complex_arrays.rdl` - Multi-dimensional arrays
-- `test_component_reuse.rdl` - Component definition reuse
-- `test_enum_struct.rdl` - Enumerations and structures
-- `test_expressions.rdl` - SystemRDL expressions
-- `test_field_properties.rdl` - Field property assignments
-- `test_memory.rdl` - Memory component definitions
-- `test_param_arrays.rdl` - Parameterized arrays
-- `test_param_expressions.rdl` - Parameter expressions
-- `test_parameterized.rdl` - Parameterized components
-- `test_parameters.rdl` - Parameter definitions
-- `test_regfile_array.rdl` - Register file arrays
-- `test_simple_enum.rdl` - Basic enumerations
-- `test_simple_param_ref.rdl` - Parameter references
-- `test_auto_reserved_fields.rdl` - Automatic reserved field generation for register gaps
-- `test_comprehensive_gaps.rdl` - Comprehensive gap detection scenarios and edge cases
-- `test_field_validation_comprehensive.rdl` - Comprehensive field validation test suite (overlaps, boundaries, mixed scenarios)
-- `test_field_overlap.rdl` - Field overlap detection test cases
-- `test_field_boundary.rdl` - Field boundary validation test cases
-- `test_address_overlap.rdl` - Register address overlap detection tests
+| Pattern | What it is |
+| -- | -- |
+| `test_*.rdl` | Elaborated and compared against the reference implementation |
+| `test_*_fail.rdl` | Expected to fail elaboration, and to fail for its own stated reason |
+| `test_spec_*.rdl` | A worked example from the standard, with `SPEC-EXPECT` lines giving the values the standard states |
+| `test_csv_*.csv` | An RCSV case for the converter |
+| `test_*.cpp` | A C++ unit test, built and run by CTest |
+
+A `_fail` file should break exactly one rule. If it fails for two reasons, the
+one you meant to test can rot away unnoticed while the file still passes.
+
+Start the file with a comment saying what it covers and, for a `_fail` file,
+`EXPECT_ELABORATION_FAILURE` with the reason.

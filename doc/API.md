@@ -3,14 +3,6 @@
 This toolkit has been refactored to provide both a standalone library (`libsystemrdl`) and command-line tools.
 The library enables easy integration of SystemRDL parsing and elaboration capabilities into other C++ projects.
 
-## Library Features
-
-- **Library Support**: Use SystemRDL functionality as a library in your C++ projects
-- **Command-line Tools**: Traditional command-line tools for parsing and elaboration
-- **Flexible Build**: Choose between shared/static libraries and optional components
-- **Modern CMake**: Full CMake package support with `find_package()` integration
-- **Code Quality**: Comprehensive testing and code quality tools
-
 ## Build Options
 
 The project provides several build options to customize what gets built:
@@ -277,7 +269,7 @@ The SystemRDL library provides two different JSON output formats to suit differe
 
 - Flattens the hierarchical structure into separate arrays for registers and regfiles
 - Includes full path information for each register and field
-- More user-friendly for register documentation and code generation
+- Easier to read when the register map is maintained by hand
 - Easier to process for applications that don't need hierarchy details
 
 **Example comparison:**
@@ -287,7 +279,7 @@ The SystemRDL library provides two different JSON output formats to suit differe
 auto ast_result = systemrdl::elaborate(rdl_content);
 // Output: {"addrmap": {"children": [{"reg": {"children": [{"field": ...}]}}]}}
 
-// Simplified JSON - flattened structure  
+// Simplified JSON - flattened structure
 auto simplified_result = systemrdl::elaborate_simplified(rdl_content);
 // Output: {"registers": [...], "regfiles": [...], "fields": [...]}
 ```
@@ -372,15 +364,17 @@ for (const auto& entry : address_map) {
 
 ### Modern API Components
 
-| Component | Header | Description |
-|-----------|--------|-------------|
-| `systemrdl::Result` | `systemrdl_api.h` | Result type for error handling |
-| `systemrdl::parse()` | `systemrdl_api.h` | Parse SystemRDL content to AST JSON |
-| `systemrdl::elaborate()` | `systemrdl_api.h` | Elaborate SystemRDL content to hierarchical JSON |
-| `systemrdl::elaborate_simplified()` | `systemrdl_api.h` | Elaborate SystemRDL content to simplified flattened JSON |
-| `systemrdl::csv_to_rdl()` | `systemrdl_api.h` | Convert CSV to SystemRDL format |
-| `systemrdl::file::*` | `systemrdl_api.h` | File-based operations namespace |
-| `systemrdl::stream::*` | `systemrdl_api.h` | Stream-based operations namespace |
+Everything below is declared in `<systemrdl/systemrdl_api.h>`.
+
+| Component | Description |
+| -- | -- |
+| `systemrdl::Result` | Result type for error handling |
+| `systemrdl::parse()` | Parse SystemRDL content to AST JSON |
+| `systemrdl::elaborate()` | Elaborate SystemRDL content to hierarchical JSON |
+| `systemrdl::elaborate_simplified()` | Elaborate SystemRDL content to simplified flattened JSON |
+| `systemrdl::csv_to_rdl()` | Convert CSV to SystemRDL format |
+| `systemrdl::file::*` | File-based operations namespace |
+| `systemrdl::stream::*` | Stream-based operations namespace |
 
 ### Traditional API Components
 
@@ -586,7 +580,7 @@ ANTLR4 complexity.
 - **File Operations**: Reading SystemRDL files using convenient wrappers
 - **Stream Processing**: Input/output using standard C++ streams
 - **CSV Integration**: Converting CSV data to SystemRDL format
-- **Error Handling**: Robust error management with Result types
+- **Error Handling**: errors are returned in the Result type, never thrown
 - **Elaboration**: Advanced SystemRDL design processing with arrays and hierarchies
 - **Performance**: Modern C++17 patterns with `string_view`
 

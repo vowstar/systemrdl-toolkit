@@ -1,65 +1,81 @@
+# Architecture
 
-# File Description
+How a register description becomes JSON, and the rules the code holds itself to.
+For where files live, read the tree in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-## Core C++ Components
+## Pipeline
 
-- `parser_main.cpp` - Main program for the SystemRDL parser with JSON export capability
-- `elaborator_main.cpp` - Main program for the SystemRDL elaborator with JSON export capability
-- `elaborator.cpp/.h` - Elaboration engine implementation for semantic analysis
-- `tools/cmdline_parser.h` - Command line argument parsing utilities
-- `CMakeLists.txt` - CMake build configuration with integrated testing and ANTLR4 management
+```text
+.rdl text
+   |  ANTLR4, from grammar/SystemRDL.g4
+   v
+parse tree
+   |  SystemRDLElaborator, src/elaborator.cpp
+   v
+ElaboratedNode tree     addrmap / regfile / reg / field / mem
+   |  src/systemrdl_api.cpp
+   v
+JSON
+```
 
-## CSV to SystemRDL Converter
+`systemrdl_api.cpp` also holds the RCSV reader, which produces `.rdl` text and
+then re-enters the same pipeline. There is no second parser.
 
-- `csv2rdl_main.cpp` - CSV to SystemRDL converter with header matching and multi-line support
-- `script/csv2rdl_validator.py` - Comprehensive validation suite for CSV converter testing
-- `test/test_csv_*.csv` - CSV test files covering various scenarios (basic, multiline, delimiters, fuzzy matching)
-- `test/TEST_CSV_README.md` - CSV test documentation and validation procedures
+## Elaborating a register
 
-## Grammar and Generated Files
+Order matters here, and each step depends on the one before it.
 
-- `grammar/SystemRDL.g4` - ANTLR4 grammar file for SystemRDL 2.0 specification
-- `src/generated/SystemRDLLexer.*` - Generated lexer (auto-generated from grammar)
-- `src/generated/SystemRDLParser.*` - Generated parser (auto-generated from grammar)
-- `src/generated/SystemRDLBaseVisitor.*` - Generated base visitor class (auto-generated from grammar)
-- `src/generated/SystemRDLVisitor.*` - Generated visitor interface (auto-generated from grammar)
+1. Validate the register's own properties. A bad width makes everything below
+   meaningless, so this runs first.
+2. Settle the bit ordering. `[low:high]` anywhere selects msb0, which decides
+   the direction field packing runs in.
+3. Position the fields that have no explicit range.
+4. Validate field ranges and overlaps.
+5. Fill the gaps between fields with reserved fields.
+6. Compute the size.
+7. Validate the reset values, before the next step clips them.
+8. Build the register reset image from the field values.
 
-## Test Resources
+Step 7 before step 8 is not cosmetic: building the image pins each reset value
+to its field width, after which an oversized value can no longer be detected.
 
-- `test/*.rdl` - 16 comprehensive SystemRDL test files covering various language features
-  - Basic structures, arrays, parameters, enumerations, memory components
-  - Complex expressions, bit ranges, component reuse patterns
-  - Register files, field properties, and address mapping scenarios
+## Placing an instance
 
-## Python Validation and Testing Scripts
+An address written with `@` is taken as given. Otherwise the instance is placed
+after its predecessor and then aligned, which can only happen once its size is
+known, which is only after its body has been elaborated. Its children have taken
+their addresses by then, so `place_instance` moves the whole subtree.
 
-- `script/rdl_semantic_validator.py` - SystemRDL semantic validation using official compiler
-  - Validates SystemRDL files against the official specification
-  - Demonstrates elaboration process with detailed node information
-  - Shows address maps, property inheritance, and array calculations
-  - Supports both single file and batch validation modes
+## Rules the code keeps
 
-- `script/json_output_validator.py` - JSON output validation and testing framework
-  - Validates AST JSON schema and structure compliance
-  - Validates elaborated model JSON format and structure
-  - Performs end-to-end testing with automatic JSON generation
-  - Compares consistency between parser and elaborator outputs
-  - Supports individual file validation and batch testing
+**Numbers enter through one door.** `parse_number` in `src/systemrdl_number.cpp`
+is the only way literal text becomes a value. `std::stoll` and `std::stoull`
+stop at the apostrophe of `8'hFF` and at the separator of `0x1_0000_0000` and
+return the prefix, which is how a register description silently acquires the
+wrong reset value.
 
-- `script/csv2rdl_validator.py` - CSV to SystemRDL converter validation suite
-  - Three-tier validation: conversion success, syntax validation, content validation
-  - Auto-discovers CSV test files using `test_csv_*.csv` naming convention
-  - Cross-directory execution with automatic project path detection
-  - Comprehensive test coverage: basic, multiline, delimiters, fuzzy matching
-  - Professional validation framework with detailed reporting and exit codes
+**A field value is a bit vector, not an integer.** `BitVector` is fixed width,
+so a 256-bit reset value and a 1-bit one take the same code path and there is no
+64-bit boundary to special-case.
 
-## Development Environment
+**Bit positions are normalised.** `msb` and `lsb` on a field always satisfy
+`msb >= lsb`, whichever ordering the source used. Only the register remembers
+which form was written.
 
-- `.venv/` - Python virtual environment with required dependencies
-  - `systemrdl-compiler` for semantic validation
-  - Python 3.13+ environment for running validation scripts
-- `.venv/pyvenv.cfg` - Virtual environment configuration
-- `requirements.txt` - Python dependencies specification
-  - Contains pinned versions of required packages
-  - Used for reproducible environment setup
-  - Install with: `pip install -r requirements.txt`
+**Parameters nest.** Scopes are a stack, because a parameterised register
+instantiated inside a parameterised regfile must still see the outer
+parameters.
+
+**Nothing is guessed.** A dimension that will not evaluate, a memory with no
+width, a register with no field: each is an error naming the clause it breaks.
+A plausible default is worse than a refusal, because it reaches RTL.
+
+## Where behaviour is decided
+
+| Question | File |
+| -- | -- |
+| What is valid SystemRDL syntax | `grammar/SystemRDL.g4` |
+| What a literal means | `src/systemrdl_number.cpp` |
+| Where fields and instances land | `src/elaborator.cpp` |
+| What the JSON looks like | `src/systemrdl_api.cpp` |
+| What the standard requires | `test/test_spec_*.rdl` |

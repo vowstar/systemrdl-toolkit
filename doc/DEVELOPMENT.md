@@ -108,7 +108,7 @@ make quality-all            # Run analysis with verbose output
 
 ### clang-format Configuration
 
-The project uses a comprehensive `.clang-format` configuration file located in the project root. Key formatting rules include:
+Formatting is defined by `.clang-format` in the project root:
 
 - **Column Limit**: 100 characters
 - **Indentation**: 4 spaces
@@ -128,7 +128,7 @@ Static analysis is configured with:
 
 - **Enabled Checks**: warning, style, performance
 - **Suppressions**: Configured in `.cppcheck-suppressions` file
-- **Target Files**: `elaborator.cpp`, `elaborator_main.cpp`, `parser_main.cpp`
+- **Target Files**: everything under `src/`, `tools/` and `example/`, excluding `src/generated/`
 
 ### Python Code Quality Standards
 
@@ -141,7 +141,7 @@ Static analysis is configured with:
 
 ### Markdown Linting Configuration
 
-The project uses **PyMarkdown** (pymarkdownlnt) for comprehensive Markdown linting. Configuration is stored in `.pymarkdown.json`:
+Markdown is linted by **PyMarkdown** (pymarkdownlnt), configured in `.pymarkdown.json`:
 
 - **Line Length**: 120 characters (MD013)
 - **Heading Style**: ATX headings (`#`) preferred (MD003)
@@ -219,7 +219,7 @@ make test-fast
 ### Analysis
 
 ```bash
-# Comprehensive quality analysis
+# Full quality analysis
 make quality-all
 
 # Detailed static analysis

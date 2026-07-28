@@ -240,7 +240,7 @@ addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,f
 ,,,,,ENABLE,0,0,0,RW,RW,Enable control bit
 ,,,,,MODE,1,2,0,RW,RW,"Operation mode
 - 0: Disabled
-- 1: Normal  
+- 1: Normal
 - 2: Debug"
 ,,0x0004,STATUS,32,,,,,,,Status register
 ,,,,,READY,0,0,0,RO,WO,System ready flag
@@ -250,7 +250,7 @@ addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,f
 **Key RCSV Features Shown:**
 
 - All 11 required columns present
-- Proper three-tier hierarchy (addrmap -> register -> field)  
+- Proper three-tier hierarchy (addrmap -> register -> field)
 - Multi-line description with CSV quoting
 - Mixed access patterns (RW/RO/WO combinations)
 - Complete field coverage within register width
@@ -259,7 +259,7 @@ addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,f
 
 #### RCSV Validation
 
-- **Comprehensive Checking**: Validates all RCSV compliance rules
+- **Checking**: Validates the RCSV rules in doc/RCSV.md
 - **Field Range Validation**: Detects overlapping fields and range errors
 - **Access Control Validation**: Ensures RW/RO/WO/NA values only
 - **Address Alignment**: Warns about unaligned register addresses
@@ -267,7 +267,7 @@ addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,f
 
 #### Header Matching
 
-- **Case-insensitive**: `AddrmapOffset` -> `addrmap_offset` 
+- **Case-insensitive**: `AddrmapOffset` -> `addrmap_offset`
 - **Fuzzy matching**: Handles typos with Levenshtein distance <=3
 - **Abbreviation support**: `sw_acc` -> `sw_access`, `hw_acc` -> `hw_access`
 - **RCSV Standard Names**: Recognizes all 11 required RCSV column names
@@ -624,10 +624,10 @@ The validation suite ensures full RCSV specification compliance:
 # Run complete RCSV validation suite
 python3 script/csv2rdl_validator.py
 
-# The validator performs comprehensive RCSV testing:
+# The validator covers:
 # 1. RCSV format compliance checking
 # 2. CSV2RDL conversion with validation
-# 3. SystemRDL syntax validation (using parser)  
+# 3. SystemRDL syntax validation (using parser)
 # 4. Generated content verification
 # 5. Field range and access pattern validation
 ```
@@ -644,10 +644,10 @@ python3 script/csv2rdl_validator.py
 
 ```bash
 # Convert RCSV-compliant CSV file to SystemRDL
-./build/systemrdl_csv2rdl test/test_csv_basic_example.csv
+./build/systemrdl_csv2rdl test/test_csv_basic_example.csv -o build/example.rdl
 
-# Validate generated SystemRDL syntax  
-./build/systemrdl_parser test/test_csv_basic_example.rdl
+# Validate generated SystemRDL syntax
+./build/systemrdl_parser build/example.rdl
 
 # Check RCSV compliance of your CSV files
 python3 script/csv2rdl_validator.py --check your_file.csv
