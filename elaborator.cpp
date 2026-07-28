@@ -363,13 +363,18 @@ void SystemRDLElaborator::elaborate_array_instance(
 
     if (!array_suffixes.empty()) {
         auto array_suffix = array_suffixes[0]; // Take the first array suffix
+        // A dimension that cannot be evaluated used to become four elements.
+        // Every instance after it then landed at the wrong address, silently.
+        size_t dim = 0;
         if (auto expr = array_suffix->expr()) {
-            // Get array size from expression
-            size_t dim = evaluate_integer_expression(expr);
-            dimensions.push_back(dim > 0 ? dim : 4); // Default to 4 if parsing fails
-        } else {
-            dimensions.push_back(4); // Default size
+            dim = evaluate_integer_expression(expr);
         }
+        if (dim == 0) {
+            report_error(
+                "Array dimension of instance '" + base_name + "' could not be evaluated", inst_ctx);
+            dim = 1;
+        }
+        dimensions.push_back(dim);
     }
 
     // Calculate base address
@@ -522,29 +527,51 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node)
         }
         regfile_node->size = max_addr - regfile_node->absolute_address;
         if (regfile_node->size == 0) {
-            regfile_node->size = 4; // Minimum size
+            // 12.2-c: At least one reg or regfile shall be instantiated within
+            // a regfile. An empty one used to be given a size of four bytes.
+            report_error(
+                "Register file '" + regfile_node->inst_name
+                    + "' instantiates no register or register file, which violates SystemRDL 2.0 "
+                      "clause 12.2-c",
+                regfile_node->source_ctx);
+            regfile_node->size = 4;
         }
     } else if (auto mem_node = dynamic_cast<ElaboratedMem *>(node)) {
-        // Memory size can be obtained from parameter or attribute
-        // First, try MEM_SIZE parameter
-        auto mem_size_param = resolve_parameter_reference("MEM_SIZE");
-        if (mem_size_param.type == PropertyValue::INTEGER && mem_size_param.int_val > 0) {
-            mem_node->size        = static_cast<Size>(mem_size_param.int_val);
-            mem_node->memory_size = static_cast<Size>(mem_size_param.int_val);
-        } else {
-            // Try SIZE parameter
-            auto size_param = resolve_parameter_reference("SIZE");
-            if (size_param.type == PropertyValue::INTEGER && size_param.int_val > 0) {
-                mem_node->size        = static_cast<Size>(size_param.int_val);
-                mem_node->memory_size = static_cast<Size>(size_param.int_val);
-            } else if (mem_node->memory_size > 0) {
-                mem_node->size = mem_node->memory_size;
+        // 11.3.1: a memory holds mementries entries of memwidth bits, so its
+        // size follows from those two properties. There is nothing to guess:
+        // mementries defaults to 1, and a missing memwidth is an error rather
+        // than an excuse to invent a size.
+        Size entries = 1; // 11.3.1-b
+        if (auto entries_prop = mem_node->get_property("mementries")) {
+            if (entries_prop->type == PropertyValue::INTEGER && entries_prop->int_val > 0) {
+                entries = static_cast<Size>(entries_prop->int_val);
             } else {
-                // Default memory size: 4KB
-                mem_node->size        = 4096;
-                mem_node->memory_size = 4096;
+                report_error(
+                    "Memory '" + mem_node->inst_name
+                        + "' has a mementries value that is not a positive integer, which violates "
+                          "SystemRDL 2.0 clause 11.3.1-a",
+                    mem_node->source_ctx);
             }
         }
+
+        Size width_bits = 0;
+        if (auto width_prop = mem_node->get_property("memwidth")) {
+            if (width_prop->type == PropertyValue::INTEGER && width_prop->int_val > 0) {
+                width_bits = static_cast<Size>(width_prop->int_val);
+            }
+        }
+        if (width_bits == 0) {
+            report_error(
+                "Memory '" + mem_node->inst_name
+                    + "' has no memwidth. SystemRDL 2.0 clause 11.3.1-d derives it from the "
+                      "register width, so assign memwidth explicitly",
+                mem_node->source_ctx);
+            width_bits = 32;
+        }
+
+        mem_node->data_width  = static_cast<size_t>(width_bits);
+        mem_node->memory_size = entries * ((width_bits + 7) / 8);
+        mem_node->size        = mem_node->memory_size;
 
         // Set memory type parameter
         auto type_param = resolve_parameter_reference("TYPE");
@@ -922,13 +949,18 @@ void SystemRDLElaborator::elaborate_named_array_instance(
 
     if (!array_suffixes.empty()) {
         auto array_suffix = array_suffixes[0]; // Take the first array suffix
+        // A dimension that cannot be evaluated used to become four elements.
+        // Every instance after it then landed at the wrong address, silently.
+        size_t dim = 0;
         if (auto expr = array_suffix->expr()) {
-            // Get array size from expression
-            size_t dim = evaluate_integer_expression(expr);
-            dimensions.push_back(dim > 0 ? dim : 4); // Default to 4 if parsing fails
-        } else {
-            dimensions.push_back(4); // Default size
+            dim = evaluate_integer_expression(expr);
         }
+        if (dim == 0) {
+            report_error(
+                "Array dimension of instance '" + base_name + "' could not be evaluated", inst_ctx);
+            dim = 1;
+        }
+        dimensions.push_back(dim);
     }
 
     // Calculate base address

@@ -21,11 +21,9 @@ overlaps. The elaborator also fills unused register bits with reserved fields.
 ## Known Limits
 
 - Dynamic property assignments and property modifiers are not elaborated.
-- Only the first array dimension is elaborated. A dimension that cannot be
-  evaluated falls back to four elements.
-- Memory size semantics are incomplete. A memory without a recognized size is
-  assigned 4096 bytes.
+- Only the first array dimension is elaborated.
 - Struct definitions can be parsed but are not used by the elaborated model.
+- `msb0` bit ordering is rejected rather than elaborated.
 - Register widths must be `2^N` with `N >= 3`, as required by SystemRDL 2.0
   clauses 10.1-f and 10.6.1-a. Earlier releases accepted any width.
 - RCSV is the schema defined by this project. It is not an arbitrary CSV
