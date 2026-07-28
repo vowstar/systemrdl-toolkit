@@ -1,4 +1,5 @@
 #include "elaborator.h"
+#include "systemrdl_number.h"
 #include <algorithm>
 #include <climits>
 #include <map>
@@ -6,6 +7,25 @@
 #include <sstream>
 
 namespace systemrdl {
+
+bool SystemRDLElaborator::parse_literal_int64(const std::string &text, int64_t &out)
+{
+    const NumberLiteral parsed = parse_number(text);
+    if (parsed.error) {
+        return false;
+    }
+
+    uint64_t magnitude = 0;
+    if (!parsed.value.to_uint64(magnitude)) {
+        return false;
+    }
+    if (magnitude > static_cast<uint64_t>(INT64_MAX)) {
+        return false;
+    }
+
+    out = static_cast<int64_t>(magnitude);
+    return true;
+}
 
 // ElaboratedNode implementation
 std::string ElaboratedNode::get_hierarchical_path() const
@@ -396,20 +416,11 @@ Address SystemRDLElaborator::evaluate_address_expression(SystemRDLParser::ExprCo
         return static_cast<Address>(result.int_val);
     }
 
-    // If unable to evaluate, try parsing as a number
-    std::string text = expr_ctx->getText();
-    if (!text.empty()) {
-        try {
-            Address addr_result = 0;
-            if (text.substr(0, 2) == "0x" || text.substr(0, 2) == "0X") {
-                addr_result = std::stoull(text, nullptr, 16);
-            } else {
-                addr_result = std::stoull(text, nullptr, 10);
-            }
-            return addr_result;
-        } catch (...) {
-            // Parsing failed, return 0
-        }
+    // If unable to evaluate, try parsing the raw text as a literal
+    const std::string text        = expr_ctx->getText();
+    int64_t           addr_result = 0;
+    if (parse_literal_int64(text, addr_result) && addr_result >= 0) {
+        return static_cast<Address>(addr_result);
     }
 
     return 0;
@@ -1175,15 +1186,9 @@ int64_t SystemRDLElaborator::evaluate_integer_expression_enhanced(
 
     // Try parsing string as a number
     if (result.type == PropertyValue::STRING) {
-        try {
-            std::string str = result.string_val;
-            if (str.substr(0, 2) == "0x" || str.substr(0, 2) == "0X") {
-                return std::stoll(str, nullptr, 16);
-            } else {
-                return std::stoll(str, nullptr, 10);
-            }
-        } catch (...) {
-            return 0;
+        int64_t parsed = 0;
+        if (parse_literal_int64(result.string_val, parsed)) {
+            return parsed;
         }
     }
 
@@ -1201,12 +1206,26 @@ PropertyValue SystemRDLElaborator::evaluate_expression_primary(
     if (auto literal = primary_ctx->literal()) {
         // Process number literal
         if (auto number = literal->number()) {
-            std::string num_str = number->getText();
-            int64_t     result  = 0;
-            if (num_str.substr(0, 2) == "0x" || num_str.substr(0, 2) == "0X") {
-                result = std::stoll(num_str, nullptr, 16);
-            } else {
-                result = std::stoll(num_str, nullptr, 10);
+            const std::string   num_str = number->getText();
+            const NumberLiteral parsed  = parse_number(num_str);
+            if (parsed.error) {
+                report_error(
+                    "Invalid numeric literal '" + num_str + "': " + parsed.error_message,
+                    primary_ctx);
+                return PropertyValue(static_cast<int64_t>(0));
+            }
+
+            int64_t result = 0;
+            if (!parse_literal_int64(num_str, result)) {
+                // The literal is well formed but wider than int64_t. Reject it
+                // rather than emit its low bits, which would look like a
+                // plausible but wrong value.
+                report_error(
+                    "Numeric literal '" + num_str + "' needs "
+                        + std::to_string(parsed.value.significant_bits())
+                        + " bits, which exceeds the 64-bit limit of the current value model",
+                    primary_ctx);
+                return PropertyValue(static_cast<int64_t>(0));
             }
             return PropertyValue(result);
         }
@@ -1316,10 +1335,11 @@ void SystemRDLElaborator::elaborate_field_bit_range(
             if (reset_value.type == PropertyValue::INTEGER) {
                 field_node->reset_value = static_cast<uint64_t>(reset_value.int_val);
             } else if (reset_value.type == PropertyValue::STRING) {
-                // Try to parse string as integer (for hex values like "0x1A")
-                try {
-                    field_node->reset_value = std::stoull(reset_value.string_val, nullptr, 0);
-                } catch (...) {
+                // Try to parse the string as a literal (for example "0x1A")
+                int64_t parsed = 0;
+                if (parse_literal_int64(reset_value.string_val, parsed) && parsed >= 0) {
+                    field_node->reset_value = static_cast<uint64_t>(parsed);
+                } else {
                     field_node->reset_value = 0;
                 }
             }
@@ -1525,19 +1545,17 @@ PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::st
 
         // If left is parameter, right is number
         if (left_val.type == PropertyValue::INTEGER && right_val.type == PropertyValue::STRING) {
-            try {
-                int64_t right_num = std::stoll(right);
+            int64_t right_num = 0;
+            if (parse_literal_int64(right, right_num)) {
                 return PropertyValue(left_val.int_val * right_num);
-            } catch (...) {
             }
         }
 
         // If right is parameter, left is number
         if (left_val.type == PropertyValue::STRING && right_val.type == PropertyValue::INTEGER) {
-            try {
-                int64_t left_num = std::stoll(left);
+            int64_t left_num = 0;
+            if (parse_literal_int64(left, left_num)) {
                 return PropertyValue(left_num * right_val.int_val);
-            } catch (...) {
             }
         }
     }
@@ -1562,19 +1580,17 @@ PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::st
 
         // If left is parameter, right is number
         if (left_val.type == PropertyValue::INTEGER && right_val.type == PropertyValue::STRING) {
-            try {
-                int64_t right_num = std::stoll(right);
+            int64_t right_num = 0;
+            if (parse_literal_int64(right, right_num)) {
                 return PropertyValue(left_val.int_val + right_num);
-            } catch (...) {
             }
         }
 
         // If right is parameter, left is number
         if (left_val.type == PropertyValue::STRING && right_val.type == PropertyValue::INTEGER) {
-            try {
-                int64_t left_num = std::stoll(left);
+            int64_t left_num = 0;
+            if (parse_literal_int64(left, left_num)) {
                 return PropertyValue(left_num + right_val.int_val);
-            } catch (...) {
             }
         }
     }
@@ -1599,10 +1615,9 @@ PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::st
 
         // If left is parameter, right is number
         if (left_val.type == PropertyValue::INTEGER && right_val.type == PropertyValue::STRING) {
-            try {
-                int64_t right_num = std::stoll(right);
+            int64_t right_num = 0;
+            if (parse_literal_int64(right, right_num)) {
                 return PropertyValue(left_val.int_val - right_num);
-            } catch (...) {
             }
         }
     }
@@ -1647,33 +1662,21 @@ PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::st
                 a_num = a_val.int_val;
                 a_ok  = true;
             } else {
-                try {
-                    a_num = std::stoll(a_str);
-                    a_ok  = true;
-                } catch (...) {
-                }
+                a_ok = parse_literal_int64(a_str, a_num);
             }
 
             if (b_val.type == PropertyValue::INTEGER) {
                 b_num = b_val.int_val;
                 b_ok  = true;
             } else {
-                try {
-                    b_num = std::stoll(b_str);
-                    b_ok  = true;
-                } catch (...) {
-                }
+                b_ok = parse_literal_int64(b_str, b_num);
             }
 
             if (c_val.type == PropertyValue::INTEGER) {
                 c_num = c_val.int_val;
                 c_ok  = true;
             } else {
-                try {
-                    c_num = std::stoll(c_str);
-                    c_ok  = true;
-                } catch (...) {
-                }
+                c_ok = parse_literal_int64(c_str, c_num);
             }
 
             if (a_ok && b_ok && c_ok) {
@@ -1706,10 +1709,9 @@ PropertyValue SystemRDLElaborator::evaluate_expression_from_string(const std::st
                     if (right_val.type == PropertyValue::INTEGER) {
                         return PropertyValue(inner_val.int_val * right_val.int_val);
                     } else {
-                        try {
-                            int64_t right_num = std::stoll(right_part);
+                        int64_t right_num = 0;
+                        if (parse_literal_int64(right_part, right_num)) {
                             return PropertyValue(inner_val.int_val * right_num);
-                        } catch (...) {
                         }
                     }
                 }

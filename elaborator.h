@@ -337,6 +337,17 @@ private:
 
     int64_t evaluate_integer_expression_enhanced(SystemRDLParser::ExprContext *expr_ctx);
 
+    // Parse one SystemRDL numeric literal into int64_t.
+    //
+    // This is the only way numeric literal text becomes a number. std::stoll
+    // and std::stoull must not be used on literal text: they stop at the
+    // apostrophe of 8'hFF and at the separator of 0x1_0000_0000, returning the
+    // prefix as if it were the value.
+    //
+    // Returns false when the text is not a literal or does not fit in int64_t,
+    // so a caller can never mistake a failure for a small value.
+    static bool parse_literal_int64(const std::string &text, int64_t &out);
+
     // Field bit range handling
     void elaborate_field_bit_range(
         SystemRDLParser::Component_instContext *inst_ctx, ElaboratedField *field_node);

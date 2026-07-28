@@ -1,0 +1,25 @@
+// Digit separators in numeric literals.
+//
+// The grammar allows an underscore anywhere after the first digit. std::stoull
+// stops at the first one, so 0x1_0000_0000 used to elaborate to 1 and every
+// register after it landed at the wrong address.
+addrmap test_underscore_numbers {
+
+    reg grouped {
+        regwidth = 32;
+
+        field { sw = rw; hw = r; } grouped_hex[15:0]  = 0xDE_AD;
+        field { sw = rw; hw = r; } grouped_sized[31:16] = 16'hBE_EF;
+    };
+
+    reg separators {
+        regwidth = 32;
+
+        field { sw = rw; hw = r; } decimal_groups[19:0] = 1_000_000;
+        field { sw = rw; hw = r; } binary_groups[27:20] = 8'b1111_0000;
+        field { sw = rw; hw = r; } dense[31:28]         = 4'h5;
+    };
+
+    grouped    reg_grouped    @ 0x1_000;
+    separators reg_separators @ 0x1_004;
+};

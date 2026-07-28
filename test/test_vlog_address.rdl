@@ -1,0 +1,17 @@
+// Sized literals used as instance addresses.
+//
+// An address written as 32'h1000 used to elaborate to 0x20, the decimal value
+// of the width prefix. Registers landed at addresses unrelated to the source
+// and the overlap checker then validated the wrong layout.
+addrmap test_vlog_address {
+
+    reg simple {
+        regwidth = 32;
+        field { sw = rw; hw = r; } data[31:0] = 0;
+    };
+
+    simple at_sized_hex     @ 32'h1000;
+    simple at_sized_decimal @ 32'd4100;
+    simple at_plain_hex     @ 0x1008;
+    simple at_grouped_hex   @ 0x1_00C;
+};

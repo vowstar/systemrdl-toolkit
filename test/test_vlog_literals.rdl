@@ -1,0 +1,51 @@
+// Verilog-style sized literals.
+//
+// Every reset value here used to elaborate to its width prefix: 8'hFF became
+// 8, 8'b1010_1010 became 8, and 8'd200 became 8. The literal text was handed
+// to std::stoll, which stops at the apostrophe and returns the digits before
+// it.
+addrmap test_vlog_literals {
+
+    reg bases {
+        regwidth = 32;
+
+        // One field per base specifier, all encoding the same kind of pattern.
+        field { sw = rw; hw = r; } hex_field[7:0]    = 8'hFF;
+        field { sw = rw; hw = r; } bin_field[15:8]   = 8'b1010_1010;
+        field { sw = rw; hw = r; } dec_field[23:16]  = 8'd200;
+        field { sw = rw; hw = r; } plain_field[31:24] = 0x5A;
+    };
+
+    reg case_variants {
+        regwidth = 32;
+
+        // The base specifier is case insensitive.
+        field { sw = rw; hw = r; } upper_hex[7:0]   = 8'HFF;
+        field { sw = rw; hw = r; } upper_bin[15:8]  = 8'B11110000;
+        field { sw = rw; hw = r; } upper_dec[23:16] = 8'D123;
+        field { sw = rw; hw = r; } lower_hex[31:24] = 8'h3c;
+    };
+
+    reg widths {
+        regwidth = 32;
+
+        // A sized literal keeps its declared width even when the value is small.
+        field { sw = rw; hw = r; } one_bit[0:0]    = 1'b1;
+        field { sw = rw; hw = r; } four_bits[4:1]  = 4'hA;
+        field { sw = rw; hw = r; } twelve_bits[16:5] = 12'hABC;
+        field { sw = rw; hw = r; } fifteen_bits[31:17] = 15'd32767;
+    };
+
+    reg wide_but_signed {
+        regwidth = 64;
+
+        // 63 bits, the widest value the current integer model can carry.
+        field { sw = rw; hw = r; } wide[62:0] = 63'h7FFF_FFFF_FFFF_FFFF;
+        field { sw = rw; hw = r; } top[63:63] = 1'b1;
+    };
+
+    bases         reg_bases         @ 0x0000;
+    case_variants reg_case_variants @ 0x0004;
+    widths        reg_widths        @ 0x0008;
+    wide_but_signed reg_wide        @ 0x0010;
+};
