@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SystemRDLParser.h"
+#include "systemrdl_bitvector.h"
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -25,10 +26,14 @@ using ArrayDimensions = std::vector<size_t>;
 // Property value type
 struct PropertyValue
 {
-    enum Type { STRING, INTEGER, BOOLEAN, ENUM } type;
+    // BITVECTOR carries a value of a known width that need not fit in int64_t.
+    // A 128-bit reset value has no other home: INTEGER would silently keep only
+    // its low bits.
+    enum Type { STRING, INTEGER, BOOLEAN, ENUM, BITVECTOR } type;
     std::string string_val;
     int64_t     int_val;
     bool        bool_val;
+    BitVector   bits_val;
 
     PropertyValue()
         : type(STRING)
@@ -53,6 +58,13 @@ struct PropertyValue
         , string_val("")
         , int_val(0)
         , bool_val(b)
+    {}
+    explicit PropertyValue(BitVector bits)
+        : type(BITVECTOR)
+        , string_val("")
+        , int_val(0)
+        , bool_val(false)
+        , bits_val(std::move(bits))
     {}
 };
 
@@ -190,10 +202,18 @@ public:
     void        accept_visitor(ElaboratedNodeVisitor &visitor) override;
 
     // Field-specific properties
-    size_t   msb         = 0; // Most significant bit
-    size_t   lsb         = 0; // Least significant bit
-    size_t   width       = 0; // Bit width
-    uint64_t reset_value = 0;
+    size_t msb   = 0; // Most significant bit
+    size_t lsb   = 0; // Least significant bit
+    size_t width = 0; // Bit width
+
+    // Reset value at the literal's natural width until the field geometry is
+    // final, then normalized to the field width. There is no 64-bit ceiling.
+    BitVector reset_value;
+
+    // Whether the source actually specified a reset. A field with no reset is
+    // undefined at power-up and must not be reported as resetting to zero:
+    // that difference decides whether reset logic is generated at all.
+    bool has_reset = false;
 
     // Access types
     enum AccessType { RW, R, W, W1C, W1S, W1T, W0C, W0S, W0T, NA };
@@ -348,6 +368,12 @@ private:
     // so a caller can never mistake a failure for a small value.
     static bool parse_literal_int64(const std::string &text, int64_t &out);
 
+    // Record a field reset value coming from either syntax that can carry one:
+    // the instance initializer "f[7:0] = 0xAB" and the property assignment
+    // "reset = 0xAB". Both must reach reset_value or the register reset image
+    // silently drops the field.
+    static void assign_field_reset(ElaboratedField *field, const PropertyValue &value);
+
     // Field bit range handling
     void elaborate_field_bit_range(
         SystemRDLParser::Component_instContext *inst_ctx, ElaboratedField *field_node);
@@ -436,10 +462,8 @@ private:
     void calculate_node_size(ElaboratedNode *node);
 
     // Register reset value calculation methods
-    void        calculate_register_reset_value(ElaboratedReg *reg_node);
-    void        validate_register_reset_value(ElaboratedReg *reg_node);
-    std::string uint64_to_binary_string(uint64_t value, size_t width);
-    std::string binary_string_to_hex(const std::string &binary);
+    void calculate_register_reset_value(ElaboratedReg *reg_node);
+    void validate_register_reset_value(ElaboratedReg *reg_node);
 
     // Error reporting
     void report_error(const std::string &message, antlr4::ParserRuleContext *ctx = nullptr);

@@ -8,6 +8,29 @@
 
 namespace systemrdl {
 
+void SystemRDLElaborator::assign_field_reset(ElaboratedField *field, const PropertyValue &value)
+{
+    if (!field) {
+        return;
+    }
+
+    // The value is kept at its natural width here; calculate_register_reset_value
+    // pins it to the field width once the geometry is final.
+    if (value.type == PropertyValue::BITVECTOR) {
+        field->reset_value = value.bits_val;
+    } else if (value.type == PropertyValue::INTEGER) {
+        field->reset_value = BitVector::from_uint64(static_cast<uint64_t>(value.int_val), 64);
+    } else if (value.type == PropertyValue::STRING) {
+        // Try to parse the string as a literal (for example "0x1A")
+        const NumberLiteral parsed = parse_number(value.string_val);
+        field->reset_value         = parsed.error ? BitVector(0) : parsed.value;
+    } else {
+        return;
+    }
+
+    field->has_reset = true;
+}
+
 bool SystemRDLElaborator::parse_literal_int64(const std::string &text, int64_t &out)
 {
     const NumberLiteral parsed = parse_number(text);
@@ -444,10 +467,12 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node)
         // Detect and fill register gaps before calculating size
         detect_and_fill_register_gaps(reg_node);
         reg_node->size = (reg_node->register_width + 7) / 8; // Byte count (round up)
+        // Validate reset values before the image is built: building it pins each
+        // value to its field width, after which an oversized value is no longer
+        // detectable.
+        validate_register_reset_value(reg_node);
         // Calculate register reset value after all fields are processed
         calculate_register_reset_value(reg_node);
-        // Validate register reset value consistency
-        validate_register_reset_value(reg_node);
     } else if (auto field_node = dynamic_cast<ElaboratedField *>(node)) {
         field_node->size = 0; // Field does not occupy independent address space
     } else if (auto regfile_node = dynamic_cast<ElaboratedRegfile *>(node)) {
@@ -509,56 +534,18 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node)
     }
 }
 
-// Helper function to convert uint64_t to binary string
-std::string SystemRDLElaborator::uint64_to_binary_string(uint64_t value, size_t width)
-{
-    std::string binary(width, '0');
-    for (size_t i = 0; i < width && i < 64; ++i) {
-        if (value & (1ULL << i)) {
-            binary[width - 1 - i] = '1';
-        }
-    }
-    return binary;
-}
-
-// Helper function to convert binary string to hexadecimal
-std::string SystemRDLElaborator::binary_string_to_hex(const std::string &binary)
-{
-    std::string hex_result;
-
-    // Process 4 bits at a time (1 hex digit = 4 binary bits)
-    for (size_t i = 0; i < binary.length(); i += 4) {
-        // Extract 4-bit nibble, pad with leading zeros if needed
-        std::string nibble = binary.substr(i, 4);
-        while (nibble.length() < 4) {
-            nibble = "0" + nibble;
-        }
-
-        // Convert 4-bit binary to decimal value
-        int val = 0;
-        for (char c : nibble) {
-            val = (val << 1) + (c - '0');
-        }
-
-        // Convert to hex character (lowercase)
-        char hex_char = (val < 10) ? ('0' + val) : ('a' + val - 10);
-        hex_result += hex_char;
-    }
-
-    return hex_result;
-}
-
-// Calculate register reset value using pure string operations
+// Build the register reset image from its fields.
+//
+// Both the register image and the field values are bit vectors, so a 256-bit
+// register is assembled by the same loop as an 8-bit one.
 void SystemRDLElaborator::calculate_register_reset_value(ElaboratedReg *reg_node)
 {
     if (!reg_node) {
         return;
     }
 
-    // Initialize binary string with all zeros
-    std::string bits(reg_node->register_width, '0');
+    BitVector image(reg_node->register_width);
 
-    // Set bits for each field
     for (const auto &child : reg_node->children) {
         if (auto field = dynamic_cast<ElaboratedField *>(child.get())) {
             // Skip fields with invalid bit positions
@@ -566,22 +553,22 @@ void SystemRDLElaborator::calculate_register_reset_value(ElaboratedReg *reg_node
                 continue;
             }
 
-            // Convert field reset value to binary string
-            size_t      field_width  = field->msb - field->lsb + 1;
-            std::string field_binary = uint64_to_binary_string(field->reset_value, field_width);
+            const size_t field_width = field->msb - field->lsb + 1;
 
-            // Set bits from LSB position
+            // Now that the geometry is final, pin the reset value to the field
+            // width so the exported property and the register image agree.
+            field->reset_value.resize(field_width);
+            if (field->has_reset) {
+                field->set_property("reset", PropertyValue(field->reset_value));
+            }
+
             for (size_t i = 0; i < field_width && (field->lsb + i) < reg_node->register_width; ++i) {
-                size_t bit_pos       = reg_node->register_width - 1 - (field->lsb + i);
-                size_t field_bit_pos = field_width - 1 - i;
-                bits[bit_pos]        = field_binary[field_bit_pos];
+                image.set_bit(field->lsb + i, field->reset_value.get_bit(i));
             }
         }
     }
 
-    // Convert binary string to hexadecimal and store
-    std::string hex_str          = binary_string_to_hex(bits);
-    reg_node->register_reset_hex = "0x" + hex_str;
+    reg_node->register_reset_hex = image.to_hex();
 }
 
 // Validate register reset value consistency and bounds
@@ -601,18 +588,15 @@ void SystemRDLElaborator::validate_register_reset_value(ElaboratedReg *reg_node)
                 continue;
             }
 
-            // Calculate maximum value for field width
-            size_t field_width = field->msb - field->lsb + 1;
-            if (field_width < 64) { // Avoid overflow for very large fields
-                uint64_t max_field_value = (1ULL << field_width) - 1;
-                if (field->reset_value > max_field_value) {
-                    report_error(
-                        "Field '" + field->inst_name + "' reset value "
-                            + std::to_string(field->reset_value) + " exceeds maximum value "
-                            + std::to_string(max_field_value) + " for "
-                            + std::to_string(field_width) + "-bit field",
-                        field->source_ctx);
-                }
+            // The check is the same at every width: no 64-bit special case.
+            const size_t field_width = field->msb - field->lsb + 1;
+            if (!field->reset_value.fits_in(field_width)) {
+                report_error(
+                    "Field '" + field->inst_name + "' reset value " + field->reset_value.to_hex()
+                        + " needs " + std::to_string(field->reset_value.significant_bits())
+                        + " bits and does not fit in the " + std::to_string(field_width)
+                        + "-bit field",
+                    field->source_ctx);
             }
         }
     }
@@ -967,6 +951,12 @@ void SystemRDLElaborator::elaborate_local_property_assignment(
                     reg_node->register_width = static_cast<uint32_t>(value.int_val);
                 }
             }
+            // Special handling for reset written as a property assignment
+            else if (prop_name == "reset") {
+                if (auto field_node = dynamic_cast<ElaboratedField *>(parent)) {
+                    assign_field_reset(field_node, value);
+                }
+            }
             // Special handling for encode attribute
             else if (prop_name == "encode" && value.type == PropertyValue::STRING) {
                 // Check if it's an enum type
@@ -1217,15 +1207,10 @@ PropertyValue SystemRDLElaborator::evaluate_expression_primary(
 
             int64_t result = 0;
             if (!parse_literal_int64(num_str, result)) {
-                // The literal is well formed but wider than int64_t. Reject it
-                // rather than emit its low bits, which would look like a
-                // plausible but wrong value.
-                report_error(
-                    "Numeric literal '" + num_str + "' needs "
-                        + std::to_string(parsed.value.significant_bits())
-                        + " bits, which exceeds the 64-bit limit of the current value model",
-                    primary_ctx);
-                return PropertyValue(static_cast<int64_t>(0));
+                // Wider than int64_t. Carry it as a bit vector so the value
+                // survives intact; arithmetic on such a literal is not
+                // supported and will simply not match the integer branches.
+                return PropertyValue(parsed.value);
             }
             return PropertyValue(result);
         }
@@ -1331,21 +1316,13 @@ void SystemRDLElaborator::elaborate_field_bit_range(
         if (auto reset_expr = field_reset->expr()) {
             PropertyValue reset_value = evaluate_property_value(reset_expr);
 
-            // Store reset value in both the field member and properties
-            if (reset_value.type == PropertyValue::INTEGER) {
-                field_node->reset_value = static_cast<uint64_t>(reset_value.int_val);
-            } else if (reset_value.type == PropertyValue::STRING) {
-                // Try to parse the string as a literal (for example "0x1A")
-                int64_t parsed = 0;
-                if (parse_literal_int64(reset_value.string_val, parsed) && parsed >= 0) {
-                    field_node->reset_value = static_cast<uint64_t>(parsed);
-                } else {
-                    field_node->reset_value = 0;
-                }
-            }
+            // Store reset value in both the field member and properties. The
+            // value is kept at its natural width here; calculate_register_reset_value
+            // pins it to the field width once the geometry is final.
+            assign_field_reset(field_node, reset_value);
 
             // Always store in properties for JSON export
-            field_node->set_property("reset", reset_value);
+            field_node->set_property("reset", PropertyValue(field_node->reset_value));
         }
     }
 }
@@ -2054,7 +2031,8 @@ std::unique_ptr<ElaboratedField> SystemRDLElaborator::create_reserved_field(
     field->msb         = msb;
     field->lsb         = lsb;
     field->width       = (msb >= lsb) ? (msb - lsb + 1) : 0;
-    field->reset_value = 0;
+    field->reset_value = BitVector(field->width);
+    field->has_reset   = true; // Reserved bits read back as zero
 
     // Set access properties for reserved fields
     field->sw_access = ElaboratedField::R;  // Software read-only
@@ -2066,7 +2044,7 @@ std::unique_ptr<ElaboratedField> SystemRDLElaborator::create_reserved_field(
     field->set_property("width", PropertyValue(static_cast<int64_t>(field->width)));
     field->set_property("sw", PropertyValue(std::string("r")));
     field->set_property("hw", PropertyValue(std::string("na")));
-    field->set_property("reset", PropertyValue(static_cast<int64_t>(0)));
+    field->set_property("reset", PropertyValue(field->reset_value));
     field->set_property("desc", PropertyValue(std::string("Reserved field - auto-generated")));
     field->set_property("reserved", PropertyValue(true));
 

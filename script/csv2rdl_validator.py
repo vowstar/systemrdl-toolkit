@@ -181,11 +181,24 @@ class CSV2RDLValidator:
                     if "fields" in reg:
                         all_fields.extend(reg["fields"])
 
-            # Check each expected reset value
+            # Check each expected reset value. Simplified model 2.0 emits reset
+            # as a hex string; 1.0 emitted a JSON number.
+            def reset_as_int(value):
+                if isinstance(value, bool) or value is None:
+                    return None
+                if isinstance(value, int):
+                    return value
+                if isinstance(value, str):
+                    try:
+                        return int(value, 16) if value.lower().startswith("0x") else int(value, 10)
+                    except ValueError:
+                        return None
+                return None
+
             for field_name, expected_reset in expected_reset_values:
                 found = False
                 for field in all_fields:
-                    if field.get("name") == field_name and field.get("reset") == expected_reset:
+                    if field.get("name") == field_name and reset_as_int(field.get("reset")) == expected_reset:
                         found = True
                         break
 

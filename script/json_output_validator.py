@@ -297,6 +297,29 @@ class JsonValidator:
             self.log_error(f"MSB ({field['msb']}) must be >= LSB ({field['lsb']}) at {path}")
             return False
 
+        # Validate reset value. Simplified model 2.0 emits it as a lowercase hex
+        # string so a value wider than 64 bits stays exact. A field with no
+        # reset omits the key entirely: that is not the same as resetting to 0.
+        if "reset" in field:
+            reset = field["reset"]
+            if not isinstance(reset, str):
+                self.log_error(f"reset must be a hex string at {path}, got {type(reset).__name__}")
+                return False
+            if not reset.startswith("0x"):
+                self.log_error(f"reset must start with '0x' at {path}, got '{reset}'")
+                return False
+            try:
+                reset_int = int(reset, 16)
+            except ValueError:
+                self.log_error(f"reset '{reset}' is not valid hex at {path}")
+                return False
+            if reset != reset.lower():
+                self.log_warning(f"reset uses uppercase hex at {path}, lowercase preferred")
+            max_value = (1 << field["width"]) - 1
+            if reset_int > max_value:
+                self.log_error(f"reset {reset} exceeds the {field['width']}-bit field width at {path}")
+                return False
+
         expected_width = field["msb"] - field["lsb"] + 1
         if field["width"] != expected_width:
             self.log_error(f"Width ({field['width']}) doesn't match bit range ({expected_width}) at {path}")

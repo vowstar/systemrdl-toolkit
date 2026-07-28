@@ -1,0 +1,43 @@
+// Registers wider than 64 bits.
+//
+// A reset value used to be stored in a uint64_t, so anything above bit 63 was
+// discarded and the range check was skipped entirely for fields 64 bits or
+// wider. A 128-bit reset value silently became its low 64 bits, or, once
+// literals parsed correctly, could not be represented at all.
+addrmap test_wide_register {
+
+    reg r128 {
+        regwidth = 128;
+        field { sw = rw; hw = r; } payload[127:0] = 128'hDEAD_BEEF_1234_5678_9ABC_DEF0_1122_3344;
+    };
+
+    reg r256 {
+        regwidth = 256;
+
+        // Split across the 64-bit boundary so a truncating implementation
+        // cannot produce the right register image by accident.
+        field { sw = rw; hw = r; } low[63:0]    = 64'hFFFF_FFFF_FFFF_FFFF;
+        field { sw = rw; hw = r; } mid[191:64]  = 128'h0F0F_0F0F_0F0F_0F0F_F0F0_F0F0_F0F0_F0F0;
+        field { sw = rw; hw = r; } high[255:192] = 64'h0123_4567_89AB_CDEF;
+    };
+
+    reg boundary {
+        regwidth = 64;
+
+        // The exact value that cannot be held in an int64_t.
+        field { sw = rw; hw = r; } all_ones[63:0] = 64'hFFFF_FFFF_FFFF_FFFF;
+    };
+
+    reg boundary_bits {
+        regwidth = 128;
+
+        field { sw = rw; hw = r; } below[62:0]   = 63'h7FFF_FFFF_FFFF_FFFF;
+        field { sw = rw; hw = r; } at[63:63]     = 1'b1;
+        field { sw = rw; hw = r; } above[127:64] = 64'h8000_0000_0000_0000;
+    };
+
+    r128          reg_128      @ 0x0000;
+    r256          reg_256      @ 0x0020;
+    boundary      reg_boundary @ 0x0040;
+    boundary_bits reg_bits     @ 0x0050;
+};

@@ -133,6 +133,10 @@ static nlohmann::json convert_property_to_json(const systemrdl::PropertyValue &p
         return prop.int_val;
     case systemrdl::PropertyValue::BOOLEAN:
         return prop.bool_val;
+    case systemrdl::PropertyValue::BITVECTOR:
+        // Hex string, not a JSON number: a 128-bit reset value has no exact
+        // JSON number representation.
+        return prop.bits_val.to_hex();
     case systemrdl::PropertyValue::ENUM:
         return prop.string_val; // Treat enum as string
     default:
@@ -329,8 +333,10 @@ static void extract_registers_simplified(
 static nlohmann::json convert_elaborated_node_to_simplified_json(systemrdl::ElaboratedNode &node)
 {
     nlohmann::json result;
-    result["format"]  = "SystemRDL_SimplifiedModel";
-    result["version"] = "1.0";
+    result["format"] = "SystemRDL_SimplifiedModel";
+    // 2.0: field "reset" is a hex string. It was a JSON number in 1.0, which
+    // cannot represent a reset value wider than 64 bits.
+    result["version"] = "2.0";
 
     // Extract addrmap information (should be the root node)
     nlohmann::json addrmap_obj;
@@ -1139,8 +1145,9 @@ Result elaborate(std::string_view rdl_content)
 
         // Create full JSON structure
         nlohmann::json json_result;
-        json_result["format"]  = "SystemRDL_ElaboratedModel";
-        json_result["version"] = "1.0";
+        json_result["format"] = "SystemRDL_ElaboratedModel";
+        // 2.0: the "reset" property is a hex string, as in the simplified model.
+        json_result["version"] = "2.0";
         json_result["model"]   = nlohmann::json::array();
         json_result["model"].push_back(elaborated_result);
 
