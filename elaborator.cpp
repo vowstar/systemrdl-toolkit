@@ -334,6 +334,12 @@ void SystemRDLElaborator::elaborate_component_instance(
         // Calculate size
         calculate_node_size(node.get());
 
+        // Alignment can only be applied once the size is known. An address
+        // given with @ is taken as written.
+        if (inst_ctx->inst_addr_fixed() == nullptr) {
+            instance_address = place_instance(node.get(), parent, inst_ctx, instance_address);
+        }
+
         // Save size, because node is about to be moved
         Size node_size = node->size;
 
@@ -372,10 +378,14 @@ void SystemRDLElaborator::elaborate_array_instance(
         base_address = evaluate_address_expression(fixed_addr->expr());
     }
 
-    // Calculate stride
-    Address stride = 4; // Default 4-byte alignment
+    // Calculate stride. Without an explicit += the elements sit end to end, so
+    // the stride is the element size, which is only known after the first
+    // element has been elaborated.
+    Address stride          = 0;
+    bool    stride_is_fixed = false;
     if (auto stride_addr = inst_ctx->inst_addr_stride()) {
-        stride = evaluate_address_expression(stride_addr->expr());
+        stride          = evaluate_address_expression(stride_addr->expr());
+        stride_is_fixed = true;
     }
 
     // Generate array instances
@@ -384,12 +394,13 @@ void SystemRDLElaborator::elaborate_array_instance(
         if (!node)
             continue;
 
-        node->inst_name        = base_name + "[" + std::to_string(i) + "]";
-        node->type_name        = comp_type;
-        node->source_ctx       = inst_ctx; // Save source context for error reporting
-        node->absolute_address = parent->absolute_address + base_address + i * stride;
-        node->array_dimensions = dimensions;
-        node->array_indices    = {i};
+        node->inst_name             = base_name + "[" + std::to_string(i) + "]";
+        node->type_name             = comp_type;
+        node->source_ctx            = inst_ctx; // Save source context for error reporting
+        node->absolute_address      = parent->absolute_address + base_address + i * stride;
+        node->array_dimensions      = dimensions;
+        node->array_indices         = {i};
+        const bool is_first_element = (i == 0);
 
         // Process field bit range for field components
         if (comp_type == "field") {
@@ -404,6 +415,23 @@ void SystemRDLElaborator::elaborate_array_instance(
         }
 
         calculate_node_size(node.get());
+
+        if (is_first_element) {
+            // Align the start of the array, then let the elements follow at the
+            // stride. 5.1.2.4-g: the alignment applies to the start of the
+            // array and the increment gives the offset between elements.
+            if (!stride_is_fixed) {
+                stride = node->size == 0 ? 4 : node->size;
+            }
+            if (inst_ctx->inst_addr_fixed() == nullptr) {
+                base_address = place_instance(node.get(), parent, inst_ctx, base_address);
+            }
+        } else {
+            shift_subtree_address(
+                node.get(),
+                (parent->absolute_address + base_address + i * stride) - node->absolute_address);
+        }
+
         parent->add_child(std::move(node));
     }
 
@@ -858,6 +886,12 @@ void SystemRDLElaborator::elaborate_named_component_instance(
         // Calculate size
         calculate_node_size(node.get());
 
+        // Alignment can only be applied once the size is known. An address
+        // given with @ is taken as written.
+        if (inst_ctx->inst_addr_fixed() == nullptr) {
+            instance_address = place_instance(node.get(), parent, inst_ctx, instance_address);
+        }
+
         // Save size, because node is about to be moved
         Size node_size = node->size;
 
@@ -903,10 +937,14 @@ void SystemRDLElaborator::elaborate_named_array_instance(
         base_address = evaluate_address_expression(fixed_addr->expr());
     }
 
-    // Calculate stride
-    Address stride = 4; // Default 4-byte alignment
+    // Calculate stride. Without an explicit += the elements sit end to end, so
+    // the stride is the element size, which is only known after the first
+    // element has been elaborated.
+    Address stride          = 0;
+    bool    stride_is_fixed = false;
     if (auto stride_addr = inst_ctx->inst_addr_stride()) {
-        stride = evaluate_address_expression(stride_addr->expr());
+        stride          = evaluate_address_expression(stride_addr->expr());
+        stride_is_fixed = true;
     }
 
     // Generate array instances
@@ -915,12 +953,13 @@ void SystemRDLElaborator::elaborate_named_array_instance(
         if (!node)
             continue;
 
-        node->inst_name        = base_name + "[" + std::to_string(i) + "]";
-        node->type_name        = comp_def.type;
-        node->source_ctx       = inst_ctx; // Save source context for error reporting
-        node->absolute_address = parent->absolute_address + base_address + i * stride;
-        node->array_dimensions = dimensions;
-        node->array_indices    = {i};
+        node->inst_name             = base_name + "[" + std::to_string(i) + "]";
+        node->type_name             = comp_def.type;
+        node->source_ctx            = inst_ctx; // Save source context for error reporting
+        node->absolute_address      = parent->absolute_address + base_address + i * stride;
+        node->array_dimensions      = dimensions;
+        node->array_indices         = {i};
+        const bool is_first_element = (i == 0);
 
         // Process component body (from named definition)
         if (auto body = comp_def.def_ctx->component_body()) {
@@ -928,6 +967,23 @@ void SystemRDLElaborator::elaborate_named_array_instance(
         }
 
         calculate_node_size(node.get());
+
+        if (is_first_element) {
+            // Align the start of the array, then let the elements follow at the
+            // stride. 5.1.2.4-g: the alignment applies to the start of the
+            // array and the increment gives the offset between elements.
+            if (!stride_is_fixed) {
+                stride = node->size == 0 ? 4 : node->size;
+            }
+            if (inst_ctx->inst_addr_fixed() == nullptr) {
+                base_address = place_instance(node.get(), parent, inst_ctx, base_address);
+            }
+        } else {
+            shift_subtree_address(
+                node.get(),
+                (parent->absolute_address + base_address + i * stride) - node->absolute_address);
+        }
+
         parent->add_child(std::move(node));
     }
 
@@ -1858,7 +1914,156 @@ bool is_power_of_two(uint32_t value)
     return value != 0 && (value & (value - 1)) == 0;
 }
 
+Address round_up_to(Address value, Address alignment)
+{
+    if (alignment <= 1) {
+        return value;
+    }
+    const Address remainder = value % alignment;
+    return remainder == 0 ? value : value + (alignment - remainder);
+}
+
+Address round_up_pow2(Address value)
+{
+    Address result = 1;
+    while (result < value) {
+        result <<= 1;
+    }
+    return result;
+}
+
+// Nearest ancestor, self included, carrying the named property.
+const PropertyValue *lookup_inherited(const ElaboratedNode *node, const std::string &name)
+{
+    for (const ElaboratedNode *current = node; current != nullptr; current = current->parent) {
+        auto it = current->properties.find(name);
+        if (it != current->properties.end()) {
+            return &it->second;
+        }
+    }
+    return nullptr;
+}
+
 } // namespace
+
+SystemRDLElaborator::AddressingMode SystemRDLElaborator::addressing_mode_for(
+    const ElaboratedNode *node) const
+{
+    if (auto prop = lookup_inherited(node, "addressing")) {
+        const std::string &mode = prop->string_val;
+        if (mode == "compact") {
+            return AddressingMode::Compact;
+        }
+        if (mode == "fullalign") {
+            return AddressingMode::FullAlign;
+        }
+    }
+    // 5.1.2.2.2 names regalign as the default.
+    return AddressingMode::RegAlign;
+}
+
+Address SystemRDLElaborator::alignment_for(const ElaboratedNode *node) const
+{
+    if (auto prop = lookup_inherited(node, "alignment")) {
+        if (prop->type == PropertyValue::INTEGER && prop->int_val > 0) {
+            return static_cast<Address>(prop->int_val);
+        }
+    }
+    return 0;
+}
+
+Address SystemRDLElaborator::mode_alignment_for(
+    AddressingMode mode, const ElaboratedNode *node, const ElaboratedNode *parent, Size size) const
+{
+    switch (mode) {
+    case AddressingMode::Compact:
+        // Registers stay aligned to the access width; the standard says nothing
+        // about the other components, so they pack without a gap.
+        if (auto reg_node = dynamic_cast<const ElaboratedReg *>(node)) {
+            // An accesswidth set on the register wins, then one inherited from
+            // an enclosing scope through a default assignment, and finally the
+            // register width itself (10.6.1-d).
+            if (reg_node->access_width != 0) {
+                return reg_node->access_width / 8;
+            }
+            if (auto inherited = lookup_inherited(parent, "accesswidth")) {
+                if (inherited->type == PropertyValue::INTEGER && inherited->int_val >= 8) {
+                    return static_cast<Address>(inherited->int_val) / 8;
+                }
+            }
+            return reg_node->register_width / 8;
+        }
+        return 1;
+
+    case AddressingMode::FullAlign:
+        // As regalign, except that the first element of an array is aligned to
+        // the size of the whole array (5.1.2.2.2 Example 4).
+        if (!node->array_dimensions.empty() && node->array_dimensions[0] > 1) {
+            return round_up_pow2(size * node->array_dimensions[0]);
+        }
+        return size == 0 ? 1 : round_up_pow2(size);
+
+    case AddressingMode::RegAlign:
+    default:
+        // 5.1.2.2.2 says a start address is "a multiple of its size (in
+        // bytes)", while 5.1.2.2.1 says an alignment value "shall be a power of
+        // two". For a size that is not a power of two the two sentences cannot
+        // both hold, so this rounds the size up to a power of two.
+        //
+        // A register can never reach the ambiguous case: 10.1-f forces a
+        // register width of 2^N, so a register size is always a power of two
+        // and both readings agree. Only a register file or address map whose
+        // contents do not add up to a power of two is affected, and rounding
+        // keeps those addresses identical to other SystemRDL tools.
+        return size == 0 ? 1 : round_up_pow2(size);
+    }
+}
+
+Address SystemRDLElaborator::place_instance(
+    ElaboratedNode                         *node,
+    const ElaboratedNode                   *parent,
+    SystemRDLParser::Component_instContext *inst_ctx,
+    Address                                 candidate_offset)
+{
+    if (!node) {
+        return candidate_offset;
+    }
+
+    // The parent is passed in because add_child, which links it, only runs
+    // after the instance has been placed.
+    const AddressingMode mode      = addressing_mode_for(parent);
+    Address              alignment = mode_alignment_for(mode, node, parent, node->size);
+
+    // An explicit alignment property applies to the container's children.
+    if (const Address prop_alignment = alignment_for(parent); prop_alignment > alignment) {
+        alignment = prop_alignment;
+    }
+
+    // The %= operator aligns this instance only (Table 4).
+    if (inst_ctx != nullptr) {
+        if (auto align_ctx = inst_ctx->inst_addr_align()) {
+            const Address alloc_alignment = evaluate_address_expression(align_ctx->expr());
+            if (alloc_alignment > alignment) {
+                alignment = alloc_alignment;
+            }
+        }
+    }
+
+    const Address aligned = round_up_to(candidate_offset, alignment);
+    shift_subtree_address(node, aligned - candidate_offset);
+    return aligned;
+}
+
+void SystemRDLElaborator::shift_subtree_address(ElaboratedNode *node, Address delta)
+{
+    if (!node || delta == 0) {
+        return;
+    }
+    node->absolute_address += delta;
+    for (const auto &child : node->children) {
+        shift_subtree_address(child.get(), delta);
+    }
+}
 
 // Validate the register properties the standard constrains with "shall".
 //

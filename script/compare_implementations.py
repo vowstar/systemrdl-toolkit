@@ -37,9 +37,7 @@ except ImportError:
 # The baseline is self-cleaning: a file listed here that starts matching is
 # reported as an error so the entry gets removed. Never add an entry to silence
 # a new regression.
-KNOWN_VALUE_MISMATCHES = {
-    "test_parameterized.rdl": "regfile instance address is not aligned to a power of two of its size",
-}
+KNOWN_VALUE_MISMATCHES = {}
 
 
 class ImplementationComparator:

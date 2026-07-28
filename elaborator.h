@@ -402,6 +402,38 @@ private:
         size_t msb, size_t lsb, const std::string &name);
     std::string generate_reserved_field_name(size_t msb, size_t lsb);
 
+    // Addressing mode from clause 5.1.2.2.2. regalign is the default.
+    enum class AddressingMode { Compact, RegAlign, FullAlign };
+
+    // Nearest addressing mode in scope. The property is inherited from the
+    // enclosing address map (Table 26).
+    AddressingMode addressing_mode_for(const ElaboratedNode *node) const;
+
+    // Nearest explicit alignment property in scope, or 0 when none is set.
+    // Inherited by all of a container's non-addrmap children (5.1.2.2.1).
+    Address alignment_for(const ElaboratedNode *node) const;
+
+    // Byte alignment an instance of this size must satisfy under the given mode.
+    Address mode_alignment_for(
+        AddressingMode        mode,
+        const ElaboratedNode *node,
+        const ElaboratedNode *parent,
+        Size                  size) const;
+
+    // Place an instance whose address was not given explicitly, honouring the
+    // addressing mode, the alignment property and the %= operator. Returns the
+    // offset relative to the parent, and moves the subtree if it shifted.
+    Address place_instance(
+        ElaboratedNode                         *node,
+        const ElaboratedNode                   *parent,
+        SystemRDLParser::Component_instContext *inst_ctx,
+        Address                                 candidate_offset);
+
+    // Move a node and everything below it by the given number of bytes.
+    // Alignment can only be applied once the size is known, which is after the
+    // body has been elaborated and the children have taken their addresses.
+    static void shift_subtree_address(ElaboratedNode *node, Address delta);
+
     // Register property validation. Checks the constraints the standard states
     // with "shall", which the elaborator previously accepted silently.
     void validate_register_properties(ElaboratedReg *reg_node);
