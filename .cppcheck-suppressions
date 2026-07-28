@@ -1,5 +1,6 @@
 constParameterPointer
 constVariablePointer
+functionStatic
 missingIncludeSystem
 noExplicitConstructor
 normalCheckLevelMaxBranches

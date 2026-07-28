@@ -200,7 +200,7 @@ jobs:
           done
           # Static libs and headers
           cp build/libsystemrdl_static.a pkg/lib/ 2>/dev/null || true
-          cp -r systemrdl_api.h elaborator.h systemrdl_version.h pkg/include/ 2>/dev/null || true
+          cp -r include/systemrdl/. pkg/include/ 2>/dev/null || true
           # Docs
           cp LICENSE README.md CONTRIBUTORS.md pkg/share/ 2>/dev/null || true
 

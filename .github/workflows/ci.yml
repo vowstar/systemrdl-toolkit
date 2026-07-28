@@ -232,7 +232,7 @@ jobs:
         cppcheck --language=c++ \
           --enable=warning,style,performance \
           --suppressions-list=.cppcheck-suppressions \
-          elaborator.cpp elaborator_main.cpp parser_main.cpp csv2rdl_main.cpp example/example.cpp 2>&1 | tee cppcheck.log
+          src/ tools/ example/ -isrc/generated 2>&1 | tee cppcheck.log
 
         # Check if there are any actual warnings or errors (not just information)
         if grep -E "(warning|error|style):" cppcheck.log > /dev/null; then
@@ -257,11 +257,10 @@ jobs:
         echo "-------------------------------------"
         # Ensure we're in the project root directory
         cd ${{ github.workspace }}
-        # Find all C++ source files and check formatting (including example directory)
-        find . -name "*.cpp" -o -name "*.h" | \
-          grep -E "\.(cpp|h)$" | \
-          grep -v SystemRDL | \
-          grep -v build | \
+        # Same file set as the format target in CMakeLists.txt. Generated
+        # parser sources are formatted by ANTLR4, not by this project.
+        find include src tools test example \( -name "*.cpp" -o -name "*.h" \) | \
+          grep -v "/generated/" | \
           xargs "$CLANG_FORMAT" --style=file:.clang-format --dry-run -Werror
 
     - name: Markdown linting
@@ -321,7 +320,7 @@ jobs:
         # Check if important documentation files exist
         test -f LICENSE
         # Check if all public headers have documentation
-        grep -q "^/\*\*" elaborator.h || echo "Warning: elaborator.h may need better documentation"
+        grep -q "^/\*\*" include/systemrdl/systemrdl_api.h || echo "Warning: systemrdl_api.h may need better documentation"
 
   compatibility-test:
     name: SystemRDL Compatibility Test

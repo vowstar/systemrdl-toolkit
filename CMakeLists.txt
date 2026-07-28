@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.16)
 # ==============================================================================
 
 # Extract version from header file
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/systemrdl_version.h" VERSION_H_CONTENT)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/include/systemrdl/systemrdl_version.h" VERSION_H_CONTENT)
 string(REGEX MATCH "#define SYSTEMRDL_VERSION_MAJOR ([0-9]+)" _ ${VERSION_H_CONTENT})
 set(SYSTEMRDL_VERSION_MAJOR ${CMAKE_MATCH_1})
 string(REGEX MATCH "#define SYSTEMRDL_VERSION_MINOR ([0-9]+)" _ ${VERSION_H_CONTENT})
@@ -419,27 +419,27 @@ endif()
 
 # Define source files for the library
 set(SYSTEMRDL_LIB_SOURCES
-    SystemRDLLexer.cpp
-    SystemRDLParser.cpp
-    SystemRDLBaseVisitor.cpp
-    SystemRDLVisitor.cpp
-    elaborator.cpp
-    systemrdl_api.cpp
-    systemrdl_bitvector.cpp
-    systemrdl_number.cpp
+    src/generated/SystemRDLLexer.cpp
+    src/generated/SystemRDLParser.cpp
+    src/generated/SystemRDLBaseVisitor.cpp
+    src/generated/SystemRDLVisitor.cpp
+    src/elaborator.cpp
+    src/systemrdl_api.cpp
+    src/systemrdl_bitvector.cpp
+    src/systemrdl_number.cpp
 )
 
 # Public header files. The library exposes a string in, string out API, so the
 # elaborator internals and the ANTLR4 generated headers stay private: installing
 # them would drag the ANTLR4 runtime headers into every consumer's include path.
 set(SYSTEMRDL_LIB_PUBLIC_HEADERS
-    systemrdl_api.h
-    systemrdl_version.h
+    include/systemrdl/systemrdl_api.h
+    include/systemrdl/systemrdl_version.h
 )
 
 # Define private header files
 set(SYSTEMRDL_LIB_PRIVATE_HEADERS
-    cmdline_parser.h
+    tools/cmdline_parser.h
 )
 
 # Create shared library if requested
@@ -456,9 +456,11 @@ if(SYSTEMRDL_BUILD_SHARED)
     # Include directories
     target_include_directories(systemrdl_shared
         PUBLIC
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/systemrdl>
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/systemrdl>
         PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
             ${ANTLR4_INCLUDE_DIRS}
             ${INJA_INCLUDE_DIRS}
             ${NLOHMANN_JSON_INCLUDE_DIRS}
@@ -510,9 +512,11 @@ if(SYSTEMRDL_BUILD_STATIC)
     # Include directories
     target_include_directories(systemrdl_static
         PUBLIC
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/systemrdl>
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/systemrdl>
         PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
             ${ANTLR4_INCLUDE_DIRS}
             ${INJA_INCLUDE_DIRS}
             ${NLOHMANN_JSON_INCLUDE_DIRS}
@@ -647,22 +651,22 @@ endif()
 if(SYSTEMRDL_BUILD_TOOLS)
 # Create AST printer executable
 add_executable(systemrdl_parser
-    parser_main.cpp
+    tools/parser_main.cpp
 )
 
 # Create Elaborator executable
 add_executable(systemrdl_elaborator
-    elaborator_main.cpp
+    tools/elaborator_main.cpp
 )
 
 # Create CSV to RDL converter executable
 add_executable(systemrdl_csv2rdl
-    csv2rdl_main.cpp
+    tools/csv2rdl_main.cpp
 )
 
 # Create template renderer executable
 add_executable(systemrdl_render
-    render_main.cpp
+    tools/render_main.cpp
 )
 
 # Create example application
@@ -698,28 +702,40 @@ add_executable(example
 
     # Add ANTLR4 include directories for tools that need generated headers
 target_include_directories(systemrdl_parser PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
+    ${CMAKE_CURRENT_SOURCE_DIR}/tools
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/systemrdl
     ${ANTLR4_INCLUDE_DIRS}
     ${NLOHMANN_JSON_INCLUDE_DIRS}
 )
 target_include_directories(systemrdl_elaborator PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
+    ${CMAKE_CURRENT_SOURCE_DIR}/tools
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/systemrdl
     ${ANTLR4_INCLUDE_DIRS}
     ${NLOHMANN_JSON_INCLUDE_DIRS}
 )
 target_include_directories(systemrdl_render PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
+    ${CMAKE_CURRENT_SOURCE_DIR}/tools
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/systemrdl
     ${ANTLR4_INCLUDE_DIRS}
     ${INJA_INCLUDE_DIRS}
     ${NLOHMANN_JSON_INCLUDE_DIRS}
 )
 target_include_directories(example PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/systemrdl
 )
 
     # CSV converter now needs the full library includes since it uses the API
 target_include_directories(systemrdl_csv2rdl PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
+    ${CMAKE_CURRENT_SOURCE_DIR}/tools
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/systemrdl
     ${ANTLR4_INCLUDE_DIRS}
     ${NLOHMANN_JSON_INCLUDE_DIRS}
 )
@@ -774,8 +790,9 @@ add_custom_target(download-antlr4-jar
 # Custom target to generate C++ files from grammar (not executed by default)
 add_custom_target(generate-antlr4-cpp
     COMMAND java -jar ${ANTLR4_JAR_PATH} -Dlanguage=Cpp -visitor -no-listener
+        -o ${CMAKE_SOURCE_DIR}/src/generated
         SystemRDL.g4
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/grammar
     DEPENDS download-antlr4-jar
     COMMENT "Generating C++ files from SystemRDL.g4 grammar"
 )
@@ -869,9 +886,9 @@ if(SYSTEMRDL_BUILD_TESTS)
     # neither the ANTLR4 runtime nor Python.
     add_executable(test_bitvector
         ${CMAKE_CURRENT_LIST_DIR}/test/test_bitvector.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/systemrdl_bitvector.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/src/systemrdl_bitvector.cpp
     )
-    target_include_directories(test_bitvector PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+    target_include_directories(test_bitvector PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src)
     add_test(
         NAME "unit_bitvector"
         COMMAND test_bitvector
@@ -883,10 +900,10 @@ if(SYSTEMRDL_BUILD_TESTS)
 
     add_executable(test_number_parser
         ${CMAKE_CURRENT_LIST_DIR}/test/test_number_parser.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/systemrdl_number.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/systemrdl_bitvector.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/src/systemrdl_number.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/src/systemrdl_bitvector.cpp
     )
-    target_include_directories(test_number_parser PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+    target_include_directories(test_number_parser PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src)
     add_test(
         NAME "unit_number_parser"
         COMMAND test_number_parser
@@ -1267,21 +1284,23 @@ else()
     set(PYMARKDOWN_AVAILABLE FALSE)
 endif()
 
-# Collect source files for quality checks
+# Collect the hand written C++ for the quality targets.
+#
+# This must cover the same files as the formatting check in CI. It used to name
+# each file, so a move left the list pointing at paths that no longer existed
+# and the format target reported success while CI failed on the same tree.
 file(GLOB_RECURSE CPP_SOURCE_FILES
-    "${CMAKE_SOURCE_DIR}/elaborator.cpp"
-    "${CMAKE_SOURCE_DIR}/elaborator_main.cpp"
-    "${CMAKE_SOURCE_DIR}/parser_main.cpp"
-    "${CMAKE_SOURCE_DIR}/csv2rdl_main.cpp"
-    "${CMAKE_SOURCE_DIR}/render_main.cpp"
-    "${CMAKE_SOURCE_DIR}/systemrdl_api.cpp"
+    "${CMAKE_SOURCE_DIR}/include/*.h"
+    "${CMAKE_SOURCE_DIR}/src/*.h"
+    "${CMAKE_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_SOURCE_DIR}/tools/*.h"
+    "${CMAKE_SOURCE_DIR}/tools/*.cpp"
+    "${CMAKE_SOURCE_DIR}/test/*.cpp"
     "${CMAKE_SOURCE_DIR}/example/*.cpp"
-    "${CMAKE_SOURCE_DIR}/*.h"
 )
 
-# Filter out build directory, generated files, and other unwanted files
-list(FILTER CPP_SOURCE_FILES EXCLUDE REGEX ".*/(build|\.git|\.venv|__pycache__)/.+")
-list(FILTER CPP_SOURCE_FILES EXCLUDE REGEX ".*/SystemRDL(Lexer|Parser|BaseVisitor|Visitor)\.(h|cpp)$")
+# Generated parser sources are formatted by ANTLR4, not by this project.
+list(FILTER CPP_SOURCE_FILES EXCLUDE REGEX "/src/generated/")
 
 # Collect Python files for quality checks
 file(GLOB_RECURSE PYTHON_SOURCE_FILES

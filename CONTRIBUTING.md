@@ -211,19 +211,25 @@ python json_output_validator.py
 
 ```bash
 systemrdl-toolkit/
-├── elaborator.h              # Main elaborator header
-├── elaborator.cpp            # Main elaborator implementation
-├── elaborator_main.cpp       # Elaborator executable
-├── parser_main.cpp           # Parser executable
-├── CMakeLists.txt            # Build configuration
-├── SystemRDL.g4             # ANTLR4 grammar file
-├── script/                   # Python testing scripts
-│   ├── compare_implementations.py
-│   ├── rdl_semantic_validator.py
-│   └── json_output_validator.py
-├── test/                     # SystemRDL test files
-├── .github/                  # GitHub workflows and templates
-└── docs/                     # Additional documentation
+├── include/systemrdl/        # Public headers, the whole installed interface
+│   ├── systemrdl_api.h       # String in, string out API
+│   └── systemrdl_version.h
+├── src/                      # Library sources and private headers
+│   ├── elaborator.{h,cpp}
+│   ├── systemrdl_api.cpp
+│   ├── systemrdl_bitvector.{h,cpp}
+│   ├── systemrdl_number.{h,cpp}
+│   └── generated/            # ANTLR4 output, never edited by hand
+├── tools/                    # Command line executables
+│   ├── cmdline_parser.h
+│   └── *_main.cpp
+├── grammar/SystemRDL.g4      # Grammar, input to src/generated
+├── test/                     # SystemRDL fixtures and C++ unit tests
+├── script/                   # Python validation and comparison
+├── example/                  # Minimal library consumer
+├── cmake/                    # Package config templates
+├── doc/                      # Documentation
+└── CMakeLists.txt
 ```
 
 ## Development Workflow

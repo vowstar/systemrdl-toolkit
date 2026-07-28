@@ -292,14 +292,16 @@ auto simplified_result = systemrdl::elaborate_simplified(rdl_content);
 // Output: {"registers": [...], "regfiles": [...], "fields": [...]}
 ```
 
-### Traditional API (Advanced Users)
+### Working against the elaborator directly
 
-For users who need direct access to ANTLR4 features or fine-grained control:
+The elaborator and the generated parser are internal. They are not installed,
+so this only applies inside the source tree, where `src/` and `src/generated/`
+are on the include path.
 
 ```cpp
-#include <systemrdl/elaborator.h>
-#include <systemrdl/SystemRDLLexer.h>
-#include <systemrdl/SystemRDLParser.h>
+#include "elaborator.h"
+#include "SystemRDLLexer.h"
+#include "SystemRDLParser.h"
 #include <antlr4-runtime.h>
 
 using namespace antlr4;
@@ -776,4 +778,4 @@ make test-json
 
 ### Private Headers (Implementation Details)
 
-- `cmdline_parser.h` - Command-line argument parsing utilities
+- `tools/cmdline_parser.h` - Command-line argument parsing utilities

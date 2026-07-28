@@ -142,14 +142,14 @@ The build system now includes integrated targets for ANTLR4 JAR download and C++
 # Download ANTLR4 JAR (uses configured version)
 make download-antlr4-jar
 
-# Generate C++ files from SystemRDL.g4
+# Generate C++ files from grammar/SystemRDL.g4
 make generate-antlr4-cpp
 ```
 
 The generated files will include relative paths in comments:
 
 ```cpp
-// Generated from SystemRDL.g4 by ANTLR 4.x.y
+// Generated from grammar/SystemRDL.g4 by ANTLR 4.x.y
 ```
 
 ### Manual Installation (Legacy)
@@ -187,17 +187,18 @@ sudo make install
 
 ```bash
 # Generate C++ lexer, parser, and visitor files from the grammar
-java -jar antlr-4.13.2-complete.jar -Dlanguage=Cpp -no-listener -visitor SystemRDL.g4
+cd grammar && java -jar ../antlr-4.13.2-complete.jar \
+  -Dlanguage=Cpp -no-listener -visitor -o ../src/generated SystemRDL.g4
 
 # This will generate the following files:
-# - SystemRDLLexer.h/cpp
-# - SystemRDLParser.h/cpp
-# - SystemRDLBaseVisitor.h/cpp
-# - SystemRDLVisitor.h
+# - src/generated/SystemRDLLexer.h/cpp
+# - src/generated/SystemRDLParser.h/cpp
+# - src/generated/SystemRDLBaseVisitor.h/cpp
+# - src/generated/SystemRDLVisitor.h
 ```
 
 **Note:** The generated C++ files are required for compilation. With the new build system, these are automatically
-managed, but if you modify the `SystemRDL.g4` grammar file, you can regenerate them using `make generate-antlr4-cpp`.
+managed, but if you modify the `grammar/SystemRDL.g4` grammar file, you can regenerate them using `make generate-antlr4-cpp`.
 
 ### Standard Build
 
@@ -230,9 +231,9 @@ ctest --output-on-failure --verbose
 
 ### Generated Files
 
-The following files are generated from `SystemRDL.g4`:
+The following files are generated from `grammar/SystemRDL.g4`:
 
-- `SystemRDLLexer.cpp/h`
-- `SystemRDLParser.cpp/h`
-- `SystemRDLBaseVisitor.cpp/h`
-- `SystemRDLVisitor.cpp/h`
+- `src/generated/SystemRDLLexer.cpp/h`
+- `src/generated/SystemRDLParser.cpp/h`
+- `src/generated/SystemRDLBaseVisitor.cpp/h`
+- `src/generated/SystemRDLVisitor.cpp/h`

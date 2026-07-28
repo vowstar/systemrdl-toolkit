@@ -12,12 +12,11 @@ of SystemRDL 2.0 semantics.
 ## Conformance
 
 The worked examples in SystemRDL 2.0 state the addresses and bit positions they
-produce. Those examples are in `test/test_spec_*.rdl` with the expected values
-recorded next to them, and `script/spec_conformance_check.py` compares them
-against what the elaborator produces on every build. The examples currently
-covered are the three addressing modes of 5.1.2.2.2, the allocation operators of
-5.1.2.5, the field packing of 10.7.2 in both bit orderings, and the alignment
-property of 12.3.2.
+produce. Those examples are part of the test suite with the expected values
+recorded beside them, and every build checks the elaborator against them. The
+examples covered are the three addressing modes of 5.1.2.2.2, the allocation
+operators of 5.1.2.5, the field packing of 10.7.2 in both bit orderings, and the
+alignment property of 12.3.2.
 
 Elaboration rejects a description that breaks a rule the standard states with
 "shall", naming the clause in the message. This includes register and access
@@ -95,12 +94,27 @@ Read [Build](doc/BUILD.md) for dependencies, [Command-Line Tools](doc/TOOLS.md)
 for CLI options, [RCSV](doc/RCSV.md) for the input schema, and
 [Testing](doc/TESTING.md) before changing parser or elaborator behavior.
 
-The library is consumed through one header,
-[`systemrdl_api.h`](systemrdl_api.h), which takes and returns strings. Link
-against `SystemRDL::systemrdl` after `find_package(SystemRDL)`. The elaborator
-internals and the generated parser are not part of the installed interface.
+## Using the Library
 
-The grammar in `SystemRDL.g4` is derived from the
+The whole interface is one header that takes and returns strings.
+
+```cmake
+find_package(SystemRDL REQUIRED)
+target_link_libraries(your_target PRIVATE SystemRDL::systemrdl)
+```
+
+```cpp
+#include <systemrdl/systemrdl_api.h>
+
+const auto result = systemrdl::elaborate_simplified(rdl_text);
+if (result.ok()) {
+    use(result.value());   // simplified JSON model
+}
+```
+
+The elaborator internals and the generated parser are not installed.
+
+The grammar is derived from the
 [SystemRDL Compiler](https://github.com/SystemRDL/systemrdl-compiler) project.
 
 License: [MIT](LICENSE). Bugs:

@@ -6,7 +6,7 @@
 - `parser_main.cpp` - Main program for the SystemRDL parser with JSON export capability
 - `elaborator_main.cpp` - Main program for the SystemRDL elaborator with JSON export capability
 - `elaborator.cpp/.h` - Elaboration engine implementation for semantic analysis
-- `cmdline_parser.h` - Command line argument parsing utilities
+- `tools/cmdline_parser.h` - Command line argument parsing utilities
 - `CMakeLists.txt` - CMake build configuration with integrated testing and ANTLR4 management
 
 ## CSV to SystemRDL Converter
@@ -18,11 +18,11 @@
 
 ## Grammar and Generated Files
 
-- `SystemRDL.g4` - ANTLR4 grammar file for SystemRDL 2.0 specification
-- `SystemRDLLexer.*` - Generated lexer (auto-generated from grammar)
-- `SystemRDLParser.*` - Generated parser (auto-generated from grammar)
-- `SystemRDLBaseVisitor.*` - Generated base visitor class (auto-generated from grammar)
-- `SystemRDLVisitor.*` - Generated visitor interface (auto-generated from grammar)
+- `grammar/SystemRDL.g4` - ANTLR4 grammar file for SystemRDL 2.0 specification
+- `src/generated/SystemRDLLexer.*` - Generated lexer (auto-generated from grammar)
+- `src/generated/SystemRDLParser.*` - Generated parser (auto-generated from grammar)
+- `src/generated/SystemRDLBaseVisitor.*` - Generated base visitor class (auto-generated from grammar)
+- `src/generated/SystemRDLVisitor.*` - Generated visitor interface (auto-generated from grammar)
 
 ## Test Resources
 
