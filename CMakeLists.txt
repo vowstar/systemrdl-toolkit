@@ -1053,6 +1053,18 @@ if(Python3_FOUND)
         DEPENDS "systemrdl_csv2rdl;systemrdl_parser"
     )
 
+    # Value Comparison Test - compares elaborated numbers against the reference implementation
+    add_test(
+        NAME "value_comparison"
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/compare_implementations.py
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    set_tests_properties("value_comparison" PROPERTIES
+        LABELS "value;validation;compare"
+        TIMEOUT 300
+        DEPENDS "systemrdl_elaborator"
+    )
+
     # Template Rendering Validation Test - validates template rendering with various templates
     add_test(
         NAME "template_render_validation"

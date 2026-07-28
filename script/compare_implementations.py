@@ -1,13 +1,46 @@
 #!/usr/bin/env python3
 """
 Compare SystemRDL implementations: Python (systemrdl-compiler) vs C++ (systemrdl_elaborator)
+
+Two independent comparisons are performed for each RDL file:
+
+1. Status comparison: does each implementation accept or reject the file?
+2. Value comparison: do the elaborated register addresses, register widths and
+   field bit positions and reset values agree numerically?
+
+The second comparison is the one that catches silently wrong numbers. A file
+where both implementations report success but disagree on a reset value is a
+defect, not a pass.
 """
 
 import glob
+import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
+
+try:
+    from systemrdl import RDLCompiler
+    from systemrdl.node import FieldNode, RegNode
+
+    SYSTEMRDL_AVAILABLE = True
+except ImportError:
+    SYSTEMRDL_AVAILABLE = False
+
+
+# Files whose elaborated values are known to disagree with the reference
+# implementation. Each entry is a defect that predates this comparison, not an
+# accepted difference.
+#
+# The baseline is self-cleaning: a file listed here that starts matching is
+# reported as an error so the entry gets removed. Never add an entry to silence
+# a new regression.
+KNOWN_VALUE_MISMATCHES = {
+    "test_parameterized.rdl": "regfile instance address ignores the BASE_ADDR parameter in '@ BASE_ADDR += 0x4'",
+    "test_simple_auto_position.rdl": "auto-positioned fields are not assigned in declaration order",
+}
 
 
 class ImplementationComparator:
@@ -29,6 +62,11 @@ class ImplementationComparator:
             "different_errors": [],
             "cpp_fail_python_pass": [],
             "python_fail_cpp_pass": [],
+            "value_mismatch": [],
+            "value_match": [],
+            "known_mismatch": [],
+            "stale_baseline": [],
+            "missing_nodes": [],
         }
 
     def check_expect_elaboration_failure(self, rdl_file):
@@ -64,7 +102,7 @@ class ImplementationComparator:
         """Run Python implementation and return (success, output)"""
         try:
             result = subprocess.run(
-                ["python3", self.python_script, rdl_file],
+                [sys.executable, self.python_script, rdl_file],
                 capture_output=True,
                 text=True,
                 timeout=10,
@@ -72,6 +110,182 @@ class ImplementationComparator:
             return result.returncode == 0, result.stdout + result.stderr
         except Exception as e:
             return False, str(e)
+
+    @staticmethod
+    def normalize_reset(value):
+        """Normalize a reset value to int.
+
+        The C++ simplified JSON emits reset as a plain number in format 1.0 and
+        as a hex string in format 2.0. Both are accepted so this comparison
+        works across the format change.
+        """
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return int(value)
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str):
+            text = value.strip().lower()
+            if not text:
+                return None
+            try:
+                if text.startswith("0x"):
+                    return int(text, 16)
+                return int(text, 10)
+            except ValueError:
+                return value
+        return value
+
+    def build_golden_model(self, rdl_file):
+        """Build the reference value model using the official systemrdl-compiler.
+
+        Returns a dict keyed by hierarchical path, or None if the reference
+        implementation cannot elaborate the file.
+        """
+        if not SYSTEMRDL_AVAILABLE:
+            return None
+        try:
+            rdlc = RDLCompiler()
+            rdlc.compile_file(rdl_file)
+            root = rdlc.elaborate()
+        except Exception:
+            return None
+
+        model = {}
+        try:
+            for node in root.descendants(unroll=True):
+                path = node.get_path()
+                if isinstance(node, RegNode):
+                    model[path] = {
+                        "kind": "reg",
+                        "address": node.absolute_address,
+                        "width": node.get_property("regwidth"),
+                    }
+                elif isinstance(node, FieldNode):
+                    model[path] = {
+                        "kind": "field",
+                        "msb": node.msb,
+                        "lsb": node.lsb,
+                        "width": node.width,
+                        "reset": self.normalize_reset(node.get_property("reset")),
+                    }
+        except Exception:
+            return None
+        return model
+
+    def build_cpp_model(self, rdl_file):
+        """Build the value model from the C++ elaborator simplified JSON output.
+
+        Auto-generated reserved fields are skipped: they are a documented
+        C++-only feature with no counterpart in the reference implementation.
+        """
+        json_fd, json_path = tempfile.mkstemp(suffix=".json")
+        os.close(json_fd)
+        try:
+            result = subprocess.run(
+                [self.cpp_exe, rdl_file, f"--json={json_path}"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode != 0:
+                return None
+            with open(json_path, "r", encoding="utf-8") as handle:
+                data = json.load(handle)
+        except Exception:
+            return None
+        finally:
+            if os.path.exists(json_path):
+                os.unlink(json_path)
+
+        model = {}
+        for register in data.get("registers", []):
+            path_parts = list(register.get("path", [])) + [register.get("inst_name", "")]
+            reg_path = ".".join(part for part in path_parts if part)
+            try:
+                address = int(str(register.get("absolute_address", "0x0")), 16)
+            except ValueError:
+                address = None
+            model[reg_path] = {
+                "kind": "reg",
+                "address": address,
+                "width": register.get("register_width"),
+            }
+            for field in register.get("fields", []):
+                if field.get("reserved") is True:
+                    continue
+                field_path = f"{reg_path}.{field.get('inst_name', '')}"
+                model[field_path] = {
+                    "kind": "field",
+                    "msb": field.get("msb"),
+                    "lsb": field.get("lsb"),
+                    "width": field.get("width"),
+                    "reset": self.normalize_reset(field.get("reset")),
+                }
+        return model
+
+    def compare_values(self, rdl_file, file_name):
+        """Compare elaborated numeric values against the reference implementation."""
+        golden = self.build_golden_model(rdl_file)
+        cpp_model = self.build_cpp_model(rdl_file)
+
+        if golden is None or cpp_model is None:
+            print("   [VALUE] Skipped (one side could not produce a model)")
+            return
+
+        compared_keys = {"reg": ("address", "width"), "field": ("msb", "lsb", "width", "reset")}
+
+        mismatches = []
+        for path in sorted(set(golden) & set(cpp_model)):
+            golden_node = golden[path]
+            cpp_node = cpp_model[path]
+            if golden_node["kind"] != cpp_node["kind"]:
+                continue
+            for key in compared_keys[golden_node["kind"]]:
+                golden_value = golden_node.get(key)
+                cpp_value = cpp_node.get(key)
+                if golden_value is None and cpp_value is None:
+                    continue
+                if golden_value != cpp_value:
+                    mismatches.append((path, key, golden_value, cpp_value))
+
+        missing = sorted(set(golden) - set(cpp_model))
+        extra = sorted(set(cpp_model) - set(golden))
+
+        known_reason = KNOWN_VALUE_MISMATCHES.get(file_name)
+
+        if mismatches:
+            if known_reason:
+                self.results["known_mismatch"].append((file_name, mismatches, known_reason))
+                print(f"   [VALUE] {len(mismatches)} known mismatch(es) [KNOWN]")
+                print(f"      known defect: {known_reason}")
+            else:
+                self.results["value_mismatch"].append((file_name, mismatches))
+                print(f"   [VALUE] {len(mismatches)} numeric mismatch(es) [FAIL]")
+            for path, key, golden_value, cpp_value in mismatches[:10]:
+                print(f"      {path}.{key}: reference={golden_value} cpp={cpp_value}")
+            if len(mismatches) > 10:
+                print(f"      ... and {len(mismatches) - 10} more")
+        else:
+            if known_reason:
+                self.results["stale_baseline"].append(file_name)
+                print("   [VALUE] All values match, but file is listed in KNOWN_VALUE_MISMATCHES [FAIL]")
+                print("      remove the entry from KNOWN_VALUE_MISMATCHES")
+            else:
+                self.results["value_match"].append(file_name)
+                print("   [VALUE] All compared values match [OK]")
+
+        if missing or extra:
+            self.results["missing_nodes"].append((file_name, missing, extra))
+            if missing:
+                print(f"   [VALUE] {len(missing)} node(s) present in reference but absent in C++ [WARNING]")
+                for path in missing[:5]:
+                    print(f"      missing: {path}")
+            if extra:
+                print(f"   [VALUE] {len(extra)} node(s) present in C++ but absent in reference [WARNING]")
+                for path in extra[:5]:
+                    print(f"      extra: {path}")
 
     def extract_error_messages(self, output):
         """Extract key error messages from output"""
@@ -115,6 +329,11 @@ class ImplementationComparator:
 
         print(f"   [CPP] C++ Result: {'[OK] PASS' if cpp_success else '[FAIL] FAIL'}")
         print(f"   [PY] Python Result: {'[OK] PASS' if python_success else '[FAIL] FAIL'}")
+
+        # Compare elaborated values whenever both sides accepted the file.
+        # Status agreement alone does not prove the numbers agree.
+        if not expect_failure and cpp_success and python_success:
+            self.compare_values(rdl_file, file_name)
 
         # For expected failures, invert the logic
         if expect_failure:
@@ -190,6 +409,10 @@ class ImplementationComparator:
             return False
 
         print(f"[VAL] Found {len(rdl_files)} RDL files for comparison")
+        if not SYSTEMRDL_AVAILABLE:
+            print("[FAIL] systemrdl-compiler is not importable; value comparison cannot run")
+            print("       Install it with: pip install -r requirements.txt")
+            return False
         print("=" * 80)
 
         # Test executables
@@ -205,7 +428,7 @@ class ImplementationComparator:
             self.compare_file(rdl_file)
 
         self.print_summary()
-        return True
+        return not self.results["value_mismatch"] and not self.results["stale_baseline"]
 
     def print_summary(self):
         """Print comparison summary"""
@@ -257,6 +480,37 @@ class ImplementationComparator:
                 print(f"     C++: {cpp_errors}")
                 print(f"     Python: {python_errors}")
 
+        # Value comparison is the gate: matching exit status proves nothing
+        # about the numbers that end up in RTL and firmware headers.
+        print("\n[VALUE] NUMERIC VALUE COMPARISON")
+        print(f"   [OK] Files with all values matching: {len(self.results['value_match'])}")
+        print(f"   [FAIL] Files with new value mismatches: {len(self.results['value_mismatch'])}")
+        print(f"   [KNOWN] Files with known value mismatches: {len(self.results['known_mismatch'])}")
+        print(f"   [WARNING]  Files with node set differences: {len(self.results['missing_nodes'])}")
+
+        if self.results["value_mismatch"]:
+            print(f"\n[FAIL] NEW VALUE MISMATCHES ({len(self.results['value_mismatch'])}):")
+            for file_name, mismatches in self.results["value_mismatch"]:
+                print(f"   - {file_name}: {len(mismatches)} mismatch(es)")
+                for path, key, golden_value, cpp_value in mismatches[:5]:
+                    print(f"     {path}.{key}: reference={golden_value} cpp={cpp_value}")
+
+        if self.results["known_mismatch"]:
+            print(f"\n[KNOWN] KNOWN VALUE MISMATCHES ({len(self.results['known_mismatch'])}):")
+            for file_name, mismatches, reason in self.results["known_mismatch"]:
+                print(f"   - {file_name}: {len(mismatches)} mismatch(es)")
+                print(f"     {reason}")
+
+        if self.results["stale_baseline"]:
+            print(f"\n[FAIL] STALE BASELINE ENTRIES ({len(self.results['stale_baseline'])}):")
+            for file_name in self.results["stale_baseline"]:
+                print(f"   - {file_name} now matches; remove it from KNOWN_VALUE_MISMATCHES")
+
+        if self.results["missing_nodes"]:
+            print(f"\n[WARNING]  NODE SET DIFFERENCES ({len(self.results['missing_nodes'])}):")
+            for file_name, missing, extra in self.results["missing_nodes"]:
+                print(f"   - {file_name}: {len(missing)} missing, {len(extra)} extra")
+
         # Analysis
         print("\n[INFO] ANALYSIS:")
         compatibility = len(self.results["both_pass"]) + len(self.results["both_fail"])
@@ -280,6 +534,8 @@ def main():
 
     comparator = ImplementationComparator(test_dir)
     success = comparator.run_comparison()
+    if not success:
+        print("\n[FAIL] Comparison failed: elaborated values disagree with the reference implementation")
     sys.exit(0 if success else 1)
 
 
