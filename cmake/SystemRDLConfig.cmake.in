@@ -91,12 +91,39 @@ set(SystemRDL_BUILD_TOOLS @SYSTEMRDL_BUILD_TOOLS@)
 # Include the targets file which defines SystemRDL::* targets
 include("${CMAKE_CURRENT_LIST_DIR}/SystemRDLTargets.cmake")
 
+# Provide the generic SystemRDL::systemrdl target.
+#
+# In the build tree this is an ALIAS, but install(EXPORT) does not export alias
+# targets, so the installed package only carries SystemRDL::systemrdl_shared and
+# SystemRDL::systemrdl_static. Without this block every consumer of the
+# installed package failed at configure time.
+if(NOT TARGET SystemRDL::systemrdl)
+    if(TARGET SystemRDL::systemrdl_shared)
+        set(_SystemRDL_default_target SystemRDL::systemrdl_shared)
+    elseif(TARGET SystemRDL::systemrdl_static)
+        set(_SystemRDL_default_target SystemRDL::systemrdl_static)
+    endif()
+
+    if(DEFINED _SystemRDL_default_target)
+        add_library(SystemRDL::systemrdl INTERFACE IMPORTED)
+        set_target_properties(SystemRDL::systemrdl PROPERTIES
+            INTERFACE_LINK_LIBRARIES "${_SystemRDL_default_target}"
+        )
+        unset(_SystemRDL_default_target)
+    endif()
+endif()
+
 # ==============================================================================
 # Interface for Consuming Projects
 # ==============================================================================
 
-# Provide helpful variables for projects that use SystemRDL
-get_target_property(SystemRDL_INCLUDE_DIRS SystemRDL::systemrdl INTERFACE_INCLUDE_DIRECTORIES)
+# Provide helpful variables for projects that use SystemRDL. The generic target
+# only forwards to the real one, so the include directories are read from that.
+if(TARGET SystemRDL::systemrdl_shared)
+    get_target_property(SystemRDL_INCLUDE_DIRS SystemRDL::systemrdl_shared INTERFACE_INCLUDE_DIRECTORIES)
+elseif(TARGET SystemRDL::systemrdl_static)
+    get_target_property(SystemRDL_INCLUDE_DIRS SystemRDL::systemrdl_static INTERFACE_INCLUDE_DIRECTORIES)
+endif()
 
 # Check that required targets exist
 if(SystemRDL_BUILD_SHARED AND NOT TARGET SystemRDL::systemrdl_shared)

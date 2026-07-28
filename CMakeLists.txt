@@ -429,16 +429,12 @@ set(SYSTEMRDL_LIB_SOURCES
     systemrdl_number.cpp
 )
 
-# Define public header files for the library
+# Public header files. The library exposes a string in, string out API, so the
+# elaborator internals and the ANTLR4 generated headers stay private: installing
+# them would drag the ANTLR4 runtime headers into every consumer's include path.
 set(SYSTEMRDL_LIB_PUBLIC_HEADERS
-    elaborator.h
-    SystemRDLLexer.h
-    SystemRDLParser.h
-    SystemRDLBaseVisitor.h
-    SystemRDLVisitor.h
     systemrdl_api.h
-    systemrdl_bitvector.h
-    systemrdl_number.h
+    systemrdl_version.h
 )
 
 # Define private header files

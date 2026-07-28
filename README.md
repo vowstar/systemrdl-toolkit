@@ -32,8 +32,6 @@ overlaps. The elaborator also fills unused register bits with reserved fields.
 - JSON documents contain a format name and version. The elaborated models are
   at `2.0` and the AST model is at `1.0`. A compatibility policy has not been
   defined.
-- The installed C++ package currently fails a standalone consumer build. Its
-  public header set and generic CMake target are incomplete.
 - The system dependency path used for offline builds is not covered by CI.
 
 ## Data Flow
@@ -86,9 +84,12 @@ different schemas.
 
 Read [Build](doc/BUILD.md) for dependencies, [Command-Line Tools](doc/TOOLS.md)
 for CLI options, [RCSV](doc/RCSV.md) for the input schema, and
-[Testing](doc/TESTING.md) before changing parser or elaborator behavior. The
-C++ entry points in the source tree are declared in
-[`systemrdl_api.h`](systemrdl_api.h).
+[Testing](doc/TESTING.md) before changing parser or elaborator behavior.
+
+The library is consumed through one header,
+[`systemrdl_api.h`](systemrdl_api.h), which takes and returns strings. Link
+against `SystemRDL::systemrdl` after `find_package(SystemRDL)`. The elaborator
+internals and the generated parser are not part of the installed interface.
 
 The grammar in `SystemRDL.g4` is derived from the
 [SystemRDL Compiler](https://github.com/SystemRDL/systemrdl-compiler) project.
