@@ -2087,8 +2087,13 @@ void SystemRDLElaborator::assign_automatic_field_positions(ElaboratedReg *reg_no
         }
     }
 
-    // Group fields by base name to handle arrays correctly
-    std::map<std::string, std::vector<ElaboratedField *>> field_groups;
+    // Group fields by base name to handle arrays correctly, keeping the groups
+    // in declaration order.
+    //
+    // A std::map here ordered the groups alphabetically, so bits were handed
+    // out by field name rather than by the order the source declares them.
+    std::vector<std::pair<std::string, std::vector<ElaboratedField *>>> field_groups;
+    std::unordered_map<std::string, size_t>                             group_index;
 
     for (auto field : auto_position_fields) {
         std::string base_name = field->inst_name;
@@ -2099,7 +2104,13 @@ void SystemRDLElaborator::assign_automatic_field_positions(ElaboratedReg *reg_no
             base_name.resize(bracket_pos);
         }
 
-        field_groups[base_name].push_back(field);
+        auto existing = group_index.find(base_name);
+        if (existing == group_index.end()) {
+            group_index[base_name] = field_groups.size();
+            field_groups.emplace_back(base_name, std::vector<ElaboratedField *>{field});
+        } else {
+            field_groups[existing->second].second.push_back(field);
+        }
     }
 
     // Assign positions starting from the next available bit

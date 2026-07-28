@@ -39,7 +39,6 @@ except ImportError:
 # a new regression.
 KNOWN_VALUE_MISMATCHES = {
     "test_parameterized.rdl": "regfile instance address is not aligned to a power of two of its size",
-    "test_simple_auto_position.rdl": "auto-positioned fields are not assigned in declaration order",
 }
 
 
