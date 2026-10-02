@@ -264,7 +264,7 @@ class JsonTester:
     def check_expect_elaboration_failure(self, rdl_path: str) -> bool:
         """Check if RDL file is marked as expecting elaboration failure"""
         try:
-            # Method 1: Check filename for _fail suffix (new naming convention)
+            # Method 1: the fixture name ends in _fail
             import os
 
             file_basename = os.path.basename(rdl_path)
