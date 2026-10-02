@@ -353,8 +353,7 @@ private:
         const std::string                      &type_name,
         SystemRDLParser::Component_instContext *inst_ctx,
         ElaboratedNode                         *parent,
-        Address                                &current_address,
-        bool                                    is_external);
+        Address                                &current_address);
 
     // A memory is external hardware, so an instance of one carries the
     // external keyword. is_external_inst_type reports whether the written

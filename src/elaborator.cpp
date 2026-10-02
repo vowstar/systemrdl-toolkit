@@ -948,7 +948,7 @@ void SystemRDLElaborator::elaborate_named_component_instance(
     // Check if it's an array
     auto array_suffixes = inst_ctx->array_suffix();
     if (!array_suffixes.empty()) {
-        elaborate_named_array_instance(type_name, inst_ctx, parent, current_address, is_external);
+        elaborate_named_array_instance(type_name, inst_ctx, parent, current_address);
     } else {
         // Single instance
         auto node = create_elaborated_node(comp_def.type);
@@ -993,8 +993,7 @@ void SystemRDLElaborator::elaborate_named_array_instance(
     const std::string                      &type_name,
     SystemRDLParser::Component_instContext *inst_ctx,
     ElaboratedNode                         *parent,
-    Address                                &current_address,
-    bool                                    is_external)
+    Address                                &current_address)
 {
     // Find component definition
     auto it = component_definitions_.find(type_name);
@@ -1005,8 +1004,6 @@ void SystemRDLElaborator::elaborate_named_array_instance(
 
     const ComponentDefinition &comp_def  = it->second;
     std::string                base_name = inst_ctx->ID()->getText();
-
-    check_mem_external(comp_def.type, base_name, is_external, inst_ctx);
 
     // Parse array dimensions
     auto                array_suffixes = inst_ctx->array_suffix();
