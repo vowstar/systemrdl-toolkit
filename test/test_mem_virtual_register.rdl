@@ -1,0 +1,20 @@
+// Memory width from the register it contains.
+//
+// 11.3.1-d derives memwidth from the register inside the memory, so a memory
+// that declares no memwidth but contains a register still has a size:
+// mementries entries of that register's width. This toolkit used to reject the
+// file as having no width, while the reference implementation sizes it.
+//
+// Both implementations elaborate this file, so the comparison test fails if
+// either of them stops accepting it.
+addrmap test_mem_virtual_register {
+    external mem {
+        mementries = 16;
+        reg {
+            field {
+                sw = rw;
+                hw = r;
+            } data[31:0];
+        } vreg;
+    } vreg_mem @ 0x1000;
+};

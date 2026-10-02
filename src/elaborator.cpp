@@ -542,9 +542,9 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node, const Elabor
     } else if (auto mem_node = dynamic_cast<ElaboratedMem *>(node)) {
         // 11.3.1: a memory holds mementries entries of memwidth bits, so its
         // size follows from those two properties, and mementries defaults to 1.
-        // 11.3.1-d defaults memwidth to the register width; that default is not
-        // derived here, so an absent memwidth is reported and the width falls
-        // back to 32 bits so that later instances keep their addresses.
+        // 11.3.1-d derives an absent memwidth from the register the memory
+        // contains. A memory that declares neither is an error: the size would
+        // otherwise be invented.
         Size entries = 1; // 11.3.1-b
         if (auto entries_prop = mem_node->get_property("mementries")) {
             if (entries_prop->type == PropertyValue::INTEGER && entries_prop->int_val > 0) {
@@ -562,6 +562,17 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node, const Elabor
         if (auto width_prop = mem_node->get_property("memwidth")) {
             if (width_prop->type == PropertyValue::INTEGER && width_prop->int_val > 0) {
                 width_bits = static_cast<Size>(width_prop->int_val);
+            }
+        }
+        if (width_bits == 0) {
+            // The body is already elaborated here, so a register inside the
+            // memory has its size. That register is what 11.3.1-d derives the
+            // width from.
+            for (const auto &child : mem_node->children) {
+                if (dynamic_cast<ElaboratedReg *>(child.get())) {
+                    width_bits = child->size * 8;
+                    break;
+                }
             }
         }
         if (width_bits == 0) {
