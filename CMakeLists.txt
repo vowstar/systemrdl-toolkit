@@ -934,17 +934,17 @@ endforeach()
 foreach(rdl_file ${RDL_TEST_FILES})
     get_filename_component(test_name ${rdl_file} NAME_WE)
 
-    # Check if this is an expected failure test - support both methods:
-    # 1. New method: filename contains "_fail" suffix
-    # 2. Legacy method: file content contains "EXPECT_ELABORATION_FAILURE"
+    # Check if this is an expected failure test:
+    # 1. The fixture name ends in "_fail"
+    # 2. The fixture marks itself with EXPECT_ELABORATION_FAILURE in its first lines
     string(FIND "${test_name}" "_fail" is_failure_test_by_name)
 
     set(expect_failure FALSE)
     if(is_failure_test_by_name GREATER -1)
-        # New naming convention: test_xxx_fail.rdl
+        # Expected-failure fixture: test_xxx_fail.rdl
         set(expect_failure TRUE)
     else()
-        # Legacy method: check file content for EXPECT_ELABORATION_FAILURE
+        # A fixture that marks itself instead of carrying the suffix
         file(READ ${rdl_file} file_content)
         string(FIND "${file_content}" "EXPECT_ELABORATION_FAILURE" expect_failure_pos)
         if(expect_failure_pos GREATER -1)
@@ -1035,10 +1035,10 @@ if(Python3_FOUND)
 
         set(is_failure_test FALSE)
         if(is_failure_test_by_name GREATER -1)
-            # New naming convention: test_xxx_fail.rdl
+            # Expected-failure fixture: test_xxx_fail.rdl
             set(is_failure_test TRUE)
         else()
-            # Legacy method: check file content for EXPECT_ELABORATION_FAILURE
+            # A fixture that marks itself instead of carrying the suffix
             file(READ ${rdl_file} file_content)
             string(FIND "${file_content}" "EXPECT_ELABORATION_FAILURE" expect_failure_pos)
             if(expect_failure_pos GREATER -1)
@@ -1474,7 +1474,7 @@ if(PYTHON_EXECUTABLE)
     # Run Python linting
     add_custom_target(python-lint
         COMMAND ${CMAKE_COMMAND} -E echo "Running Python linting..."
-        COMMAND ${PYTHON_EXECUTABLE} -m flake8 ${PYTHON_SOURCE_FILES} --count --exit-zero --max-line-length=127 --ignore=C901,W503,E226 --statistics || ${CMAKE_COMMAND} -E echo "Python linting completed"
+        COMMAND ${PYTHON_EXECUTABLE} -m flake8 ${PYTHON_SOURCE_FILES} --count --max-line-length=127 --ignore=C901,W503,E226 --statistics
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Running Python linting with flake8"
     )
