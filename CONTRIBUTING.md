@@ -5,12 +5,10 @@ This document provides guidelines and information for contributors.
 
 ## Project Overview
 
-The SystemRDL Toolkit is a C++ implementation of a SystemRDL 2.0 compiler that provides:
-
-- High-performance SystemRDL parsing and elaboration
-- 100% compatibility with the official SystemRDL specification
-- Advanced validation features including instance address overlap detection
-- JSON output for integration with other tools
+The SystemRDL Toolkit is a C++17 parser and elaborator for SystemRDL register
+descriptions. It emits JSON models, converts RCSV to SystemRDL, and renders Inja
+templates supplied by the user. It implements a tested subset of SystemRDL 2.0
+semantics; [README.md](README.md) lists what is covered and what is not.
 
 ## Getting Started
 
@@ -19,7 +17,7 @@ The SystemRDL Toolkit is a C++ implementation of a SystemRDL 2.0 compiler that p
 - **C++ Compiler**: GCC 8+ or Clang 10+ with C++17 support
 - **CMake**: Version 3.16 or higher
 - **Java**: JDK 11+ (required for ANTLR4)
-- **Python**: 3.7+ (for testing and comparison scripts)
+- **Python**: 3.10+ (for testing and comparison scripts)
 
 ### Development Setup
 
