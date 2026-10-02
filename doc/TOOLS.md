@@ -79,89 +79,23 @@ If no filename is specified:
 
 ### Elaborator Gap Detection
 
-The elaborator automatically detects and fills gaps in register field definitions with reserved fields:
+Bits left unspecified in a register are filled with reserved fields:
 
 ```bash
-# Test automatic gap detection with a register containing field gaps
 ./build/systemrdl_elaborator test/test_auto_reserved_fields.rdl
 ```
 
-**Example SystemRDL input with gaps**:
-
-```systemrdl
-addrmap test_auto_reserved_fields {
-    reg gap_reg {
-        regwidth = 32;
-
-        field {
-            sw = rw;
-            hw = r;
-            desc = "Control bit";
-        } ctrl[0:0];        // bit 0
-
-        // Gap: bits 1-3 are unspecified
-
-        field {
-            sw = rw;
-            hw = r;
-            desc = "Status bits";
-        } status[7:4];      // bits 4-7
-
-        // Gap: bits 8-15 are unspecified
-
-        field {
-            sw = rw;
-            hw = r;
-            desc = "Data field";
-        } data[23:16];      // bits 16-23
-
-        // Gap: bits 24-30 are unspecified
-
-        field {
-            sw = rw;
-            hw = r;
-            desc = "Enable bit";
-        } enable[31:31];    // bit 31
-    };
-
-    gap_reg test_reg @ 0x0000;
-};
-```
-
-**Elaborator output with automatic reserved fields**:
-
-```bash
-reg: test_reg (size: 4 bytes)
-  field: ctrl [0:0]
-    width: 1, lsb: 0, msb: 0, sw: "rw"
-  field: RESERVED_3_1 [3:1]    # Automatically generated
-    width: 3, lsb: 1, msb: 3, sw: "r"
-  field: status [7:4]
-    width: 4, lsb: 4, msb: 7, sw: "rw"
-  field: RESERVED_15_8 [15:8]  # Automatically generated
-    width: 8, lsb: 8, msb: 15, sw: "r"
-  field: data [23:16]
-    width: 8, lsb: 16, msb: 23, sw: "rw"
-  field: RESERVED_30_24 [30:24] # Automatically generated
-    width: 7, lsb: 24, msb: 30, sw: "r"
-  field: enable [31:31]
-    width: 1, lsb: 31, msb: 31, sw: "rw"
-```
-
-**Features of automatic gap detection**:
-
-- **Gap Detection**: Analyzes all field bit ranges to identify unspecified bits
-- **Naming Convention**: Reserved fields use `RESERVED_<msb>_<lsb>` naming convention
-- **Read-Only Properties**: Reserved fields are automatically set to `sw=r, hw=na`
-- **Complete Coverage**: Ensures all register bits from 0 to (regwidth-1) are covered
-- **Register Width Support**: Works with 8-bit, 16-bit, 32-bit, 64-bit, and custom register widths
-- **Performance Optimized**: Only processes registers with detected gaps
+- A gap wider than one bit becomes `RESERVED_<msb>_<lsb>`; a one-bit gap
+  becomes `RESERVED_<bit>`.
+- Reserved fields are emitted after the fields that were declared, with
+  `sw = r`, `hw = na` and `reserved = true`.
+- Coverage runs over the whole `regwidth`, whatever it is set to.
 
 ---
 
 ## CSV2RDL Converter
 
-The toolkit includes a CSV to SystemRDL converter with parsing capabilities and validation features.
+`systemrdl_csv2rdl` reads an RCSV file and writes SystemRDL text.
 
 ### CSV2RDL Basic Usage
 
@@ -251,23 +185,7 @@ addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,f
 ,,,,,ERROR,1,1,0,RO,WO,Error status
 ```
 
-**Key RCSV Features Shown:**
-
-- All 11 required columns present
-- Proper three-tier hierarchy (addrmap -> register -> field)
-- Multi-line description with CSV quoting
-- Mixed access patterns (RW/RO/WO combinations)
-- Complete field coverage within register width
-
 ### CSV2RDL Features (RCSV Implementation)
-
-#### RCSV Validation
-
-- **Checking**: Validates the RCSV rules in doc/RCSV.md
-- **Field Range Validation**: Detects overlapping fields and range errors
-- **Access Control Validation**: Ensures RW/RO/WO/NA values only
-- **Address Alignment**: Warns about unaligned register addresses
-- **Bit Coverage**: Identifies gaps in register field definitions
 
 #### Header Matching
 
@@ -306,77 +224,93 @@ Automatically detects and supports:
 
 ## Renderer
 
-The SystemRDL Template Renderer generates various output formats from SystemRDL designs using Jinja2 templates.
-
-### Renderer Overview
-
-**systemrdl_render** is a command-line tool that:
-
-1. Parses and elaborates SystemRDL files
-2. Converts the elaborated design to JSON data
-3. Renders the data using Jinja2 templates
-4. Generates output files in any desired format
+`systemrdl_render` parses and elaborates a design, converts it to JSON, and
+renders an Inja template (Jinja2 syntax) against that JSON.
 
 ### Renderer Basic Usage
 
 ```bash
-# Generate C header file
-./systemrdl_render design.rdl -t test/test_j2_header.h.j2
+# Simplified JSON (default) with a matching template
+./build/systemrdl_render design.rdl -t test/test_j2_json_header.h.j2
 
-# Generate documentation with custom output name
-./systemrdl_render design.rdl -t test/test_j2_doc.md.j2 -o design_documentation.md
+# Full AST JSON with a matching template
+./build/systemrdl_render design.rdl -t test/test_j2_ast_header.h.j2 --ast
 
-# Generate Verilog RTL
-./systemrdl_render design.rdl -t test/test_j2_verilog.v.j2
-
-# Verbose output
-./systemrdl_render design.rdl -t test/test_j2_header.h.j2 -v
+# Custom output name, with progress output
+./build/systemrdl_render design.rdl -t test/test_j2_json_doc.md.j2 -o design_documentation.md --verbose
 ```
+
+A template reads the JSON shape it was written for. The `test_j2_json_*`
+templates read the simplified model, which is the default; the `test_j2_ast_*`
+templates read the full model and need `--ast`. Mixing them fails at render
+time with `variable 'model' not found`.
 
 ### Renderer Command Line Options
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `-t, --template` | **Required.** Jinja2 template file (.j2) | `-t test/test_j2_header.h.j2` |
-| `-o, --output` | Output file (auto-generated if not specified) | `-o my_output.h` |
-| `-v, --verbose` | Enable verbose output | `-v` |
-| `-h, --help` | Show help message | `-h` |
+| Option | Description |
+|--------|-------------|
+| `-t, --template <file>` | Jinja2 template file (`.j2`). Required. |
+| `-o, --output[=<file>]` | Output file. Defaults to the design name plus a suffix taken from the template name. |
+| `--ast` | Feed the full AST JSON model instead of the simplified one. |
+| `--verbose` | Print the JSON structure preview and progress. |
+| `-h, --help` | Show help. |
 
 ### Renderer Data Structure
 
-The tool provides the following JSON data structure to templates:
+Templates receive one of two JSON shapes.
+
+Simplified (`SystemRDL_SimplifiedModel`, the default): a top-level `addrmap`
+object plus flat `registers` and `regfiles` arrays. Each register carries a
+flat `fields` array, its numeric `offset`, `path` and `path_abs`, `size`,
+`register_width` and `register_reset_value`.
+
+```json
+{
+  "format": "SystemRDL_SimplifiedModel",
+  "addrmap": {"absolute_address": "0x0", "base": "0x0", "inst_name": "chip"},
+  "registers": [
+    {
+      "absolute_address": "0x0",
+      "fields": [
+        {"inst_name": "data", "lsb": 0, "msb": 31, "sw": "rw", "width": 32}
+      ],
+      "inst_name": "control_reg",
+      "offset": 0,
+      "register_width": 32,
+      "size": 4
+    }
+  ]
+}
+```
+
+Full AST (`SystemRDL_ElaboratedModel`, with `--ast`): the same data nested, with
+`children` arrays and a `properties` object per node.
 
 ```json
 {
   "format": "SystemRDL_ElaboratedModel",
   "model": [
     {
+      "node_type": "addrmap",
+      "inst_name": "chip",
       "absolute_address": "0x0",
+      "size": 4096,
       "children": [
         {
+          "node_type": "reg",
+          "inst_name": "control_reg",
           "absolute_address": "0x0",
+          "size": 4,
           "children": [
             {
-              "absolute_address": "0x0",
-              "inst_name": "data",
               "node_type": "field",
-              "properties": {
-                "hw": "r",
-                "lsb": 0,
-                "msb": 31,
-                "sw": "rw",
-                "width": 32
-              }
+              "inst_name": "data",
+              "absolute_address": "0x0",
+              "properties": {"lsb": 0, "msb": 31, "sw": "rw", "width": 32}
             }
-          ],
-          "inst_name": "control_reg",
-          "node_type": "reg",
-          "size": 4
+          ]
         }
-      ],
-      "inst_name": "chip",
-      "node_type": "addrmap",
-      "size": 4096
+      ]
     }
   ]
 }
@@ -384,71 +318,18 @@ The tool provides the following JSON data structure to templates:
 
 ### Renderer Available Templates
 
-#### C Header Template (`test/test_j2_header.h.j2`)
+`test/` holds one template per output format, in both JSON variants. The
+`ast_` and `json_` infix selects the JSON shape, so the files are
+`test_j2_ast_*` and `test_j2_json_*`:
 
-Generates C header files with register and field definitions:
+| Template | Output |
+| -- | -- |
+| `*_header.h.j2` | C header: base address, register offsets, field mask and shift macros |
+| `*_doc.md.j2` | Markdown register documentation |
+| `*_verilog.v.j2` | Verilog register block with an APB-like `psel`/`penable`/`pwrite` interface |
 
-```c
-/*
- * Auto-generated C header file from SystemRDL
- * Generated by SystemRDL Template Renderer
- */
-
-#ifndef CHIP_H
-#define CHIP_H
-
-#include <stdint.h>
-
-/* Address Map: chip */
-#define CHIP_BASE_ADDR  0x00000000
-#define CHIP_SIZE       4096
-
-/* Register: control_reg */
-#define CHIP_CONTROL_REG_OFFSET  0x0000
-#define CHIP_CONTROL_REG_ADDR    (CHIP_BASE_ADDR + CHIP_CONTROL_REG_OFFSET)
-
-/* Field: control_reg.data */
-#define CHIP_CONTROL_REG_DATA_MASK    0xFFFFFFFF
-#define CHIP_CONTROL_REG_DATA_SHIFT   0
-```
-
-**Usage:**
-
-```bash
-./systemrdl_render your_design.rdl -t test/test_j2_header.h.j2
-# Generates: your_design_header.h
-```
-
-#### Markdown Documentation Template (`test/test_j2_doc.md.j2`)
-
-Generates register documentation with formatting.
-
-**Usage:**
-
-```bash
-./systemrdl_render your_design.rdl -t test/test_j2_doc.md.j2
-# Generates: your_design_doc.md
-```
-
-#### Verilog RTL Template (`test/test_j2_verilog.v.j2`)
-
-Generates complete Verilog RTL modules with APB-like interface:
-
-**Features:**
-
-- Complete RTL module with parameterized design
-- APB-like CPU interface (psel, penable, pwrite, etc.)
-- Hardware interface signals based on access permissions
-- Register definitions and address decode
-- Write/read logic with async reset
-- Hardware output assignments
-
-**Usage:**
-
-```bash
-./systemrdl_render your_design.rdl -t test/test_j2_verilog.v.j2
-# Generates: your_design_verilog.v
-```
+Pick the variant that matches the JSON you feed it: `json_` with the default
+simplified model, `ast_` with `--ast`.
 
 ### Renderer Custom Templates
 
@@ -501,171 +382,4 @@ Templates use Jinja2 syntax with the following features:
 {% elif field.properties.sw == "r" %}
   Read-only field
 {% endif %}
-```
-
----
-
-## Examples
-
-### Input/Output Examples
-
-**Input file** (`example.rdl`):
-
-```systemrdl
-addrmap simple_chip {
-    reg {
-        field {
-            sw = rw;
-        } data[31:0];
-    } reg1 @ 0x0;
-
-    reg {
-        field {
-            sw = rw;
-        } status[7:0];
-    } reg2 @ 0x4;
-};
-```
-
-### Parser Output
-
-```bash
-Parsing successful!
-
-=== Abstract Syntax Tree ===
-Component Definition
-    Type: addrmap
-        Type: reg
-            Type: field
-              Property: sw=rw
-          Instance: data[31:0]
-            Range: [31:0]
-      Instance: reg1@0x0
-        Address: @0x0
-        ...
-```
-
-### Elaborator Output
-
-```bash
-Parsing SystemRDL file: example.rdl
-Parsing successful!
-
-Starting elaboration...
-Elaboration successful!
-
-=== Elaborated SystemRDL Model ===
-addrmap: simple_chip @ 0x0
-  reg: reg1 (size: 4 bytes)
-    field: data [31:0]
-      width: 32
-      lsb: 0
-      sw: "rw"
-      msb: 31
-  reg: reg2 @ 0x4 (size: 4 bytes)
-    field: status @ 0x4 [7:0]
-      width: 8
-      lsb: 0
-      sw: "rw"
-      msb: 7
-
-Address Map:
-Address     Size    Name      Path
-------------------------------------
-0x00000000  4       reg1      simple_chip.reg1
-0x00000004  4       reg2      simple_chip.reg2
-```
-
-### JSON Output
-
-**JSON output** (example of elaborated model):
-
-```json
-{
-  "format": "SystemRDL_ElaboratedModel",
-  "model": [
-    {
-      "node_type": "addrmap",
-      "inst_name": "simple_chip",
-      "absolute_address": "0x0",
-      "size": 0,
-      "children": [
-        {
-          "node_type": "reg",
-          "inst_name": "reg1",
-          "absolute_address": "0x0",
-          "size": 4,
-          "children": [
-            {
-              "node_type": "field",
-              "inst_name": "data",
-              "absolute_address": "0x0",
-              "size": 0,
-              "properties": {
-                "width": 32,
-                "lsb": 0,
-                "sw": "rw",
-                "msb": 31
-              }
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
-```
-
----
-
-## Validation and Testing
-
-### CSV2RDL Validation (RCSV Compliance)
-
-The validation suite ensures full RCSV specification compliance:
-
-```bash
-# Run complete RCSV validation suite
-python3 script/csv2rdl_validator.py
-
-# The validator covers:
-# 1. RCSV format compliance checking
-# 2. CSV2RDL conversion with validation
-# 3. SystemRDL syntax validation (using parser)
-# 4. Generated content verification
-# 5. Field range and access pattern validation
-```
-
-#### RCSV Validation Levels
-
-1. **Format Validation**: Column presence, naming, and structure
-2. **Data Validation**: Field ranges, access values, reset values
-3. **Semantic Validation**: Address alignment, bit coverage, hierarchy
-4. **SystemRDL Generation**: Successful conversion to valid SystemRDL
-5. **Round-trip Testing**: Consistency between CSV input and SystemRDL output
-
-### Manual RCSV Testing
-
-```bash
-# Convert RCSV-compliant CSV file to SystemRDL
-./build/systemrdl_csv2rdl test/test_csv_basic_example.csv -o build/example.rdl
-
-# Validate generated SystemRDL syntax
-./build/systemrdl_parser build/example.rdl
-
-# Check RCSV compliance of your CSV files
-python3 script/csv2rdl_validator.py --check your_file.csv
-```
-
-### General Testing
-
-```bash
-# Run all tests
-make test
-
-# Quick validation tests
-make test-fast
-
-# Specific test categories
-make test-parser test-elaborator test-csv2rdl
 ```
