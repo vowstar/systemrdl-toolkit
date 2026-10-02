@@ -173,9 +173,6 @@ public:
     // Find child nodes
     ElaboratedNode *find_child_by_name(const std::string &name) const;
     ElaboratedNode *find_child_by_address(Address addr) const;
-
-    // regfile-specific properties
-    Address alignment = 4; // Alignment requirement
 };
 
 // Register node
@@ -312,8 +309,7 @@ private:
     //
     // Instantiation nests: a parameterized regfile instantiates parameterized
     // registers inside its own body, and the inner instance must not destroy
-    // the outer parameters. A single flat map made "regs[NUM_REGS] @ BASE_ADDR"
-    // unresolvable as soon as the inner instance bound its own parameters.
+    // the outer parameters. Lookup walks this from the innermost scope out.
     std::vector<std::unordered_map<std::string, PropertyValue>> parameter_scopes_;
 
     // Internal elaboration methods
@@ -446,7 +442,7 @@ private:
     static void shift_subtree_address(ElaboratedNode *node, Address delta);
 
     // Register property validation. Checks the constraints the standard states
-    // with "shall", which the elaborator previously accepted silently.
+    // with "shall".
     void validate_register_properties(ElaboratedReg *reg_node);
 
     // Field validation methods

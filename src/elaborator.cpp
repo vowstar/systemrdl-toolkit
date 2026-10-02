@@ -363,8 +363,8 @@ void SystemRDLElaborator::elaborate_array_instance(
 
     if (!array_suffixes.empty()) {
         auto array_suffix = array_suffixes[0]; // Take the first array suffix
-        // A dimension that cannot be evaluated used to become four elements.
-        // Every instance after it then landed at the wrong address, silently.
+        // A dimension that cannot be evaluated is reported and falls back to a
+        // single element.
         size_t dim = 0;
         if (auto expr = array_suffix->expr()) {
             dim = evaluate_integer_expression(expr);
@@ -530,7 +530,8 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node, const Elabor
         regfile_node->size = max_addr - regfile_node->absolute_address;
         if (regfile_node->size == 0) {
             // 12.2-c: At least one reg or regfile shall be instantiated within
-            // a regfile. An empty one used to be given a size of four bytes.
+            // a regfile. The size is still set to 4 so that later siblings take
+            // addresses that do not land on top of this one.
             report_error(
                 "Register file '" + regfile_node->inst_name
                     + "' instantiates no register or register file, which violates SystemRDL 2.0 "
@@ -540,9 +541,10 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node, const Elabor
         }
     } else if (auto mem_node = dynamic_cast<ElaboratedMem *>(node)) {
         // 11.3.1: a memory holds mementries entries of memwidth bits, so its
-        // size follows from those two properties. There is nothing to guess:
-        // mementries defaults to 1, and a missing memwidth is an error rather
-        // than an excuse to invent a size.
+        // size follows from those two properties, and mementries defaults to 1.
+        // 11.3.1-d defaults memwidth to the register width; that default is not
+        // derived here, so an absent memwidth is reported and the width falls
+        // back to 32 bits so that later instances keep their addresses.
         Size entries = 1; // 11.3.1-b
         if (auto entries_prop = mem_node->get_property("mementries")) {
             if (entries_prop->type == PropertyValue::INTEGER && entries_prop->int_val > 0) {
@@ -565,7 +567,7 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node, const Elabor
         if (width_bits == 0) {
             report_error(
                 "Memory '" + mem_node->inst_name
-                    + "' has no memwidth. SystemRDL 2.0 clause 11.3.1-d derives it from the "
+                    + "' has no memwidth. SystemRDL 2.0 clause 11.3.1-d defaults memwidth to the "
                       "register width, so assign memwidth explicitly",
                 mem_node->source_ctx);
             width_bits = 32;
@@ -653,7 +655,7 @@ void SystemRDLElaborator::validate_register_reset_value(ElaboratedReg *reg_node)
                 continue;
             }
 
-            // The check is the same at every width: no 64-bit special case.
+            // The check runs at every field width.
             const size_t field_width = field->msb - field->lsb + 1;
             if (!field->reset_value.fits_in(field_width)) {
                 report_error(
@@ -780,7 +782,6 @@ void AddressMapGenerator::visit(ElaboratedMem &node)
     ElaboratedModelTraverser::visit(node);
 }
 
-// New method implementation
 void SystemRDLElaborator::collect_component_definitions(SystemRDLParser::RootContext *ast_root)
 {
     // Collect top-level definitions
@@ -951,8 +952,8 @@ void SystemRDLElaborator::elaborate_named_array_instance(
 
     if (!array_suffixes.empty()) {
         auto array_suffix = array_suffixes[0]; // Take the first array suffix
-        // A dimension that cannot be evaluated used to become four elements.
-        // Every instance after it then landed at the wrong address, silently.
+        // A dimension that cannot be evaluated is reported and falls back to a
+        // single element.
         size_t dim = 0;
         if (auto expr = array_suffix->expr()) {
             dim = evaluate_integer_expression(expr);
@@ -2042,11 +2043,10 @@ Address SystemRDLElaborator::mode_alignment_for(
         // two". For a size that is not a power of two the two sentences cannot
         // both hold, so this rounds the size up to a power of two.
         //
-        // A register can never reach the ambiguous case: 10.1-f forces a
-        // register width of 2^N, so a register size is always a power of two
-        // and both readings agree. Only a register file or address map whose
-        // contents do not add up to a power of two is affected, and rounding
-        // keeps those addresses identical to other SystemRDL tools.
+        // A register whose width satisfies 10.1-f is a power of two, so it
+        // never reaches this with an ambiguous size. A register file, address
+        // map or memory whose contents do not add up to a power of two does,
+        // and its size is rounded up here.
         return size == 0 ? 1 : round_up_pow2(size);
     }
 }
@@ -2097,11 +2097,10 @@ void SystemRDLElaborator::shift_subtree_address(ElaboratedNode *node, Address de
     }
 }
 
-// Validate the register properties the standard constrains with "shall".
-//
-// These were accepted silently before. A non-power-of-two register width in
-// particular breaks the addressing model: two 48-bit registers placed back to
-// back share a 32-bit bus word, so an access to one reaches into the other.
+// Validate the register properties the standard constrains with "shall":
+// regwidth 10.1-f and 10.6.1-a, accesswidth 10.6.1-b, and accesswidth not
+// greater than regwidth 10.6.1-c. Each failure is reported once; elaboration
+// continues so that the remaining checks still run.
 void SystemRDLElaborator::validate_register_properties(ElaboratedReg *reg_node)
 {
     if (!reg_node) {
@@ -2610,7 +2609,7 @@ bool SystemRDLElaborator::instances_overlap(
     if (!instance1 || !instance2)
         return false;
 
-    // Skip instances with invalid addresses or sizes
+    // Skip zero-sized instances
     if (instance1->size == 0 || instance2->size == 0)
         return false;
 
