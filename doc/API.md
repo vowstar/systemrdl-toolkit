@@ -1,7 +1,7 @@
 # Library Usage
 
-This toolkit has been refactored to provide both a standalone library (`libsystemrdl`) and command-line tools.
-The library enables easy integration of SystemRDL parsing and elaboration capabilities into other C++ projects.
+`libsystemrdl` is the parser and elaborator as a linkable library; the
+command-line tools are thin wrappers over the same code.
 
 ## Build Options
 
@@ -15,37 +15,10 @@ The project provides several build options to customize what gets built:
 | `SYSTEMRDL_BUILD_TESTS` | `ON` | Build tests |
 | `USE_SYSTEM_ANTLR4` | `OFF` | Use system ANTLR4 instead of downloading |
 
-## Building the Library
-
-### Basic Library Build
-
-```bash
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
-```
-
-### Library-Only Build
-
-If you only need the library (no command-line tools):
-
-```bash
-cmake .. -DSYSTEMRDL_BUILD_TOOLS=OFF -DSYSTEMRDL_BUILD_TESTS=OFF
-make -j$(nproc)
-```
-
-### Installation
-
-```bash
-# Install to default location (/usr/local)
-sudo make install
-
-# Or install to custom location
-cmake .. -DCMAKE_INSTALL_PREFIX=/opt/systemrdl
-make install
-```
-
 ## Using the Library in Your Project
+
+Build and install the library first, as [BUILD.md](BUILD.md) describes. The
+installed package supports any of the three integration paths below.
 
 ### Method 1: CMake find_package (Recommended)
 
@@ -84,13 +57,12 @@ target_include_directories(my_app PRIVATE /usr/local/include/systemrdl)
 
 ## Library API Usage
 
-The SystemRDL library provides both a **traditional API** for advanced users who need direct ANTLR4 access, and a
-**modern API** for easy integration without ANTLR4 complexity.
+The installed header `<systemrdl/systemrdl_api.h>` is the entry point for
+embedding the toolkit: string, file and stream operations, none of which expose
+ANTLR4 types. The internal elaborator API is described at the end of this
+document and is only usable inside the source tree.
 
 ### Modern API (Recommended)
-
-The modern API provides a clean, simple interface without exposing ANTLR4 headers. It supports string-based
-operations, file operations, and stream processing.
 
 #### String-based Operations
 
@@ -243,17 +215,6 @@ if (result.has_error()) {
 }
 ```
 
-#### API Features
-
-- **Clean Interface**: No ANTLR4 headers exposed to user code
-- **String-based**: Work with `std::string` and `std::string_view`
-- **File Support**: Direct file input/output operations
-- **Stream Support**: Standard C++ stream processing
-- **Performance**: Uses modern C++17 features like `string_view`
-- **Type Safety**: Strong typing with Result pattern
-- **Flexible Input**: Multiple ways to provide SystemRDL content
-- **CSV Integration**: Built-in CSV to SystemRDL conversion
-
 #### JSON Output Formats
 
 The SystemRDL library provides two different JSON output formats to suit different use cases:
@@ -353,12 +314,6 @@ for (const auto& entry : address_map) {
 - **`SystemRDL::systemrdl`** - Generic target (shared if available, otherwise static)
 - **`SystemRDL::systemrdl_shared`** - Shared library
 - **`SystemRDL::systemrdl_static`** - Static library
-
-### Command-line Tools (if enabled)
-
-- **`systemrdl_parser`** - Parse SystemRDL files and generate AST
-- **`systemrdl_elaborator`** - Parse and elaborate SystemRDL designs
-- **`systemrdl_csv2rdl`** - Convert CSV files to SystemRDL format
 
 ## Library Components
 
@@ -570,206 +525,5 @@ int main() {
 
 ## Example Project
 
-The `example/` directory contains a complete working example demonstrating the **modern API** usage in a real C++
-project. This example shows how to integrate SystemRDL functionality into your applications without dealing with
-ANTLR4 complexity.
-
-### What the Example Demonstrates
-
-- **Modern API Usage**: Complete demonstration of string-based operations
-- **File Operations**: Reading SystemRDL files using convenient wrappers
-- **Stream Processing**: Input/output using standard C++ streams
-- **CSV Integration**: Converting CSV data to SystemRDL format
-- **Error Handling**: errors are returned in the Result type, never thrown
-- **Elaboration**: Advanced SystemRDL design processing with arrays and hierarchies
-- **Performance**: Modern C++17 patterns with `string_view`
-
-To build and run the example:
-
-```bash
-# First build and install the library
-mkdir build && cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
-make -j$(nproc)
-sudo make install
-
-# Then build and run the example
-cd ../example
-mkdir build && cd build
-cmake ..
-make
-
-# Run the modern API demonstration
-./example_app
-```
-
-### Example Output
-
-The example produces output demonstrating all modern API features:
-
-```text
-SystemRDL Modern API Example
-
-Example 1: Parse SystemRDL content
-Parse successful!
-
-Example 2: Simple Elaboration
-Elaboration successful!
-
-Example 3: Advanced Elaboration (Arrays & Complex Features)
-Advanced elaboration successful!
-This demonstrates:
-   - Array instantiation (mem_ctrl[4])
-   - Complex address mapping with strides
-   - Hierarchical regfile structures
-   - Automatic gap filling and validation
-
-Example 4: Convert CSV to SystemRDL
-CSV conversion successful!
-
-Example 5: File-based operations
-File parse successful!
-File elaboration successful!
-
-Example 6: Stream operations
-Stream processing successful!
-
-Example 7: Error handling
-Error handling working correctly!
-
-Key features demonstrated:
-   - Clean interface without ANTLR4 header exposure
-   - String-based input/output for ease of use
-   - Consistent error handling pattern
-   - Multiple input/output methods supported
-   - Modern C++ design patterns
-```
-
-## Library Dependencies
-
-### Required
-
-- **CMake** 3.16 or later
-- **C++17** compatible compiler
-- **ANTLR4 C++ runtime** (automatically downloaded if not using system version)
-
-### Optional
-
-- **Python 3** (for testing and validation)
-- **pkg-config** (for pkg-config support)
-- **clang-format** (for code formatting)
-- **cppcheck** (for static analysis)
-
-## Library Configuration
-
-### Custom ANTLR4 Version
-
-```bash
-# Use specific ANTLR4 version
-cmake .. -DANTLR4_VERSION=4.12.0
-
-# Use system ANTLR4
-cmake .. -DUSE_SYSTEM_ANTLR4=ON
-```
-
-### Install Locations
-
-```bash
-# Custom install prefix
-cmake .. -DCMAKE_INSTALL_PREFIX=/opt/systemrdl
-
-# Custom library directory
-cmake .. -DCMAKE_INSTALL_LIBDIR=lib64
-```
-
-### Build Types
-
-```bash
-# Debug build
-cmake .. -DCMAKE_BUILD_TYPE=Debug
-
-# Release build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-
-# Release with debug info
-cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
-```
-
-## Library Troubleshooting
-
-### Library Not Found
-
-```bash
-# Check installation
-find /usr/local -name "*systemrdl*"
-
-# Set custom search path
-cmake .. -DCMAKE_PREFIX_PATH=/opt/systemrdl
-
-# Verify with pkg-config
-pkg-config --exists systemrdl && echo "Found"
-```
-
-### Compilation Issues
-
-```bash
-# Verbose build output
-make VERBOSE=1
-
-# Check compiler requirements
-g++ --version  # Should support C++17
-
-# Check ANTLR4 installation
-find /usr -name "antlr4-runtime*"
-```
-
-### Runtime Issues
-
-```bash
-# Check shared library path
-ldd your_app
-
-# Set LD_LIBRARY_PATH if needed
-export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-```
-
-### Development
-
-#### Code Quality
-
-```bash
-# Check code formatting
-make format-check
-
-# Auto-format code
-make format
-
-# Run static analysis
-make cppcheck
-
-# Run all quality checks
-make quality-check
-```
-
-#### Testing
-
-```bash
-# Run all tests
-make test
-
-# Run specific test categories
-make test-parser
-make test-elaborator
-make test-json
-```
-
-### Version Information
-
-- **Version**: 0.1.0
-- **SystemRDL Standard**: 2.0
-- **ANTLR4 Version**: 4.13.2 (default)
-- **C++ Standard**: C++17
-
-### Private Headers (Implementation Details)
-
-- `tools/cmdline_parser.h` - Command-line argument parsing utilities
+A complete working example, built against the installed library, lives in
+[`example/`](../example/README.md).
