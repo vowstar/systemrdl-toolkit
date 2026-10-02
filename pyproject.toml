@@ -28,27 +28,6 @@ use_parentheses = true
 ensure_newline_before_comments = true
 split_on_trailing_comma = true
 
-[tool.flake8]
-max-line-length = 127
-extend-ignore = [
-    "C901",  # too complex (function is too complex)
-    "E203",  # whitespace before ':'
-    "E226",  # missing whitespace around arithmetic operator
-    "E501",  # line too long (handled by black)
-    "W503",  # line break before binary operator
-]
-exclude = [
-    ".git",
-    "__pycache__",
-    "build",
-    "dist",
-    ".venv",
-    ".eggs",
-]
-per-file-ignores = [
-    "__init__.py:F401",  # allow unused imports in __init__.py
-]
-
 [tool.mypy]
 python_version = "3.7"
 warn_return_any = true
