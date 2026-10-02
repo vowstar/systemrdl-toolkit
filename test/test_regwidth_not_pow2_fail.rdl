@@ -1,5 +1,6 @@
 // Non-power-of-2 register width.
-// EXPECT_ELABORATION_FAILURE - regwidth 48 violates SystemRDL 2.0 clauses 10.1-f and 10.6.1-a
+// EXPECT_ELABORATION_FAILURE - regwidth 48 violates SystemRDL 2.0 clauses
+// 10.1-f and 10.6.1-a, and the accesswidth defaulted from it violates 10.6.1-b
 //
 // The standard states the rule twice: 10.1-f "All registers shall have a width
 // = 2^N, where N >= 3" and 10.6.1-a in the same words. This toolkit used to

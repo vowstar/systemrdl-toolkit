@@ -1,7 +1,8 @@
-// Test field overlap detection
-// EXPECT_ELABORATION_FAILURE: This test is designed to fail during elaboration to validate field overlap detection
+// Test field overlap detection. This fixture breaks one rule only: the two
+// overlaps below are the whole set of errors the elaborator must report.
+// EXPECT_ELABORATION_FAILURE: field overlap in overlap_reg
 addrmap test_field_overlap {
-    // Test 1: Field overlap within same register
+    // Field overlap within same register
     reg overlap_reg {
         regwidth = 32;
 
@@ -24,29 +25,5 @@ addrmap test_field_overlap {
         } field3[10:5];    // bits 5-10, overlaps with field1
     };
 
-    // Test 2: Field exceeding register width
-    reg boundary_reg {
-        regwidth = 16;
-
-        field {
-            sw = rw;
-            hw = r;
-            desc = "Field exceeding boundary";
-        } big_field[31:0]; // 32 bits, but register is only 16 bits
-    };
-
-    // Test 3: Field with invalid bit range (MSB < LSB)
-    reg invalid_range_reg {
-        regwidth = 32;
-
-        field {
-            sw = rw;
-            hw = r;
-            desc = "Invalid bit range";
-        } invalid_field[5:10]; // MSB(5) < LSB(10), invalid
-    };
-
     overlap_reg test1 @ 0x0000;
-    boundary_reg test2 @ 0x0004;
-    invalid_range_reg test3 @ 0x0008;
 };

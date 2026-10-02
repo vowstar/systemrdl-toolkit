@@ -1,5 +1,10 @@
-// Comprehensive test suite for automatic gap detection and reserved field generation
-// EXPECT_ELABORATION_FAILURE - This test contains intentional validation errors
+// Gap-detection coverage: single-bit gaps, multi-bit gaps, a 64-bit register
+// and a 112-bit gap, with the reserved field each register is expected to
+// produce named above it.
+//
+// The elaborator fails this file on the address overlap between 'large' and
+// 'edge', not on the gaps; nothing here asserts the reserved-field names.
+// EXPECT_ELABORATION_FAILURE: instance address overlap between 'large' and 'edge'
 addrmap test_comprehensive_gaps {
 
     // Test 1: Complete register (no gaps expected)
