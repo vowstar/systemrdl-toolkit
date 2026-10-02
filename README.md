@@ -104,7 +104,7 @@ target_link_libraries(your_target PRIVATE SystemRDL::systemrdl)
 ```
 
 ```cpp
-#include <systemrdl/systemrdl_api.h>
+#include <systemrdl_api.h>
 
 const auto result = systemrdl::elaborate_simplified(rdl_text);
 if (result.ok()) {

@@ -57,7 +57,7 @@ target_include_directories(my_app PRIVATE /usr/local/include/systemrdl)
 
 ## Library API Usage
 
-The installed header `<systemrdl/systemrdl_api.h>` is the entry point for
+The installed header `<systemrdl_api.h>` is the entry point for
 embedding the toolkit: string, file and stream operations, none of which expose
 ANTLR4 types. The internal elaborator API is described at the end of this
 document and is only usable inside the source tree.
@@ -67,7 +67,7 @@ document and is only usable inside the source tree.
 #### String-based Operations
 
 ```cpp
-#include <systemrdl/systemrdl_api.h>
+#include <systemrdl_api.h>
 #include <iostream>
 
 int main() {
@@ -94,7 +94,7 @@ int main() {
         return 1;
     }
 
-    // Elaborate SystemRDL design (hierarchical AST JSON)
+    // Elaborate SystemRDL design (hierarchical model JSON)
     auto elaborate_result = systemrdl::elaborate(rdl_content);
     if (elaborate_result.ok()) {
         std::cout << "Elaboration successful!" << std::endl;
@@ -121,7 +121,7 @@ int main() {
 #### File-based Operations
 
 ```cpp
-#include <systemrdl/systemrdl_api.h>
+#include <systemrdl_api.h>
 
 int main() {
     // Parse SystemRDL file
@@ -131,7 +131,7 @@ int main() {
         // process parse_result.value()
     }
 
-    // Elaborate SystemRDL file (hierarchical AST JSON)
+    // Elaborate SystemRDL file (hierarchical model JSON)
     auto elaborate_result = systemrdl::file::elaborate("design.rdl");
     if (elaborate_result.ok()) {
         std::cout << "File elaborated successfully!" << std::endl;
@@ -152,7 +152,7 @@ int main() {
 #### CSV to SystemRDL Conversion
 
 ```cpp
-#include <systemrdl/systemrdl_api.h>
+#include <systemrdl_api.h>
 
 int main() {
     std::string csv_content =
@@ -173,7 +173,7 @@ int main() {
 #### Stream Operations
 
 ```cpp
-#include <systemrdl/systemrdl_api.h>
+#include <systemrdl_api.h>
 #include <fstream>
 #include <sstream>
 
@@ -219,7 +219,7 @@ if (result.has_error()) {
 
 The SystemRDL library provides two different JSON output formats to suit different use cases:
 
-**1. Hierarchical AST JSON (`elaborate()`)**
+**1. Hierarchical model JSON (`elaborate()`)**
 
 - Maintains the original hierarchical structure of the SystemRDL design
 - Preserves parent-child relationships between address maps, regfiles, registers, and fields
@@ -319,7 +319,7 @@ for (const auto& entry : address_map) {
 
 ### Modern API Components
 
-Everything below is declared in `<systemrdl/systemrdl_api.h>`.
+Everything below is declared in `<systemrdl_api.h>`.
 
 | Component | Description |
 | -- | -- |
@@ -366,7 +366,7 @@ Everything below is declared in `<systemrdl/systemrdl_api.h>`.
 #### Pattern 1: Simple Register Map Processing
 
 ```cpp
-#include <systemrdl/systemrdl_api.h>
+#include <systemrdl_api.h>
 #include <iostream>
 #include <fstream>
 
@@ -391,7 +391,7 @@ int main() {
 #### Pattern 2: CSV Register Database Import
 
 ```cpp
-#include <systemrdl/systemrdl_api.h>
+#include <systemrdl_api.h>
 #include <iostream>
 
 // Convert CSV register database to SystemRDL
@@ -419,7 +419,7 @@ int main() {
 #### Pattern 3: Build System Integration
 
 ```cpp
-#include <systemrdl/systemrdl_api.h>
+#include <systemrdl_api.h>
 #include <filesystem>
 
 // Process all SystemRDL files in a directory
@@ -449,7 +449,7 @@ void process_rdl_directory(const std::string& input_dir, const std::string& outp
 #### Pattern 4: Error Validation and Reporting
 
 ```cpp
-#include <systemrdl/systemrdl_api.h>
+#include <systemrdl_api.h>
 #include <vector>
 #include <string>
 
@@ -487,13 +487,13 @@ std::vector<ValidationResult> validate_rdl_files(const std::vector<std::string>&
 #### Pattern 5: Dual JSON Output Generation
 
 ```cpp
-#include <systemrdl/systemrdl_api.h>
+#include <systemrdl_api.h>
 #include <iostream>
 #include <fstream>
 
 // Generate both hierarchical and simplified JSON outputs
 bool generate_dual_outputs(const std::string& rdl_file, const std::string& output_dir) {
-    // Generate hierarchical AST JSON
+    // Generate hierarchical model JSON
     auto ast_result = systemrdl::file::elaborate(rdl_file);
     if (!ast_result.ok()) {
         std::cerr << "AST elaboration failed: " << ast_result.error() << std::endl;
@@ -514,7 +514,7 @@ bool generate_dual_outputs(const std::string& rdl_file, const std::string& outpu
     ast_file << ast_result.value();
     simplified_file << simplified_result.value();
 
-    std::cout << "Generated both AST and simplified JSON outputs" << std::endl;
+    std::cout << "Generated both hierarchical and simplified JSON outputs" << std::endl;
     return true;
 }
 
