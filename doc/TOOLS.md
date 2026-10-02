@@ -43,16 +43,17 @@ If no filename is specified with `--ast`, the tool automatically generates: `<in
 
 ## Elaborator
 
-The elaborator processes SystemRDL files through semantic analysis and can export the elaborated model to AST JSON format:
+The elaborator processes SystemRDL files through semantic analysis and can export the elaborated model as JSON:
 
 ```bash
 # Elaborate SystemRDL file and display to console
 ./build/systemrdl_elaborator input.rdl
 
-# Elaborate and generate AST JSON output with default filename (input_ast_elaborated.json)
+# Elaborate and write the elaborated model JSON to the default filename
+# (input_ast_elaborated.json)
 ./build/systemrdl_elaborator input.rdl --ast
 
-# Elaborate and generate AST JSON output with custom filename
+# Elaborate and write the elaborated model JSON to a custom filename
 ./build/systemrdl_elaborator input.rdl --ast=my_model.json
 
 # Elaborate and generate simplified JSON output with default filename (input_simplified.json)
@@ -68,7 +69,7 @@ The elaborator processes SystemRDL files through semantic analysis and can expor
 
 ### Elaborator Command Line Options
 
-- `-a, --ast[=<filename>]` - Enable AST JSON output, optionally specify custom filename
+- `-a, --ast[=<filename>]` - Write the elaborated model JSON, optionally to a filename
 - `-j, --json[=<filename>]` - Enable simplified JSON output, optionally specify custom filename
 - `-h, --help` - Show help message
 
@@ -233,7 +234,7 @@ renders an Inja template (Jinja2 syntax) against that JSON.
 # Simplified JSON (default) with a matching template
 ./build/systemrdl_render design.rdl -t test/test_j2_json_header.h.j2
 
-# Full AST JSON with a matching template
+# Full model JSON with a matching template
 ./build/systemrdl_render design.rdl -t test/test_j2_ast_header.h.j2 --ast
 
 # Custom output name, with progress output
@@ -251,7 +252,7 @@ time with `variable 'model' not found`.
 |--------|-------------|
 | `-t, --template <file>` | Jinja2 template file (`.j2`). Required. |
 | `-o, --output[=<file>]` | Output file. Defaults to the design name plus a suffix taken from the template name. |
-| `--ast` | Feed the full AST JSON model instead of the simplified one. |
+| `--ast` | Feed the full model JSON instead of the simplified one. |
 | `--verbose` | Print the JSON structure preview and progress. |
 | `-h, --help` | Show help. |
 
@@ -283,7 +284,7 @@ flat `fields` array, its numeric `offset`, `path` and `path_abs`, `size`,
 }
 ```
 
-Full AST (`SystemRDL_ElaboratedModel`, with `--ast`): the same data nested, with
+Full model (`SystemRDL_ElaboratedModel`, with `--ast`): the same data nested, with
 `children` arrays and a `properties` object per node.
 
 ```json

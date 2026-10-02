@@ -154,7 +154,7 @@ public:
             prog_name = prog_name.substr(last_slash + 1);
         }
 
-        std::cout << "\nUsage: " << prog_name << " <input_file.rdl> [options]" << std::endl;
+        std::cout << "\nUsage: " << prog_name << " <input_file> [options]" << std::endl;
         std::cout << "\nOptions:" << std::endl;
 
         for (const auto &opt : options_) {

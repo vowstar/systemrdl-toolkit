@@ -11,7 +11,8 @@
 
 using namespace antlr4;
 
-// Recursive function to print AST (optimized alignment version)
+// Recursive parse-tree printer: one label per rule, with multi-line node text
+// aligned under the label column.
 void printAST(tree::ParseTree *tree, SystemRDLParser *parser, int depth = 0)
 {
     if (ParserRuleContext *ruleContext = dynamic_cast<ParserRuleContext *>(tree)) {

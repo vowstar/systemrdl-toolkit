@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     cmdline
         .add_option_with_optional_value("o", "output", "Output file (default: auto-generated name)");
     cmdline.add_option(
-        "", "ast", "Use full AST JSON format instead of simplified JSON (default: simplified)");
+        "", "ast", "Use the full model JSON instead of the simplified JSON (default: simplified)");
     cmdline.add_option("", "verbose", "Enable verbose output");
     cmdline.add_option("h", "help", "Show this help message");
 
@@ -83,7 +83,9 @@ int main(int argc, char *argv[])
         std::cout << "Processing " << (is_csv ? "CSV" : "RDL") << " file: " << input_file
                   << std::endl;
         std::cout << "Using template: " << template_file << std::endl;
-        std::cout << "Output format: " << (use_ast ? "Full AST JSON" : "Simplified JSON (default)")
+        std::cout << "Output format: "
+                  << (use_ast ? "Full model JSON (SystemRDL_ElaboratedModel)"
+                              : "Simplified JSON (SystemRDL_SimplifiedModel)")
                   << std::endl;
     }
 
@@ -132,7 +134,7 @@ int main(int argc, char *argv[])
 
         if (verbose) {
             std::cout << "Successfully elaborated SystemRDL design" << std::endl;
-            std::cout << "Using " << (use_ast ? "full AST" : "simplified") << " JSON format"
+            std::cout << "Using " << (use_ast ? "full model" : "simplified") << " JSON format"
                       << std::endl;
         }
 

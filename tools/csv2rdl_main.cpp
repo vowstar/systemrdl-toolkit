@@ -10,7 +10,8 @@ int main(int argc, char *argv[])
     CmdLineParser cmdline(
         "CSV to SystemRDL Converter - Convert CSV register definitions to SystemRDL format");
     cmdline.set_version(systemrdl::get_detailed_version());
-    cmdline.add_option_with_optional_value("o", "output", "Output RDL file (default: <input>.rdl)");
+    cmdline.add_option_with_optional_value(
+        "o", "output", "Output RDL file (default: input path with .rdl extension)");
     cmdline.add_option("h", "help", "Show this help message");
 
     if (!cmdline.parse(argc, argv)) {
