@@ -774,7 +774,7 @@ public:
     std::string validate_csv_structure(const std::vector<CSVRow> &rows)
     {
         if (rows.empty()) {
-            return "Error: CSV contains no data rows";
+            return "CSV contains no data rows";
         }
 
         enum class ExpectedRowType { ADDRMAP, REG, FIELD };
@@ -792,12 +792,12 @@ public:
                              + (is_field_row ? 1 : 0);
 
             if (type_count == 0) {
-                return "Error: Line " + std::to_string(logical_line)
+                return "Line " + std::to_string(logical_line)
                        + " does not contain valid addrmap, register, or field information";
             }
 
             if (type_count > 1) {
-                std::string error = "Error: Line " + std::to_string(logical_line)
+                std::string error = "Line " + std::to_string(logical_line)
                                     + " contains mixed information types: ";
                 if (is_addrmap_row)
                     error += "addrmap ";
@@ -813,17 +813,17 @@ public:
                 expected = ExpectedRowType::REG;
             } else if (is_reg_row) {
                 if (expected == ExpectedRowType::ADDRMAP) {
-                    return "Error: Line " + std::to_string(logical_line)
+                    return "Line " + std::to_string(logical_line)
                            + " defines a register but no addrmap was defined first";
                 }
                 expected = ExpectedRowType::FIELD;
             } else if (is_field_row) {
                 if (expected == ExpectedRowType::ADDRMAP) {
-                    return "Error: Line " + std::to_string(logical_line)
+                    return "Line " + std::to_string(logical_line)
                            + " defines a field but no addrmap was defined first";
                 }
                 if (expected == ExpectedRowType::REG) {
-                    return "Error: Line " + std::to_string(logical_line)
+                    return "Line " + std::to_string(logical_line)
                            + " defines a field but no register was defined for this addrmap";
                 }
                 // After fields, we can have more fields, new registers, or new addrmaps
@@ -841,16 +841,14 @@ public:
                     std::string sw_upper = to_upper(row.sw_access);
                     if (sw_upper != "RW" && sw_upper != "RO" && sw_upper != "WO"
                         && sw_upper != "NA") {
-                        return "Error: Invalid sw_access value '" + row.sw_access
-                               + "' (use RW/RO/WO/NA)";
+                        return "Invalid sw_access value '" + row.sw_access + "' (use RW/RO/WO/NA)";
                     }
                 }
                 if (!row.hw_access.empty()) {
                     std::string hw_upper = to_upper(row.hw_access);
                     if (hw_upper != "RW" && hw_upper != "RO" && hw_upper != "WO"
                         && hw_upper != "NA") {
-                        return "Error: Invalid hw_access value '" + row.hw_access
-                               + "' (use RW/RO/WO/NA)";
+                        return "Invalid hw_access value '" + row.hw_access + "' (use RW/RO/WO/NA)";
                     }
                 }
 
@@ -859,8 +857,7 @@ public:
                     std::string onread_upper = to_upper(row.onread);
                     if (onread_upper != "RCLR" && onread_upper != "RSET"
                         && onread_upper != "RUSER") {
-                        return "Error: Invalid onread value '" + row.onread
-                               + "' (use rclr/rset/ruser)";
+                        return "Invalid onread value '" + row.onread + "' (use rclr/rset/ruser)";
                     }
                 }
 
@@ -872,7 +869,7 @@ public:
                         && onwrite_upper != "WZC" && onwrite_upper != "WZT"
                         && onwrite_upper != "WCLR" && onwrite_upper != "WSET"
                         && onwrite_upper != "WUSER") {
-                        return "Error: Invalid onwrite value '" + row.onwrite
+                        return "Invalid onwrite value '" + row.onwrite
                                + "' (use woclr/woset/wot/wzs/wzc/wzt/wclr/wset/wuser)";
                     }
                 }
