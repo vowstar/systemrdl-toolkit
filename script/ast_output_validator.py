@@ -75,8 +75,6 @@ class JsonValidator:
             self.log_error(f"Invalid format: expected 'SystemRDL_AST', got '{data['format']}'")
             return False
 
-        # Check version
-
         # Check AST structure
         if not isinstance(data["ast"], list):
             self.log_error("AST field must be an array")
@@ -148,8 +146,6 @@ class JsonValidator:
         if data["format"] != "SystemRDL_ElaboratedModel":
             self.log_error(f"Invalid format: expected 'SystemRDL_ElaboratedModel', got '{data['format']}'")
             return False
-
-        # Check version
 
         # Check model structure
         if not isinstance(data["model"], list):
@@ -276,7 +272,7 @@ class JsonTester:
             if file_stem.endswith("_fail"):
                 return True
 
-            # Method 2: Check file content for EXPECT_ELABORATION_FAILURE marker (legacy method)
+            # Method 2: the file marks itself with EXPECT_ELABORATION_FAILURE
             with open(rdl_path, "r", encoding="utf-8") as f:
                 # Check first few lines for EXPECT_ELABORATION_FAILURE marker
                 for i, line in enumerate(f):

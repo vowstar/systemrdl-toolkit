@@ -181,8 +181,8 @@ class CSV2RDLValidator:
                     if "fields" in reg:
                         all_fields.extend(reg["fields"])
 
-            # Check each expected reset value. Simplified model 2.0 emits reset
-            # as a hex string; 1.0 emitted a JSON number.
+            # Check each expected reset value. The simplified model emits reset
+            # as a hex string; a JSON number is accepted as well.
             def reset_as_int(value):
                 if isinstance(value, bool) or value is None:
                     return None

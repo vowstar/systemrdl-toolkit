@@ -75,8 +75,6 @@ class JsonValidator:
             self.log_error(f"Invalid format: expected 'SystemRDL_SimplifiedModel', got '{data['format']}'")
             return False
 
-        # Check version
-
         # Validate addrmap structure
         if not self.validate_addrmap(data["addrmap"]):
             return False
@@ -125,7 +123,7 @@ class JsonValidator:
                 self.log_error(f"Invalid hex address format '{addr}' in addrmap")
                 return False
         elif not isinstance(addr, int):
-            self.log_error(f"Address must be hex string or integer in addrmap")
+            self.log_error("Address must be hex string or integer in addrmap")
             return False
 
         return True
@@ -210,7 +208,7 @@ class JsonValidator:
             if not self.validate_field(field, f"{path}.fields[{i}]"):
                 return False
 
-        # Validate register-specific fields (new functionality)
+        # Validate the optional register-specific fields
         if "register_width" in register:
             if not isinstance(register["register_width"], int) or register["register_width"] <= 0:
                 self.log_error(f"register_width must be positive integer at {path}")
@@ -294,7 +292,7 @@ class JsonValidator:
             self.log_error(f"MSB ({field['msb']}) must be >= LSB ({field['lsb']}) at {path}")
             return False
 
-        # Validate reset value. Simplified model 2.0 emits it as a lowercase hex
+        # Validate reset value. The simplified model emits it as a lowercase hex
         # string so a value wider than 64 bits stays exact. A field with no
         # reset omits the key entirely: that is not the same as resetting to 0.
         if "reset" in field:

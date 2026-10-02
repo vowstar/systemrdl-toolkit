@@ -75,7 +75,7 @@ class ImplementationComparator:
             if file_stem.endswith("_fail"):
                 return True
 
-            # Method 2: Check file content for EXPECT_ELABORATION_FAILURE marker (legacy method)
+            # Method 2: the file marks itself with EXPECT_ELABORATION_FAILURE
             with open(rdl_file, "r", encoding="utf-8") as f:
                 # Check first few lines for EXPECT_ELABORATION_FAILURE marker
                 for i, line in enumerate(f):
@@ -112,9 +112,9 @@ class ImplementationComparator:
     def normalize_reset(value):
         """Normalize a reset value to int.
 
-        The C++ simplified JSON emits reset as a plain number in format 1.0 and
-        as a hex string in format 2.0. Both are accepted so this comparison
-        works across the format change.
+        The C++ simplified JSON emits reset as a lowercase hex string; a plain
+        number is accepted as well so the comparison keeps working with older
+        outputs.
         """
         if value is None:
             return None
