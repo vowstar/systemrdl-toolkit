@@ -914,7 +914,7 @@ if(SYSTEMRDL_BUILD_TESTS)
     )
 
 # Find all RDL test files
-file(GLOB RDL_TEST_FILES "${CMAKE_SOURCE_DIR}/test/*.rdl")
+file(GLOB RDL_TEST_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/test/*.rdl")
 
     # Create tests for parser (only if tools are built)
     if(SYSTEMRDL_BUILD_TOOLS)
@@ -974,7 +974,7 @@ foreach(rdl_file ${RDL_TEST_FILES})
 endforeach()
 
 # Find all CSV test files
-file(GLOB CSV_TEST_FILES "${CMAKE_SOURCE_DIR}/test/test_csv_*.csv")
+file(GLOB CSV_TEST_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/test/test_csv_*.csv")
 
 # Create tests for CSV converter
 foreach(csv_file ${CSV_TEST_FILES})
