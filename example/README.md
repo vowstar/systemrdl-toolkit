@@ -44,8 +44,8 @@ step prints its own status line, and the program exits non-zero if a step fails.
 - `CMakeLists.txt` - CMake configuration for the example
 - `example.cpp` - Main example source code demonstrating all API features
 
-The file-based section writes its sample to the system temp directory, so
-running the example leaves nothing behind.
+The file-based section writes a sample into the working directory and removes it
+again, so running the example leaves nothing behind.
 
 ## Integration in Your Project
 

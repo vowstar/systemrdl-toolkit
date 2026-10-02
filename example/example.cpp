@@ -1,5 +1,5 @@
 #include <algorithm>
-#include <filesystem>
+#include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -325,13 +325,12 @@ int main()
     {
         std::cout << "[6] Example 6: File-based operations" << std::endl;
 
-        // Write the sample to the temp directory: this example is run from the
-        // build tree and from the repository root, and it should not leave a
-        // file behind in either.
-        const std::filesystem::path sample_file = std::filesystem::temp_directory_path()
-                                                  / "systemrdl_example.rdl";
+        // Write the sample here and remove it again at the end of the section:
+        // the example runs from the build tree and from the repository root, and
+        // a leftover file in either is noise.
+        const std::string sample_path = "systemrdl_example.rdl";
 
-        std::ofstream test_file(sample_file);
+        std::ofstream test_file(sample_path);
         test_file << R"(
             addrmap file_test {
                 reg {
@@ -344,7 +343,7 @@ int main()
         test_file.close();
 
         // Parse file
-        auto parse_result = systemrdl::file::parse(sample_file.string());
+        auto parse_result = systemrdl::file::parse(sample_path);
         if (parse_result.ok()) {
             std::cout << "[OK] File parse successful!" << std::endl;
             std::cout << "[OUT] File AST JSON (first 200 chars): "
@@ -354,7 +353,7 @@ int main()
         }
 
         // Elaborate file
-        auto elaborate_result = systemrdl::file::elaborate(sample_file.string());
+        auto elaborate_result = systemrdl::file::elaborate(sample_path);
         if (elaborate_result.ok()) {
             std::cout << "[OK] File elaboration successful!" << std::endl;
             std::cout << "[OUT] File elaborated JSON (first 200 chars): "
@@ -362,6 +361,8 @@ int main()
         } else {
             fail("File elaboration failed: " + elaborate_result.error());
         }
+
+        std::remove(sample_path.c_str());
         std::cout << std::endl;
     }
 
