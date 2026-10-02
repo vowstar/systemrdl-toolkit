@@ -156,18 +156,14 @@ jobs:
         ./build/example.exe
         echo "[OK] Example application completed successfully"
 
-    - name: Run comparison tests (Ubuntu only)
+    # Run the registered suite instead of a hand-picked list of scripts: the
+    # per-fixture tests, the spec conformance check and the failure-reason check
+    # are only reachable this way.
+    - name: Run the test suite (Ubuntu only)
       if: matrix.os == 'ubuntu-latest'
       run: |
-        python script/compare_implementations.py
-
-    - name: Run validation tests
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        python script/ast_output_validator.py --test --parser ./build/systemrdl_parser --elaborator ./build/systemrdl_elaborator --rdl test/test_minimal.rdl
-        python script/json_output_validator.py --test --elaborator ./build/systemrdl_elaborator --rdl test/test_minimal.rdl
-        # Run CSV2RDL validation suite
-        python script/csv2rdl_validator.py
+        cd build
+        ctest --output-on-failure
 
     - name: Upload test artifacts
       if: failure()
