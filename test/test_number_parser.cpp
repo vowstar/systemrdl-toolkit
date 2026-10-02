@@ -1,7 +1,7 @@
 // Unit tests for systemrdl::parse_number.
 //
-// Every case here is a literal form the SystemRDL grammar can produce. The
-// rejection cases matter as much as the acceptance cases: the defect this
+// Every accepted case is a literal form the SystemRDL grammar can produce, and
+// every rejection case is one it cannot. Both matter equally: the defect this
 // parser replaces was std::stoll silently returning the width prefix of
 // "8'hFF" as the value 8.
 
@@ -150,7 +150,7 @@ void test_malformed_is_rejected()
     rejects("8'b12");   // 2 is not a binary digit
     rejects("8'dZZ");   // not decimal digits
     rejects("0xGG");    // not hex digits
-    rejects("0x");      // no digits after prefix
+    rejects("0x");      // too short for the 0x prefix; rejected as a decimal literal
     rejects("_8");      // leading separator
     rejects("8'h_FF");  // leading separator in digits
     rejects("WIDTH");   // an identifier, not a number
