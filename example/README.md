@@ -30,10 +30,11 @@ make
 
 ## What the Example Does
 
-It walks the API section by section: parse, full AST JSON elaboration,
-simplified JSON elaboration, advanced elaboration with arrays, CSV conversion,
-file operations, stream operations, and error handling. Each section prints an
-`[OK]` line. The program does not report a failure status, so read its output.
+It walks the API section by section: parse, hierarchical model JSON
+elaboration, simplified JSON elaboration, advanced elaboration with arrays,
+CSV conversion, file operations, stream operations, and error handling. Each
+section prints an `[OK]` line. The program does not report a failure status, so
+read its output.
 
 ## Files
 
@@ -53,7 +54,7 @@ target_link_libraries(your_target SystemRDL::systemrdl)
 Then include the modern API header:
 
 ```cpp
-#include <systemrdl/systemrdl_api.h>
+#include <systemrdl_api.h>
 ```
 
 For complete API documentation and usage patterns, see the main project README.md.

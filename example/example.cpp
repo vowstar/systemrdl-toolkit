@@ -1,8 +1,8 @@
-#include "systemrdl_api.h"
 #include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <systemrdl_api.h>
 
 int main()
 {
@@ -41,9 +41,9 @@ int main()
         std::cout << std::endl;
     }
 
-    // Example 2: Full AST JSON Elaboration
+    // Example 2: Hierarchical model JSON elaboration
     {
-        std::cout << "[2] Example 2: Full AST JSON Elaboration" << std::endl;
+        std::cout << "[2] Example 2: Hierarchical model JSON elaboration" << std::endl;
 
         std::string rdl_content = R"(
             addrmap demo_chip {
@@ -311,9 +311,9 @@ int main()
         std::cout << std::endl;
     }
 
-    // Example 5: File-based operations
+    // Example 6: File-based operations
     {
-        std::cout << "[5] Example 5: File-based operations" << std::endl;
+        std::cout << "[6] Example 6: File-based operations" << std::endl;
 
         // Create a test file
         std::ofstream test_file("test_example.rdl");
@@ -350,9 +350,9 @@ int main()
         std::cout << std::endl;
     }
 
-    // Example 6: Stream operations
+    // Example 7: Stream operations
     {
-        std::cout << "[6] Example 6: Stream operations" << std::endl;
+        std::cout << "[7] Example 7: Stream operations" << std::endl;
 
         std::string rdl_content = R"(
             addrmap stream_test {
@@ -389,9 +389,9 @@ int main()
         std::cout << std::endl;
     }
 
-    // Example 7: Error handling demonstration
+    // Example 8: Error handling demonstration
     {
-        std::cout << "[7] Example 7: Error handling" << std::endl;
+        std::cout << "[8] Example 8: Error handling" << std::endl;
 
         std::string invalid_rdl = "invalid SystemRDL syntax here!!!";
 
@@ -415,22 +415,6 @@ int main()
     }
 
     std::cout << "[OK] SystemRDL Modern API example completed." << std::endl;
-    std::cout << "\n[INFO] Key features of the API:" << std::endl;
-    std::cout << "   - Clean interface without ANTLR4 header exposure" << std::endl;
-    std::cout << "   - String-based input/output for ease of use" << std::endl;
-    std::cout << "   - Consistent error handling pattern" << std::endl;
-    std::cout << "   - Multiple input/output methods supported" << std::endl;
-    std::cout << "   - Modern C++ design patterns" << std::endl;
-    std::cout << "   - Elaboration functionality available" << std::endl;
-    std::cout << "\n[INFO] Elaboration capabilities demonstrated:" << std::endl;
-    std::cout << "   - Hierarchical design processing" << std::endl;
-    std::cout << "   - Array and parameterization support" << std::endl;
-    std::cout << "   - Address calculation assistance" << std::endl;
-    std::cout << "   - Basic validation features" << std::endl;
-    std::cout << "   - Property inheritance handling" << std::endl;
-    std::cout << "   - Memory management through RAII" << std::endl;
-    std::cout << "\n[INFO] This example shows the basic usage patterns of the toolkit."
-              << std::endl;
 
     return 0;
 }
