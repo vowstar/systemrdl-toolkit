@@ -207,28 +207,12 @@ python json_output_validator.py
 
 ## Project Structure
 
-```bash
-systemrdl-toolkit/
-├── include/systemrdl/        # Public headers, the whole installed interface
-│   ├── systemrdl_api.h       # String in, string out API
-│   └── systemrdl_version.h
-├── src/                      # Library sources and private headers
-│   ├── elaborator.{h,cpp}
-│   ├── systemrdl_api.cpp
-│   ├── systemrdl_bitvector.{h,cpp}
-│   ├── systemrdl_number.{h,cpp}
-│   └── generated/            # ANTLR4 output, never edited by hand
-├── tools/                    # Command line executables
-│   ├── cmdline_parser.h
-│   └── *_main.cpp
-├── grammar/SystemRDL.g4      # Grammar, input to src/generated
-├── test/                     # SystemRDL fixtures and C++ unit tests
-├── script/                   # Python validation and comparison
-├── example/                  # Minimal library consumer
-├── cmake/                    # Package config templates
-├── doc/                      # Documentation
-└── CMakeLists.txt
-```
+`include/systemrdl/` is the whole installed interface; everything outside it is
+private to this repository. `src/generated/` holds ANTLR4 output, which is
+regenerated with `make generate-antlr4-cpp` and never edited by hand.
+
+Fixtures, the Python checkers, the grammar and the example all live in the
+directory named after what they are.
 
 ## Development Workflow
 
