@@ -336,10 +336,11 @@ class ImplementationComparator:
         if not expect_failure and cpp_success and python_success:
             self.compare_values(rdl_file, file_name)
 
-        # For expected failures, invert the logic
+        # For expected failures, invert the logic. Only the C++ status is raw
+        # here: the Python side runs rdl_semantic_validator.py, which already
+        # reports whether the file behaved as its name says it should.
         if expect_failure:
             cpp_success = not cpp_success
-            python_success = not python_success
             print(f"   [VAL] C++ Validation: {'[OK] PASS' if cpp_success else '[FAIL] FAIL'}")
             print(f"   [VAL] Python Validation: {'[OK] PASS' if python_success else '[FAIL] FAIL'}")
 
