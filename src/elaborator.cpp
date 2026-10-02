@@ -567,8 +567,8 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node, const Elabor
         if (width_bits == 0) {
             report_error(
                 "Memory '" + mem_node->inst_name
-                    + "' has no memwidth. SystemRDL 2.0 clause 11.3.1-d defaults memwidth to the "
-                      "register width, so assign memwidth explicitly",
+                    + "' has no memwidth. Assign memwidth, or instantiate a virtual register to "
+                      "define the memory width (SystemRDL 2.0 clause 11.3.1-d)",
                 mem_node->source_ctx);
             width_bits = 32;
         }
