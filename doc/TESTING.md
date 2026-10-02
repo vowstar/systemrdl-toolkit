@@ -6,37 +6,12 @@ implementation.
 
 ## Setup Requirements
 
-Ensure Python virtual environment is set up and activated (see [Python Dependencies](#python-dependencies) section for
-detailed setup):
-
-```bash
-# If not already set up, create and install dependencies
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-
-# If already set up, just activate
-source .venv/bin/activate
-```
-
-## Quick Testing
-
-```bash
-# Run fast tests (JSON + semantic validation)
-cd build
-make test-fast
-
-# Run JSON output tests only
-make test-json
-
-# Run semantic validation tests only
-make test-semantic
-```
+Ensure the Python virtual environment is set up and activated, as described in
+[Python Dependencies](BUILD.md#python-dependencies).
 
 ## Python Validation Scripts
 
-The project includes two main Python scripts for validation:
+The project includes these Python validation scripts:
 
 ### 1. RDL Semantic Validator (`script/rdl_semantic_validator.py`)
 
@@ -55,14 +30,6 @@ python3 script/rdl_semantic_validator.py
 # - Node hierarchy with addresses and properties
 # - Array information and descriptions
 ```
-
-**Features:**
-
-- Uses official `systemrdl-compiler` for validation
-- Provides detailed elaboration output with addresses and sizes
-- Shows node hierarchy and properties
-- Validates array dimensions and strides
-- Displays property descriptions where available
 
 ### 2. JSON Output Validator (`script/json_output_validator.py`)
 
@@ -94,16 +61,16 @@ python3 script/json_output_validator.py --test --parser build/systemrdl_parser -
 - Validates JSON schema and structure
 - Checks AST JSON format compliance
 - Validates elaborated model format
-- Performs end-to-end testing
 - Compares consistency between parser and elaborator outputs
 - Supports individual file validation and batch testing
 
-- `script/csv2rdl_validator.py` - CSV to SystemRDL converter validation suite
-  - Three-tier validation: conversion success, syntax validation, content validation
-  - Auto-discovers CSV test files using `test_csv_*.csv` naming convention
-  - Cross-directory execution with automatic project path detection
+### 3. CSV to SystemRDL Converter Validator (`script/csv2rdl_validator.py`)
 
-### 3. Spec Conformance Checker (`script/spec_conformance_check.py`)
+- Three-tier validation: conversion success, syntax validation, content validation
+- Auto-discovers CSV test files using `test_csv_*.csv` naming convention
+- Cross-directory execution with automatic project path detection
+
+### 4. Spec Conformance Checker (`script/spec_conformance_check.py`)
 
 Checks the elaborator against the worked examples in the SystemRDL 2.0
 standard. Each example lives in `test/test_spec_*.rdl` with the addresses and
@@ -116,7 +83,7 @@ Examples the toolkit does not satisfy are listed in `KNOWN_FAILURES` alongside
 the clause they belong to. An entry that starts passing is reported as an error
 so the list cannot go stale.
 
-### 4. Value Comparison (`script/compare_implementations.py`)
+### 5. Value Comparison (`script/compare_implementations.py`)
 
 Elaborates every RDL file with both this toolkit and the reference
 implementation and compares the resulting register addresses, register widths,
@@ -126,36 +93,17 @@ the numbers that reach RTL and firmware headers.
 Files named `test_spec_*.rdl` are skipped here because the spec conformance
 checker already covers them against the standard itself.
 
-## Testing commands
+## Running Tests
 
 ```bash
-# Run all tests (parser + elaborator + JSON + semantic)
-make test-all
-
-# Standard CTest execution
-make test
-
-# Verbose output with details
-ctest --output-on-failure --verbose
-
-# Custom target for testing
-make run-tests
-```
-
-### Test Categories
-
-```bash
-# Test only the parser
-make test-parser
-
-# Test only the elaborator
-make test-elaborator
-
-# Or using CTest labels
-ctest -L parser --output-on-failure
-ctest -L elaborator --output-on-failure
-ctest -L json --output-on-failure
-ctest -L semantic --output-on-failure
+make test                   # Standard CTest run
+make test-all               # Full suite (parser + elaborator + JSON + semantic)
+make run-tests              # Full suite with verbose output
+make test-fast              # Fast group (AST, JSON, semantic, CSV2RDL, template, example)
+make test-json              # JSON output tests
+make test-semantic          # RDL semantic validation
+make test-parser            # Parser tests
+make test-elaborator        # Elaborator tests
 ```
 
 ### Individual Test Execution
@@ -173,15 +121,6 @@ ctest -R "json_test_minimal" --output-on-failure
 # Run semantic validation for specific file
 ctest -R "rdl_semantic_validation" --output-on-failure
 ```
-
-### Available Test Targets
-
-- `test-fast` - Quick tests (JSON + semantic validation) for rapid development
-- `test-json` - JSON output validation tests using Python validator
-- `test-semantic` - RDL semantic validation using Python SystemRDL compiler
-- `test-parser` - SystemRDL parser tests
-- `test-elaborator` - SystemRDL elaborator tests
-- `test-all` - Complete test suite
 
 ### Adding a test
 
