@@ -27,6 +27,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 MARKER_RE = re.compile(r"EXPECT_ELABORATION_FAILURE\s*[:\-]\s*(.+)")
@@ -55,9 +56,10 @@ def run_fixture(kind, tool, path):
     """Return (returncode, combined output) for one fixture."""
     command = [tool, path]
     if kind == "rcsv":
-        # Write anywhere but the source tree; the fixture is expected to be
-        # rejected before an output file matters.
-        command += ["-o", os.devnull]
+        # The converter writes an RDL file on success. The fixture is expected
+        # to be rejected first, and the path below keeps a success from writing
+        # into the source tree on any platform.
+        command += ["-o", os.path.join(tempfile.gettempdir(), "failure_reason_probe.rdl")]
     result = subprocess.run(command, capture_output=True, text=True, timeout=60)
     return result.returncode, result.stdout + result.stderr
 
@@ -70,7 +72,7 @@ def check_fixture(kind, tool, path):
 
     returncode, output = run_fixture(kind, tool, path)
     if returncode == 0:
-        return len(declared), 0, ["elaboration succeeded; this is no longer a failure case"]
+        return len(declared), 0, ["the tool accepted it; this is no longer a failure case"]
 
     reported = [match.strip() for match in PROBLEM_RE[kind].findall(output)]
     if not reported:
