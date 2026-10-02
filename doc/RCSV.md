@@ -1,15 +1,7 @@
 # RCSV (Register-CSV) Specification v0.4
 
-RCSV is a practical, field-oriented CSV format for SystemRDL Toolkit. It gives a
-standard way to describe register maps in a spreadsheet and convert them to
-SystemRDL.
-
-**Design Principles:**
-
-- **Simplicity**: Easy to understand and create manually or programmatically
-- **Direct Mapping**: CSV structure maps directly to SystemRDL syntax
-- **Completeness**: Preserves all essential register/field information
-- **Validation**: Clear error messages for malformed input
+RCSV is a field-oriented CSV format for SystemRDL Toolkit that describes
+register maps in a spreadsheet and converts them to SystemRDL.
 
 ---
 
@@ -21,7 +13,6 @@ RCSV addresses the need for a standardized CSV format for register map interchan
 - **Target Audience**: Hardware engineers, verification engineers, documentation teams
 - **Scope**: Elaborated register maps with resolved addresses, widths, and properties
 - **Single Address Map**: One RCSV file describes exactly one address map (for multiple address maps, use separate files)
-- **Compatibility**: Designed to work with SystemRDL Toolkit's existing CSV2RDL converter
 
 ---
 
@@ -31,7 +22,7 @@ RCSV follows standard CSV conventions with specific requirements:
 
 - **Encoding**: UTF-8 with Unix line endings (`\n`)
 - **Structure**: Comma-separated values with **mandatory header row**
-- **Delimiter**: Standard comma (`,`) - semicolon (`;`) support is optional for compatibility
+- **Delimiter**: Standard comma (`,`); semicolon (`;`) is also accepted (auto-detected per file)
 - **Quoting**: Multi-line cells supported with double quotes (`"`)
 - **Escaping**: Double quotes in cells escaped as `""` (RFC 4180 compliant)
 
@@ -39,20 +30,18 @@ RCSV follows standard CSV conventions with specific requirements:
 
 ## 3. Structure Overview
 
-RCSV uses a **row-based hierarchical structure** compatible with existing CSV tools:
+RCSV uses a **row-based hierarchical structure**:
 
-- **Header Row**: Defines column names. Column names MUST match exactly and are case-sensitive.
+- **Header Row**: Defines column names; matching rules are in section 4.6.
 - **Address Map Row**: Defines the top-level address map container
 - **Register Rows**: Define individual registers within the address map
 - **Field Rows**: Define fields within each register (one row per field)
-
-This structure maintains compatibility with the SystemRDL Toolkit's current CSV2RDL implementation while providing standardization.
 
 ---
 
 ## 4. Required Columns
 
-RCSV defines a standard set of columns compatible with existing CSV2RDL tools:
+RCSV defines the following columns:
 
 ### 4.1 Core Identification Columns
 
@@ -95,22 +84,11 @@ RCSV defines a standard set of columns compatible with existing CSV2RDL tools:
 
 ### 4.6 Column Name Rules
 
-All column headers MUST match the standard names EXACTLY and are case-sensitive:
-
-- `addrmap_offset`
-- `addrmap_name`
-- `reg_offset`
-- `reg_name`
-- `reg_width`
-- `field_name`
-- `field_lsb`
-- `field_msb`
-- `reset_value`
-- `sw_access`
-- `hw_access`
-- `onread` (optional)
-- `onwrite` (optional)
-- `description` (optional)
+Header names are matched case-insensitively against the standard names in
+sections 4.1 to 4.5. The abbreviation map `sw_acc`, `hw_acc`, `access`,
+`addr_offset`, `addr_name`, `lsb`, `msb`, `desc` and `width` is applied first;
+otherwise the closest standard name within an edit distance of 3 is used. A
+header that matches no standard name is ignored.
 
 ### 4.7 Array Support
 
@@ -163,14 +141,6 @@ addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,f
 ,,0x0004,STATUS,32,,,,,,,"Status register"
 ,,,,,READY,0,0,0,RO,RO,"Ready status"
 ```
-
-**Row Type Explanation:**
-
-- Row 2: Address Map Row (defines DEMO address map)
-- Row 3: Register Row (defines CTRL register)
-- Rows 4-5: Field Rows (ENABLE and MODE fields in CTRL register)
-- Row 6: Register Row (defines STATUS register)
-- Row 7: Field Row (READY field in STATUS register)
 
 ---
 
@@ -259,28 +229,14 @@ Absolute address = `addrmap_offset + reg_offset`. Register width in bits (8, 16,
 
 ## 11. Minimal Compliance Set
 
-For full RCSV compliance, all CSV files must include these columns:
-
-**Required Columns (11 total):**
-
-```csv
-addrmap_offset, addrmap_name, reg_offset, reg_name, reg_width,
-field_name, field_lsb, field_msb, reset_value, sw_access, hw_access
-```
-
-**Optional Columns:**
-
-```csv
-onread, onwrite, description
-```
-
-This minimal set ensures complete SystemRDL generation without information loss.
+A file is RCSV-compliant when it supplies every column marked Required in
+section 4; the columns marked No are optional.
 
 ---
 
 ## 12. Complete Example
 
-Here's a practical RCSV example demonstrating all features:
+The example below exercises the full column set:
 
 ```csv
 addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,onread,onwrite,description
@@ -301,19 +257,7 @@ addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,f
 ,,,,,VALUE,0,31,0,RW,RW,,,"32-bit data value"
 ```
 
-**Key Features Demonstrated:**
-
-- Standard three-tier hierarchy (address map -> registers -> fields)
-- Mixed access patterns (RW/RO/WO combinations)
-- Hexadecimal values (addresses and reset values)
-- Reserved field naming convention with recommended RO/NA access
-- Complete bit coverage within registers
-- Corrected field width descriptions (3-bit MODE field: 0-7)
-- Read/write side-effects: Write-one-set (woset), Write-one-clear (woclr), Read-clear (rclr)
-
 ### 12.1 Array Example
-
-Register arrays are specified directly in the `reg_name` column:
 
 ```csv
 addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,field_msb,reset_value,sw_access,hw_access,description
@@ -323,12 +267,3 @@ addrmap_offset,addrmap_name,reg_offset,reg_name,reg_width,field_name,field_lsb,f
 ```
 
 This generates SystemRDL `BUFFER[8] @ 0x0000` which expands to 8 registers: `BUFFER[0]` through `BUFFER[7]`.
-
----
-
-## 13. SystemRDL Output
-
-RCSV maps directly to SystemRDL syntax. An array such as `BUFFER[8]` becomes
-`BUFFER[8] @ address` and expands to individual register instances.
-
----
