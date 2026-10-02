@@ -93,6 +93,14 @@ the numbers that reach RTL and firmware headers.
 Files named `test_spec_*.rdl` are skipped here because the spec conformance
 checker already covers them against the standard itself.
 
+### 6. Failure Reason Checker (`script/failure_reason_check.py`)
+
+Runs every `test/*_fail` fixture and checks it against the
+`EXPECT_ELABORATION_FAILURE` lines it declares: each declared fragment has to
+appear in the output of the tool that rejects the fixture, every reported error
+has to be declared, and the fixture has to fail at all. The marker convention is
+in "Adding a test" below.
+
 ## Running Tests
 
 ```bash
@@ -130,13 +138,25 @@ list needs updating, which is why this document does not keep one.
 | Pattern | What it is |
 | -- | -- |
 | `test_*.rdl` | Elaborated and compared against the reference implementation |
-| `test_*_fail.rdl` | Expected to fail elaboration, and to fail for its own stated reason |
+| `test_*_fail.rdl`, `test_csv_*_fail.csv` | Expected to fail for the rules it declares, see below |
 | `test_spec_*.rdl` | A worked example from the standard, with `SPEC-EXPECT` lines giving the expected values |
 | `test_csv_*.csv` | An RCSV case for the converter |
 | `test_*.cpp` | A C++ unit test, built and run by CTest |
 
-A `_fail` file should break exactly one rule. If it fails for two reasons, the
-one you meant to test can rot away unnoticed while the file still passes.
+A `_fail` fixture declares what it expects to break, one
+`EXPECT_ELABORATION_FAILURE` line per rule, and each line carries a fragment
+that must appear in the output of the tool that rejects the fixture:
 
-Start the file with a comment saying what it covers and, for a `_fail` file,
-`EXPECT_ELABORATION_FAILURE` with the reason.
+```text
+// EXPECT_ELABORATION_FAILURE: Field overlap detected
+// EXPECT_ELABORATION_FAILURE: exceeds register width
+```
+
+`script/failure_reason_check.py` fails when a declared fragment is not reported,
+when the tool reports an error no line declares, or when the fixture stops
+failing. Without that check a marker is prose, and the rule the fixture was
+written for can rot away while the fixture still passes.
+
+Source comments describe what the code does now. A fixture may also record the
+defect it guards against, since that is why the case exists; the marker lines
+are the part the build checks.

@@ -1,5 +1,5 @@
 // Memory with no memwidth.
-// EXPECT_ELABORATION_FAILURE - the memory width cannot be derived
+// EXPECT_ELABORATION_FAILURE: has no memwidth
 //
 // 11.3.1-d derives memwidth from the register width, and the size of a memory
 // is mementries entries of that width. Without a width there is no size.

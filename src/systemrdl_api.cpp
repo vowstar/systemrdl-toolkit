@@ -722,6 +722,15 @@ private:
         return row;
     }
 
+    // A line whose first non-blank character is '#' is a comment. Hand-written
+    // RCSV files carry notes this way, and the fixtures state the rule they
+    // expect to break in one.
+    static bool is_comment_line(const std::string &line)
+    {
+        const size_t first = line.find_first_not_of(" \t");
+        return first != std::string::npos && line[first] == '#';
+    }
+
     // Parse CSV content handling multiline quoted fields (supports both single and double quotes)
     std::vector<std::string> parse_csv_content(const std::string &content)
     {
@@ -742,7 +751,9 @@ private:
             } else if (c == '\n' && !in_double_quotes && !in_single_quotes) {
                 // End of line outside quotes
                 if (!current_line.empty()) {
-                    lines.push_back(current_line);
+                    if (!is_comment_line(current_line)) {
+                        lines.push_back(current_line);
+                    }
                     current_line.clear();
                 }
             } else {
@@ -751,7 +762,7 @@ private:
         }
 
         // Add last line if not empty
-        if (!current_line.empty()) {
+        if (!current_line.empty() && !is_comment_line(current_line)) {
             lines.push_back(current_line);
         }
 

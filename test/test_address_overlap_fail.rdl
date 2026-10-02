@@ -1,5 +1,5 @@
 // Test register address overlap detection
-// EXPECT_ELABORATION_FAILURE - This test contains intentional address overlaps
+// EXPECT_ELABORATION_FAILURE: Instance address overlap detected
 addrmap test_address_overlap {
     // Basic register definition
     reg test_reg {

@@ -1,5 +1,5 @@
 // Access width wider than the register.
-// EXPECT_ELABORATION_FAILURE - accesswidth 64 exceeds regwidth 32, violating SystemRDL 2.0 clause 10.6.1-c
+// EXPECT_ELABORATION_FAILURE: 10.6.1-c
 //
 // 10.6.1-c: "The value of the accesswidth property shall not exceed the value
 // of the regwidth property." A 64-bit access to a 32-bit register would read

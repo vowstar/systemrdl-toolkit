@@ -404,32 +404,6 @@ class CSV2RDLValidator:
 
         return self.test_csv_file(csv_file, "Basic Example Test", expected_patterns)
 
-    def run_failure_tests(self):
-        """Test expected failure cases."""
-        test_files = [
-            (
-                "test_csv_mixed_types_fail.csv",
-                "Mixed Types Failure Test",
-                [r"mixed information types", r"Line 2 contains mixed information types"],
-            ),
-            (
-                "test_csv_field_before_reg_fail.csv",
-                "Field Before Register Failure Test",
-                [r"field.*but no register", r"Line 3 defines a field but no register was defined"],
-            ),
-        ]
-
-        results = []
-        for csv_name, test_name, expected_error_patterns in test_files:
-            csv_file = self.test_dir / csv_name
-            if csv_file.exists():
-                result = self.test_csv_file(csv_file, test_name, expected_error_patterns)
-                results.append(result)
-            else:
-                print("   [WARNING]  Skipping {}: file not found".format(test_name))
-
-        return all(results) if results else False
-
     def run_multiline_tests(self):
         """Test various multiline scenarios."""
         test_files = [
@@ -576,10 +550,11 @@ class CSV2RDLValidator:
         self.setup_temp_dir()
 
         try:
-            # Run targeted test suites
+            # Run targeted test suites. Failure reasons for _fail fixtures are
+            # checked by script/failure_reason_check.py from the marker in the
+            # fixture, not from a pattern list here.
             test_suites = [
                 ("Basic Example", self.run_basic_example_test),
-                ("Expected Failures", self.run_failure_tests),
                 ("Multiline Processing", self.run_multiline_tests),
                 ("Quote Handling", self.run_quote_handling_tests),
                 ("Semicolon Delimiter", self.run_delimiter_test),

@@ -1,5 +1,5 @@
 // Non-power-of-2 access width.
-// EXPECT_ELABORATION_FAILURE - accesswidth 48 violates SystemRDL 2.0 clause 10.6.1-b
+// EXPECT_ELABORATION_FAILURE: 10.6.1-b
 //
 // 10.6.1-b: "All registers shall have a accesswidth = 2^N, where N >= 3."
 // accesswidth is the minimum software access the register supports, so a value

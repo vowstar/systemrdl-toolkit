@@ -1,6 +1,6 @@
 // Test field overlap detection. This fixture breaks one rule only: the two
 // overlaps below are the whole set of errors the elaborator must report.
-// EXPECT_ELABORATION_FAILURE: field overlap in overlap_reg
+// EXPECT_ELABORATION_FAILURE: Field overlap detected
 addrmap test_field_overlap {
     // Field overlap within same register
     reg overlap_reg {

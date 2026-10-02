@@ -4,7 +4,7 @@
 //
 // The elaborator fails this file on the address overlap between 'large' and
 // 'edge', not on the gaps; nothing here asserts the reserved-field names.
-// EXPECT_ELABORATION_FAILURE: instance address overlap between 'large' and 'edge'
+// EXPECT_ELABORATION_FAILURE: Instance address overlap detected
 addrmap test_comprehensive_gaps {
 
     // Test 1: Complete register (no gaps expected)

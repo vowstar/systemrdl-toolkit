@@ -1114,6 +1114,18 @@ if(Python3_FOUND)
         DEPENDS "systemrdl_elaborator"
     )
 
+    # Failure Reason Test - checks that each _fail fixture fails for the rule it declares
+    add_test(
+        NAME "failure_reason"
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/script/failure_reason_check.py
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    set_tests_properties("failure_reason" PROPERTIES
+        LABELS "conformance;validation;failure"
+        TIMEOUT 120
+        DEPENDS "systemrdl_elaborator;systemrdl_csv2rdl"
+    )
+
     # Value Comparison Test - compares elaborated numbers against the reference implementation
     add_test(
         NAME "value_comparison"

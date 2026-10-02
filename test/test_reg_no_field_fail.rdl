@@ -1,5 +1,5 @@
 // Register with no field.
-// EXPECT_ELABORATION_FAILURE - empty register violates SystemRDL 2.0 clause 10.1-c
+// EXPECT_ELABORATION_FAILURE: 10.1-c
 //
 // 10.1-c: "At least one field shall be instantiated within a register."
 // This is checked before reserved fields are generated for gaps, otherwise gap

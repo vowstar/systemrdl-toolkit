@@ -1,5 +1,5 @@
 // Register file with no register.
-// EXPECT_ELABORATION_FAILURE - empty register file violates SystemRDL 2.0 clause 12.2-c
+// EXPECT_ELABORATION_FAILURE: 12.2-c
 //
 // 12.2-c: "At least one reg or regfile shall be instantiated within a regfile."
 // An empty register file used to be given a size of four bytes, which shifted

@@ -25,6 +25,7 @@ RCSV follows standard CSV conventions with specific requirements:
 - **Delimiter**: Standard comma (`,`); semicolon (`;`) is also accepted (auto-detected per file)
 - **Quoting**: Multi-line cells supported with double quotes (`"`)
 - **Escaping**: Double quotes in cells escaped as `""` (RFC 4180 compliant)
+- **Comments**: A line whose first non-blank character is `#` is ignored
 
 ---
 
