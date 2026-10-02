@@ -1628,7 +1628,7 @@ add_custom_target(quality-help
     COMMAND echo "  markdown-lint      - Lint Markdown files"
     COMMAND echo "  markdown-rules     - Show available markdown rules"
     COMMAND echo ""
-    COMMAND echo "🧪 Testing:"
+    COMMAND echo "[TESTS] Testing:"
     COMMAND echo "  test-fast          - Quick tests \\(JSON + semantic + CSV2RDL + example\\)"
     COMMAND echo "  test-example       - Run example application \\(library integration test\\)"
     COMMAND echo "  test-parser        - Run parser tests only"

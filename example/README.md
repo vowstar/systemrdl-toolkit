@@ -28,19 +28,24 @@ make
 ./example_app
 ```
 
+The main project builds this same source as its `example` target and runs it
+through `make test-example`. That is the in-tree smoke test; this standalone
+project is the consumer-style build against an installed package.
+
 ## What the Example Does
 
 It walks the API section by section: parse, hierarchical model JSON
 elaboration, simplified JSON elaboration, advanced elaboration with arrays,
 CSV conversion, file operations, stream operations, and error handling. Each
-section prints an `[OK]` line. The program does not report a failure status, so
-read its output.
+step prints its own status line, and the program exits non-zero if a step fails.
 
 ## Files
 
 - `CMakeLists.txt` - CMake configuration for the example
 - `example.cpp` - Main example source code demonstrating all API features
-- `test_example.rdl` - Sample SystemRDL file for testing
+
+The file-based section writes its sample to the system temp directory, so
+running the example leaves nothing behind.
 
 ## Integration in Your Project
 
@@ -57,4 +62,4 @@ Then include the modern API header:
 #include <systemrdl_api.h>
 ```
 
-For complete API documentation and usage patterns, see the main project README.md.
+For the library API, see [doc/API.md](../doc/API.md).

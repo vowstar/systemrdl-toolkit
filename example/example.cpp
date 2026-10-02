@@ -1,8 +1,22 @@
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <systemrdl_api.h>
+
+namespace {
+int failures = 0;
+
+// The example doubles as a CI smoke test, so a step that fails has to show up
+// in the exit status. Section 8 prints the errors it provokes on purpose and
+// does not count those.
+void fail(const std::string &message)
+{
+    ++failures;
+    std::cout << "[ERR] " << message << std::endl;
+}
+} // namespace
 
 int main()
 {
@@ -36,7 +50,7 @@ int main()
             std::cout << "[OUT] AST JSON (first 200 chars): " << result.value().substr(0, 200)
                       << "..." << std::endl;
         } else {
-            std::cout << "[ERR] Parse failed: " << result.error() << std::endl;
+            fail("Parse failed: " + result.error());
         }
         std::cout << std::endl;
     }
@@ -106,7 +120,7 @@ int main()
             }
             std::cout << "[INFO] Total elaborated nodes: " << node_count << std::endl;
         } else {
-            std::cout << "[ERR] Elaboration failed: " << result.error() << std::endl;
+            fail("Elaboration failed: " + result.error());
         }
         std::cout << std::endl;
     }
@@ -167,11 +181,13 @@ int main()
             bool has_registers     = json.find("\"registers\"") != std::string::npos;
 
             std::cout << "[INFO] Simplified JSON validation:" << std::endl;
-            std::cout << "  - Has format field: " << (has_format ? "✓" : "✗") << std::endl;
-            std::cout << "  - Is simplified model: " << (has_simplified ? "✓" : "✗") << std::endl;
-            std::cout << "  - Has registers array: " << (has_registers ? "✓" : "✗") << std::endl;
+            std::cout << "  - Has format field: " << (has_format ? "PASS" : "FAIL") << std::endl;
+            std::cout << "  - Is simplified model: " << (has_simplified ? "PASS" : "FAIL")
+                      << std::endl;
+            std::cout << "  - Has registers array: " << (has_registers ? "PASS" : "FAIL")
+                      << std::endl;
         } else {
-            std::cout << "[ERR] Simplified elaboration failed: " << result.error() << std::endl;
+            fail("Simplified elaboration failed: " + result.error());
         }
         std::cout << std::endl;
     }
@@ -274,14 +290,8 @@ int main()
 
             // Show size of elaborated JSON
             std::cout << "[INFO] Elaborated JSON size: " << json.length() << " bytes" << std::endl;
-            std::cout << "[DEMO] This demonstrates:" << std::endl;
-            std::cout << "   - Array instantiation (mem_ctrl[4])" << std::endl;
-            std::cout << "   - Complex address mapping with strides" << std::endl;
-            std::cout << "   - Hierarchical regfile structures" << std::endl;
-            std::cout << "   - Automatic gap filling and validation" << std::endl;
-            std::cout << "   - Property inheritance and elaboration" << std::endl;
         } else {
-            std::cout << "[ERR] Advanced elaboration failed: " << result.error() << std::endl;
+            fail("Advanced elaboration failed: " + result.error());
         }
         std::cout << std::endl;
     }
@@ -306,7 +316,7 @@ int main()
             std::cout << "[OK] CSV conversion successful!" << std::endl;
             std::cout << "[OUT] SystemRDL output:\n" << result.value() << std::endl;
         } else {
-            std::cout << "[ERR] CSV conversion failed: " << result.error() << std::endl;
+            fail("CSV conversion failed: " + result.error());
         }
         std::cout << std::endl;
     }
@@ -315,8 +325,13 @@ int main()
     {
         std::cout << "[6] Example 6: File-based operations" << std::endl;
 
-        // Create a test file
-        std::ofstream test_file("test_example.rdl");
+        // Write the sample to the temp directory: this example is run from the
+        // build tree and from the repository root, and it should not leave a
+        // file behind in either.
+        const std::filesystem::path sample_file = std::filesystem::temp_directory_path()
+                                                  / "systemrdl_example.rdl";
+
+        std::ofstream test_file(sample_file);
         test_file << R"(
             addrmap file_test {
                 reg {
@@ -329,23 +344,23 @@ int main()
         test_file.close();
 
         // Parse file
-        auto parse_result = systemrdl::file::parse("test_example.rdl");
+        auto parse_result = systemrdl::file::parse(sample_file.string());
         if (parse_result.ok()) {
             std::cout << "[OK] File parse successful!" << std::endl;
             std::cout << "[OUT] File AST JSON (first 200 chars): "
                       << parse_result.value().substr(0, 200) << "..." << std::endl;
         } else {
-            std::cout << "[ERR] File parse failed: " << parse_result.error() << std::endl;
+            fail("File parse failed: " + parse_result.error());
         }
 
         // Elaborate file
-        auto elaborate_result = systemrdl::file::elaborate("test_example.rdl");
+        auto elaborate_result = systemrdl::file::elaborate(sample_file.string());
         if (elaborate_result.ok()) {
             std::cout << "[OK] File elaboration successful!" << std::endl;
             std::cout << "[OUT] File elaborated JSON (first 200 chars): "
                       << elaborate_result.value().substr(0, 200) << "..." << std::endl;
         } else {
-            std::cout << "[ERR] File elaboration failed: " << elaborate_result.error() << std::endl;
+            fail("File elaboration failed: " + elaborate_result.error());
         }
         std::cout << std::endl;
     }
@@ -372,7 +387,7 @@ int main()
             std::cout << "[OUT] Stream output (first 200 chars): " << output.str().substr(0, 200)
                       << "..." << std::endl;
         } else {
-            std::cout << "[ERR] Stream parse failed!" << std::endl;
+            fail("Stream parse failed!");
         }
 
         // Test stream elaboration
@@ -384,7 +399,7 @@ int main()
             std::cout << "[OUT] Stream elaborated output (first 200 chars): "
                       << elab_output.str().substr(0, 200) << "..." << std::endl;
         } else {
-            std::cout << "[ERR] Stream elaboration failed!" << std::endl;
+            fail("Stream elaboration failed!");
         }
         std::cout << std::endl;
     }
@@ -398,20 +413,25 @@ int main()
         auto result = systemrdl::parse(invalid_rdl);
         if (!result.ok()) {
             std::cout << "[OK] Error handling working correctly!" << std::endl;
-            std::cout << "[ERR] Error message: " << result.error() << std::endl;
+            std::cout << "[INFO] Error message: " << result.error() << std::endl;
         } else {
-            std::cout << "[ERR] Expected error but got success!" << std::endl;
+            fail("Expected error but got success!");
         }
 
         // Test elaboration error handling
         auto elab_result = systemrdl::elaborate(invalid_rdl);
         if (!elab_result.ok()) {
             std::cout << "[OK] Elaboration error handling working correctly!" << std::endl;
-            std::cout << "[ERR] Elaboration error: " << elab_result.error() << std::endl;
+            std::cout << "[INFO] Elaboration error: " << elab_result.error() << std::endl;
         } else {
-            std::cout << "[ERR] Expected elaboration error but got success!" << std::endl;
+            fail("Expected elaboration error but got success!");
         }
         std::cout << std::endl;
+    }
+
+    if (failures != 0) {
+        std::cout << "[FAIL] " << failures << " step(s) failed" << std::endl;
+        return 1;
     }
 
     std::cout << "[OK] SystemRDL Modern API example completed." << std::endl;
