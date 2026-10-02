@@ -1,0 +1,14 @@
+// A memory instantiated without the external keyword.
+//
+// A memory is external hardware, so an instance of one carries the keyword.
+// Without it the instance describes a component with no bus behind it, which is
+// not what the writer meant; the reference implementation rejects it.
+//
+// This used to elaborate and be given a size.
+// EXPECT_ELABORATION_FAILURE: shall be instantiated as external
+addrmap test_mem_not_external {
+    mem {
+        memwidth = 32;
+        mementries = 4;
+    } internal_mem @ 0x0;
+};

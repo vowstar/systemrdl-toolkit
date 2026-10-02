@@ -346,13 +346,30 @@ private:
         const std::string                      &type_name,
         SystemRDLParser::Component_instContext *inst_ctx,
         ElaboratedNode                         *parent,
-        Address                                &current_address);
+        Address                                &current_address,
+        bool                                    is_external);
 
     void elaborate_named_array_instance(
         const std::string                      &type_name,
         SystemRDLParser::Component_instContext *inst_ctx,
         ElaboratedNode                         *parent,
-        Address                                &current_address);
+        Address                                &current_address,
+        bool                                    is_external);
+
+    // A memory is external hardware, so an instance of one carries the
+    // external keyword. is_external_inst_type reports whether the written
+    // instance type says so; check_mem_external reports the ones that do not.
+    static bool is_external_inst_type(SystemRDLParser::Component_inst_typeContext *inst_type);
+
+    void check_mem_external(
+        const std::string         &comp_type,
+        const std::string         &inst_name,
+        bool                       is_external,
+        antlr4::ParserRuleContext *ctx);
+
+    // 13.3-b: at least one register, register file, memory or address map has to
+    // be instantiated inside an address map.
+    void check_addrmap_contents(ElaboratedAddrmap *node);
 
     void elaborate_explicit_component_inst(
         SystemRDLParser::Explicit_component_instContext *explicit_inst,

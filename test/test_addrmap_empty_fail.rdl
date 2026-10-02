@@ -1,0 +1,19 @@
+// An address map with nothing instantiated in it.
+//
+// A component definition on its own instantiates nothing, so a body that holds
+// only definitions leaves the address map empty. 13.3-b requires at least one
+// register, register file, memory or address map inside an address map, which is
+// the same requirement an empty regfile has to meet (12.2-c).
+//
+// This used to elaborate to an empty model with exit status 0.
+// EXPECT_ELABORATION_FAILURE: 13.3-b
+addrmap test_addrmap_empty {
+    reg only_a_definition {
+        regwidth = 32;
+
+        field {
+            sw = rw;
+            hw = r;
+        } data[31:0];
+    };
+};

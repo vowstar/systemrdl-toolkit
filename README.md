@@ -21,9 +21,10 @@ alignment property of 12.3.2.
 Elaboration rejects a description that breaks a rule the standard states with
 "shall", naming the clause in the message. This includes register and access
 widths (10.1-f, 10.6.1), a register with no field (10.1-c), a register file with
-no register (12.2-c), a memory with no memwidth or a non-positive mementries
-(11.3.1-d, 11.3.1-a), field overlaps and bit ranges (10.1-d, 10.1-e), and mixing
-both bit ordering forms in one register (10.7.1-a).
+no register (12.2-c), an address map with nothing instantiated in it (13.3-b), a
+memory with no memwidth or a non-positive mementries (11.3.1-d, 11.3.1-a), a
+memory instantiated without `external`, field overlaps and bit ranges (10.1-d,
+10.1-e), and mixing both bit ordering forms in one register (10.7.1-a).
 
 One behaviour goes beyond the standard: the bits between fields become real
 fields carrying `reserved = true`, so that generators do not each have to derive

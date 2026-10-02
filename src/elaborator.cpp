@@ -224,11 +224,16 @@ std::unique_ptr<ElaboratedAddrmap> SystemRDLElaborator::elaborate(
                         elaborated->inst_name        = named_def->ID()->getText();
                         elaborated->type_name        = "addrmap";
                         elaborated->absolute_address = 0;
+                        elaborated->source_ctx       = named_def;
 
                         // Process addrmap content
                         if (auto body = named_def->component_body()) {
                             elaborate_component_body(body, elaborated.get());
                         }
+
+                        // The root does not go through the size pass, so its
+                        // contents are checked here instead.
+                        check_addrmap_contents(elaborated.get());
 
                         // Validate instance addresses after elaboration is complete
                         validate_instance_addresses(elaborated.get());
@@ -242,6 +247,41 @@ std::unique_ptr<ElaboratedAddrmap> SystemRDLElaborator::elaborate(
 
     report_error("No top-level addrmap found");
     return nullptr;
+}
+
+bool SystemRDLElaborator::is_external_inst_type(
+    SystemRDLParser::Component_inst_typeContext *inst_type)
+{
+    return inst_type != nullptr && inst_type->EXTERNAL_kw() != nullptr;
+}
+
+// A memory is external hardware, so it is instantiated as external. A mem
+// without the keyword elaborates to a component with no bus behind it, which is
+// not what the writer meant.
+void SystemRDLElaborator::check_mem_external(
+    const std::string         &comp_type,
+    const std::string         &inst_name,
+    bool                       is_external,
+    antlr4::ParserRuleContext *ctx)
+{
+    if (comp_type == "mem" && !is_external) {
+        report_error(
+            "Memory '" + inst_name
+                + "' is instantiated without 'external'; mem components shall be "
+                  "instantiated as external",
+            ctx);
+    }
+}
+
+void SystemRDLElaborator::check_addrmap_contents(ElaboratedAddrmap *node)
+{
+    if (node && node->children.empty()) {
+        report_error(
+            "Address map '" + node->inst_name
+                + "' instantiates no register, register file, memory or address map, which "
+                  "violates SystemRDL 2.0 clause 13.3-b",
+            node->source_ctx);
+    }
 }
 
 void SystemRDLElaborator::elaborate_component_body(
@@ -273,10 +313,12 @@ void SystemRDLElaborator::elaborate_component_definition(
 {
     if (auto anon_def = comp_def->component_anon_def()) {
         // Anonymous definition + instantiation
-        std::string comp_type = get_component_type(anon_def->component_type());
+        std::string comp_type   = get_component_type(anon_def->component_type());
+        const bool  is_external = is_external_inst_type(comp_def->component_inst_type());
 
         if (auto insts = comp_def->component_insts()) {
             for (auto inst : insts->component_inst()) {
+                check_mem_external(comp_type, inst->ID()->getText(), is_external, inst);
                 elaborate_component_instance(anon_def, inst, parent, current_address, comp_type);
             }
         }
@@ -606,9 +648,11 @@ void SystemRDLElaborator::calculate_node_size(ElaboratedNode *node, const Elabor
         if (kb_size_param.type == PropertyValue::INTEGER) {
             mem_node->set_property("kb_size", kb_size_param);
         }
+    } else if (auto addrmap_node = dynamic_cast<ElaboratedAddrmap *>(node)) {
+        check_addrmap_contents(addrmap_node);
+        addrmap_node->size = 4; // Default 4 bytes
     } else {
-        // For addrmap, simplified calculation: default size
-        node->size = 4; // Default 4 bytes
+        node->size = 4;
     }
 }
 
@@ -872,8 +916,9 @@ void SystemRDLElaborator::elaborate_explicit_component_inst(
     apply_parameter_assignments(comp_def.parameters, param_assignments);
 
     if (auto insts = explicit_inst->component_insts()) {
+        const bool is_external = is_external_inst_type(explicit_inst->component_inst_type());
         for (auto inst : insts->component_inst()) {
-            elaborate_named_component_instance(type_name, inst, parent, current_address);
+            elaborate_named_component_instance(type_name, inst, parent, current_address, is_external);
         }
     }
 
@@ -885,7 +930,8 @@ void SystemRDLElaborator::elaborate_named_component_instance(
     const std::string                      &type_name,
     SystemRDLParser::Component_instContext *inst_ctx,
     ElaboratedNode                         *parent,
-    Address                                &current_address)
+    Address                                &current_address,
+    bool                                    is_external)
 {
     // Find component definition
     auto it = component_definitions_.find(type_name);
@@ -897,10 +943,12 @@ void SystemRDLElaborator::elaborate_named_component_instance(
     const ComponentDefinition &comp_def  = it->second;
     std::string                inst_name = inst_ctx->ID()->getText();
 
+    check_mem_external(comp_def.type, inst_name, is_external, inst_ctx);
+
     // Check if it's an array
     auto array_suffixes = inst_ctx->array_suffix();
     if (!array_suffixes.empty()) {
-        elaborate_named_array_instance(type_name, inst_ctx, parent, current_address);
+        elaborate_named_array_instance(type_name, inst_ctx, parent, current_address, is_external);
     } else {
         // Single instance
         auto node = create_elaborated_node(comp_def.type);
@@ -945,7 +993,8 @@ void SystemRDLElaborator::elaborate_named_array_instance(
     const std::string                      &type_name,
     SystemRDLParser::Component_instContext *inst_ctx,
     ElaboratedNode                         *parent,
-    Address                                &current_address)
+    Address                                &current_address,
+    bool                                    is_external)
 {
     // Find component definition
     auto it = component_definitions_.find(type_name);
@@ -956,6 +1005,8 @@ void SystemRDLElaborator::elaborate_named_array_instance(
 
     const ComponentDefinition &comp_def  = it->second;
     std::string                base_name = inst_ctx->ID()->getText();
+
+    check_mem_external(comp_def.type, base_name, is_external, inst_ctx);
 
     // Parse array dimensions
     auto                array_suffixes = inst_ctx->array_suffix();
