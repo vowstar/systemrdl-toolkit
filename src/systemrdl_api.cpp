@@ -9,7 +9,6 @@
 #include <cstdlib>
 #include <ctime>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <map>
 #include <nlohmann/json.hpp>
@@ -396,12 +395,12 @@ struct CSVRow
     std::string reset_value;
     std::string sw_access;
     std::string hw_access;
-    std::string onread;  // New: onread behavior (rclr, rset, ruser)
-    std::string onwrite; // New: onwrite behavior (woclr, woset, wot, etc.)
+    std::string onread;  // onread behavior (rclr, rset, ruser)
+    std::string onwrite; // onwrite behavior (woclr, woset, wot, etc.)
     std::string description;
 };
 
-// CSV Parser class (full implementation from csv2rdl_main.cpp)
+// CSV parser for the RCSV input format
 class CSVParser
 {
 private:
@@ -591,7 +590,7 @@ private:
 
         // Then try fuzzy match with edit distance <= 3
         int best_match   = -1;
-        int min_distance = 4; // Maximum allowed distance
+        int min_distance = 4; // Exclusive upper bound on the accepted distance
 
         for (size_t i = 0; i < standards.size(); ++i) {
             int distance = levenshtein_distance(lower_header, standards[i]);
@@ -764,7 +763,7 @@ public:
     std::string validate_csv_structure(const std::vector<CSVRow> &rows)
     {
         if (rows.empty()) {
-            return "Error: CSV file is empty";
+            return "Error: CSV contains no data rows";
         }
 
         enum class ExpectedRowType { ADDRMAP, REG, FIELD };
@@ -886,7 +885,7 @@ public:
             if (csv_line.empty())
                 continue;
 
-            // Detect delimiter from first data line
+            // Detect this line's delimiter
             char                     delimiter = detect_delimiter(csv_line);
             std::vector<std::string> fields    = split_csv_line(csv_line, delimiter);
 
@@ -933,23 +932,13 @@ private:
             } else if (c == '\\') {
                 // Escape backslashes
                 result += "\\\\";
-            } else if (c == '\n') {
-                // SystemRDL supports multiline strings, preserve real newlines
-                result += c;
             } else if (c == '\r') {
                 // Skip carriage returns (just use \n for line endings)
-                // Don't add anything for \r
-            } else if (c == '\t') {
-                // Convert tabs to \t escape sequence
-                result += "\\t";
-            } else if (static_cast<unsigned char>(c) < 32 || static_cast<unsigned char>(c) >= 127) {
-                // Escape other control characters and non-ASCII characters as hex
-                std::ostringstream hex_escape;
-                hex_escape << "\\x" << std::hex << std::setw(2) << std::setfill('0')
-                           << static_cast<unsigned int>(static_cast<unsigned char>(c));
-                result += hex_escape.str();
             } else {
-                // Regular printable ASCII characters (including single quotes) are safe
+                // Everything else, tabs and non-ASCII bytes included, is legal
+                // inside a SystemRDL string: the grammar excludes only '"' and
+                // '\' and defines no \t or \xNN escape, so emitting one would
+                // produce a literal this parser cannot read back.
                 result += c;
             }
         }

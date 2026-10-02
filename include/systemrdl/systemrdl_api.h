@@ -19,7 +19,7 @@ struct Result
     std::string error_;
     bool        is_success;
 
-    // Private constructor - use static factory methods
+    // Prefer the factory methods below over calling this directly
     Result(std::string val, std::string err, bool success)
         : value_(std::move(val))
         , error_(std::move(err))
@@ -109,8 +109,11 @@ Result elaborate_simplified(std::string_view rdl_content);
  *
  * @example
  * ```cpp
- * std::string csv_content = "addrmap_name,reg_name,field_name,field_lsb,field_msb\n"
- *                           "DEMO,CTRL,ENABLE,0,0\n";
+ * std::string csv_content = "addrmap_offset,addrmap_name,reg_offset,reg_name,"
+ *                           "field_name,field_lsb,field_msb\n"
+ *                           "0x0,DEMO,,,,\n"
+ *                           ",,0x0,CTRL,,\n"
+ *                           ",,,,ENABLE,0,0\n";
  * auto result = systemrdl::csv_to_rdl(csv_content);
  * if (result.ok()) {
  *     std::cout << "SystemRDL: " << result.value() << std::endl;
