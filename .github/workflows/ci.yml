@@ -343,24 +343,21 @@ jobs:
         cmake -B build -DCMAKE_BUILD_TYPE=Release -DUSE_SYSTEM_ANTLR4=OFF
         cmake --build build --config Release --parallel 4
 
-    - name: Run comprehensive compatibility tests
+    # The Release build runs the same suite as the other job. Two script lists
+    # used to stand in for it here, and neither list covered the per-fixture
+    # tests, the spec conformance check or the failure-reason check.
+    - name: Run the test suite (Release)
       run: |
-        echo "Running SystemRDL compatibility comparison..."
-        python script/compare_implementations.py
-        echo "Testing AST output validation..."
-        python script/ast_output_validator.py --test --parser ./build/systemrdl_parser --elaborator ./build/systemrdl_elaborator --rdl test/test_minimal.rdl
-        echo "Testing JSON output validation..."
-        python script/json_output_validator.py --test --elaborator ./build/systemrdl_elaborator --rdl test/test_minimal.rdl
-        echo "Testing CSV2RDL converter validation..."
-        python script/csv2rdl_validator.py
+        cd build
+        ctest --output-on-failure
 
     - name: Generate test report
       run: |
         echo "## Test Results Summary" > test_report.md
-        echo "- Build: [OK] Success" >> test_report.md
-        echo "- SystemRDL Compatibility: [OK] Verified" >> test_report.md
-        echo "- JSON Output Validation: [OK] Passed" >> test_report.md
-        echo "- CSV2RDL Converter Validation: [OK] Passed" >> test_report.md
+        echo "- Build: Release configuration" >> test_report.md
+        echo "- Suite: ctest, every registered test passed" >> test_report.md
+        echo "- Covers: reference value comparison, CSV2RDL validation, spec conformance," >> test_report.md
+        echo "  failure reasons, template rendering, parser and elaborator fixtures" >> test_report.md
         echo "- Generated on: $(date)" >> test_report.md
         cat test_report.md
 
